@@ -5,6 +5,7 @@ import {
   walkRouter,
   emitSqlite,
   emitPostgres,
+  emitMysql,
   CodegenError,
 } from '../src/index.js';
 import { toSnakeCase } from '../src/codegen/walker.js';
@@ -549,6 +550,218 @@ describe('emitPostgres', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Walker — string maxLength passthrough (needed by mysql varchar)
+// ---------------------------------------------------------------------------
+
+describe('walkRouter — string maxLength', () => {
+  it('captures maxLength on string columns', () => {
+    const Pet = t.model('Pet', {
+      id: t.string().storage({ primaryKey: true }),
+      name: t.string().maxLength(64),
+      untyped: t.string(),
+    });
+    const ep = endpoint({
+      name: 'getPet',
+      method: 'GET',
+      path: '/pets/:id',
+      summary: 'x',
+      request: { params: { id: t.string() } },
+      responses: { 200: { schema: Pet, description: 'ok' } },
+      handler: async () =>
+        ({ status: 200, body: {} }) as never,
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ep);
+    const tables = walkRouter(router);
+    const cols = tables[0]?.columns ?? [];
+    expect(cols.find((c) => c.fieldName === 'name')?.maxLength).toBe(64);
+    expect(cols.find((c) => c.fieldName === 'untyped')?.maxLength).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// MySQL emitter
+// ---------------------------------------------------------------------------
+
+describe('emitMysql', () => {
+  function singleTableRouter() {
+    const Pet = t.model('Pet', {
+      id: t
+        .string()
+        .format('uuid')
+        .storage({ primaryKey: true, defaultRandom: true }),
+      name: t.string().minLength(1),
+      label: t.string().maxLength(64),
+      species: t.enum('dog', 'cat', 'bird', 'fish'),
+      age: t.int32().min(0),
+      visits: t.int64(),
+      temperature: t.float64(),
+      speed: t.float32(),
+      isFriendly: t.boolean(),
+      metadata: t.record(t.string(), t.unknown()).optional(),
+      tags: t.array(t.string()).optional(),
+      createdAt: t.datetime().storage({ defaultNow: true }),
+    });
+    const ep = endpoint({
+      name: 'getPet',
+      method: 'GET',
+      path: '/pets/:id',
+      summary: 'x',
+      request: { params: { id: t.string() } },
+      responses: { 200: { schema: Pet, description: 'ok' } },
+      handler: async () =>
+        ({ status: 200, body: {} }) as never,
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ep);
+    return router;
+  }
+
+  it('imports from drizzle-orm/mysql-core and uses mysqlTable', () => {
+    const source = emitMysql(walkRouter(singleTableRouter()));
+    expect(source).toContain(`from 'drizzle-orm/mysql-core'`);
+    expect(source).toContain('mysqlTable');
+    expect(source).toContain(`export const pets = mysqlTable('pets', {`);
+  });
+
+  it('emits varchar({ length: 36 }) for uuid fields', () => {
+    const source = emitMysql(walkRouter(singleTableRouter()));
+    expect(source).toContain(
+      `id: varchar('id', { length: 36 }).notNull().primaryKey().$defaultFn(() => crypto.randomUUID())`,
+    );
+  });
+
+  it('emits varchar with a 255 default length for plain strings', () => {
+    const source = emitMysql(walkRouter(singleTableRouter()));
+    expect(source).toContain(`name: varchar('name', { length: 255 }).notNull()`);
+  });
+
+  it('honours .maxLength(n) on string fields', () => {
+    const source = emitMysql(walkRouter(singleTableRouter()));
+    expect(source).toContain(`label: varchar('label', { length: 64 }).notNull()`);
+  });
+
+  it('emits datetime({ fsp: 3 }) for datetime fields', () => {
+    const source = emitMysql(walkRouter(singleTableRouter()));
+    expect(source).toContain(
+      `createdAt: datetime('created_at', { fsp: 3 }).notNull().$defaultFn(() => new Date().toISOString())`,
+    );
+  });
+
+  it('emits int() for int32 and bigint({ mode: "number" }) for int64', () => {
+    const source = emitMysql(walkRouter(singleTableRouter()));
+    expect(source).toContain(`age: int('age').notNull()`);
+    expect(source).toContain(
+      `visits: bigint('visits', { mode: 'number' }).notNull()`,
+    );
+  });
+
+  it('emits float() and double() for float32 and float64', () => {
+    const source = emitMysql(walkRouter(singleTableRouter()));
+    expect(source).toContain(`speed: float('speed').notNull()`);
+    expect(source).toContain(`temperature: double('temperature').notNull()`);
+  });
+
+  it('emits boolean() for boolean columns', () => {
+    const source = emitMysql(walkRouter(singleTableRouter()));
+    expect(source).toContain(`isFriendly: boolean('is_friendly').notNull()`);
+  });
+
+  it('emits json() for arrays, records, tuples, and unions', () => {
+    const source = emitMysql(walkRouter(singleTableRouter()));
+    expect(source).toContain(`tags: json('tags'),`);
+    expect(source).toContain(`metadata: json('metadata'),`);
+  });
+
+  it('emits mysqlEnum() with an as-const tuple for enum columns', () => {
+    const source = emitMysql(walkRouter(singleTableRouter()));
+    expect(source).toContain(
+      `species: mysqlEnum('species', ['dog', 'cat', 'bird', 'fish'] as const).notNull()`,
+    );
+  });
+
+  it('imports every helper it uses, sorted alphabetically after mysqlTable', () => {
+    const source = emitMysql(walkRouter(singleTableRouter()));
+    expect(source).toContain(
+      `import { mysqlTable, bigint, boolean, datetime, double, float, int, json, mysqlEnum, varchar } from 'drizzle-orm/mysql-core';`,
+    );
+  });
+
+  it('emits references() for foreign keys using varchar uuid columns', () => {
+    const Pet = t.model('Pet', {
+      id: t.string().format('uuid').storage({ primaryKey: true }),
+    });
+    const Adoption = t.model('Adoption', {
+      id: t.string().format('uuid').storage({ primaryKey: true }),
+      petId: t
+        .string()
+        .format('uuid')
+        .storage({ references: 'pets.id' }),
+    });
+    const ep1 = endpoint({
+      name: 'getPet',
+      method: 'GET',
+      path: '/pets/:id',
+      summary: 'x',
+      request: { params: { id: t.string() } },
+      responses: { 200: { schema: Pet, description: 'ok' } },
+      handler: async () =>
+        ({ status: 200, body: {} }) as never,
+    });
+    const ep2 = endpoint({
+      name: 'getAdoption',
+      method: 'GET',
+      path: '/adoptions/:id',
+      summary: 'x',
+      request: { params: { id: t.string() } },
+      responses: { 200: { schema: Adoption, description: 'ok' } },
+      handler: async () =>
+        ({ status: 200, body: {} }) as never,
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ep1, ep2);
+    const source = emitMysql(walkRouter(router));
+    expect(source).toContain(
+      `petId: varchar('pet_id', { length: 36 }).references(() => pets.id).notNull()`,
+    );
+  });
+
+  it('marks the dialect in the generated header', () => {
+    const source = emitMysql(walkRouter(singleTableRouter()));
+    expect(source).toContain('Dialect: mysql');
+  });
+
+  it('marks optional fields as nullable', () => {
+    const source = emitMysql(walkRouter(singleTableRouter()));
+    // tags is optional → no notNull
+    expect(source).toMatch(/tags: json\('tags'\),/);
+  });
+
+  it('emits literal .default() for Triad defaults', () => {
+    const Pet = t.model('Pet', {
+      id: t.string().storage({ primaryKey: true }),
+      status: t
+        .enum('available', 'adopted', 'pending')
+        .default('available'),
+    });
+    const ep = endpoint({
+      name: 'getPet',
+      method: 'GET',
+      path: '/pets/:id',
+      summary: 'x',
+      request: { params: { id: t.string() } },
+      responses: { 200: { schema: Pet, description: 'ok' } },
+      handler: async () =>
+        ({ status: 200, body: {} }) as never,
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ep);
+    const source = emitMysql(walkRouter(router));
+    expect(source).toContain(`.default('available')`);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // generateDrizzleSchema — integration
 // ---------------------------------------------------------------------------
 
@@ -569,14 +782,37 @@ describe('generateDrizzleSchema', () => {
     });
     const router = createRouter({ title: 'x', version: '1' });
     router.add(ep);
-    // MySQL is not yet supported. Passing it should throw with a
-    // helpful message pointing at the available dialects.
+    // An unknown dialect should throw with a helpful message pointing
+    // at the available dialects.
     expect(() =>
       generateDrizzleSchema(router, {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        dialect: 'mysql' as any,
+        dialect: 'oracle' as any,
       }),
     ).toThrow(CodegenError);
+  });
+
+  it('generates mysql output when dialect is mysql', () => {
+    const Pet = t.model('Pet', {
+      id: t.string().format('uuid').storage({ primaryKey: true }),
+      name: t.string(),
+    });
+    const ep = endpoint({
+      name: 'getPet',
+      method: 'GET',
+      path: '/pets/:id',
+      summary: 'x',
+      request: { params: { id: t.string() } },
+      responses: { 200: { schema: Pet, description: 'ok' } },
+      handler: async () =>
+        ({ status: 200, body: {} }) as never,
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ep);
+    const mysql = generateDrizzleSchema(router, { dialect: 'mysql' });
+    expect(mysql.source).toContain('mysqlTable');
+    expect(mysql.source).toContain(`id: varchar('id', { length: 36 })`);
+    expect(mysql.source).toContain(`from 'drizzle-orm/mysql-core'`);
   });
 
   it('generates both sqlite and postgres output from the same router', () => {

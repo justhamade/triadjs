@@ -198,6 +198,7 @@ function fieldToColumn(
 
   if (typeInfo.enumValues !== undefined) column.enumValues = typeInfo.enumValues;
   if (typeInfo.comment !== undefined) column.comment = typeInfo.comment;
+  if (typeInfo.maxLength !== undefined) column.maxLength = typeInfo.maxLength;
 
   if (storage.references !== undefined) {
     column.references = storage.references;
@@ -227,6 +228,7 @@ interface TypeInfo {
   logicalType: LogicalColumnType;
   enumValues?: readonly string[];
   comment?: string;
+  maxLength?: number;
 }
 
 /**
@@ -241,12 +243,19 @@ function inferLogicalType(schema: SchemaNode): TypeInfo {
   const { kind } = schema;
   switch (kind) {
     case 'string': {
-      const format = (schema as unknown as { constraints?: { format?: string } })
-        .constraints?.format;
-      if (format === 'uuid') {
+      const constraints = (
+        schema as unknown as {
+          constraints?: { format?: string; maxLength?: number };
+        }
+      ).constraints;
+      if (constraints?.format === 'uuid') {
         return { logicalType: 'uuid' };
       }
-      return { logicalType: 'string' };
+      const info: TypeInfo = { logicalType: 'string' };
+      if (typeof constraints?.maxLength === 'number') {
+        info.maxLength = constraints.maxLength;
+      }
+      return info;
     }
     case 'datetime':
       return { logicalType: 'datetime', comment: 'ISO 8601 date-time string' };
@@ -330,6 +339,7 @@ function expandValueObject(
       column.enumValues = typeInfo.enumValues;
     }
     if (typeInfo.comment !== undefined) column.comment = typeInfo.comment;
+    if (typeInfo.maxLength !== undefined) column.maxLength = typeInfo.maxLength;
     columns.push(column);
   }
   return columns;

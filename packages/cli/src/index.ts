@@ -78,7 +78,7 @@ export function createProgram(): Command {
     .option('-o, --output <path>', 'output file path')
     .option(
       '-d, --dialect <dialect>',
-      'database dialect: sqlite or postgres',
+      'database dialect: sqlite, postgres, or mysql',
       'sqlite',
     )
     .action(async (cmdOpts) => {

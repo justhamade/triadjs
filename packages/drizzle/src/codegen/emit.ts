@@ -156,12 +156,101 @@ const POSTGRES: DialectProfile = {
   },
 };
 
+/**
+ * MySQL mapping decisions (documented here for future maintainers):
+ *
+ *   - `string` → `varchar`. MySQL has no unbounded string type that's
+ *     indexable with default settings, and `text` can't be part of a
+ *     primary key without a prefix length. `varchar` with an explicit
+ *     length is the safe default. When the author specified
+ *     `.maxLength(n)` we honour it; otherwise we use 255, a common
+ *     upper bound that fits within MySQL's default row-size budget
+ *     even for multi-byte charsets.
+ *   - `uuid` → `varchar({ length: 36 })`. MySQL has no native UUID
+ *     column; 36 characters is the canonical hyphenated form.
+ *   - `datetime` → `datetime('col', { fsp: 3 })`. Triad datetimes are
+ *     ISO-8601 strings that may include fractional seconds, so we
+ *     choose `datetime` over `timestamp`: `timestamp` is limited to
+ *     2038 and performs implicit timezone conversions, whereas
+ *     `datetime` stores the wall-clock value verbatim. `fsp: 3` keeps
+ *     millisecond precision, matching the JS `Date().toISOString()`
+ *     shape used elsewhere in Triad codegen.
+ *   - `bigint` → `bigint('col', { mode: 'number' })`. Triad's int64
+ *     has a TypeScript output type of `number` (not `bigint`), so we
+ *     ask Drizzle to return JS numbers. Values outside
+ *     `Number.MAX_SAFE_INTEGER` could lose precision; projects that
+ *     need full 64-bit fidelity should set `mode: 'bigint'` manually
+ *     after regeneration.
+ *   - `enum` → `mysqlEnum('col', [...values] as const)`. MySQL has a
+ *     real ENUM type and Drizzle exposes it; we use it instead of
+ *     emulating with a text-plus-constraint like Postgres.
+ *   - `json` → `json`. Available in MySQL 5.7+ which is the floor we
+ *     target.
+ */
+const MYSQL: DialectProfile = {
+  dialect: 'mysql',
+  importModule: 'drizzle-orm/mysql-core',
+  tableHelper: 'mysqlTable',
+  columnHelper: (column) => {
+    switch (column.logicalType) {
+      case 'string':
+      case 'uuid':
+        return 'varchar';
+      case 'datetime':
+        return 'datetime';
+      case 'enum':
+        return 'mysqlEnum';
+      case 'integer':
+        return 'int';
+      case 'bigint':
+        return 'bigint';
+      case 'float':
+        return 'float';
+      case 'double':
+        return 'double';
+      case 'boolean':
+        return 'boolean';
+      case 'json':
+        return 'json';
+    }
+  },
+  columnOptions: (column) => {
+    if (column.logicalType === 'uuid') {
+      return '{ length: 36 }';
+    }
+    if (column.logicalType === 'string') {
+      // Honour an explicit .maxLength(n); otherwise default to 255.
+      const length = column.maxLength ?? 255;
+      return `{ length: ${length} }`;
+    }
+    if (column.logicalType === 'datetime') {
+      // fsp: 3 keeps millisecond precision to match ISO-8601 strings.
+      return '{ fsp: 3 }';
+    }
+    if (column.logicalType === 'bigint') {
+      // Return JS numbers rather than BigInts — matches Triad's int64,
+      // whose TypeScript output type is `number`.
+      return "{ mode: 'number' }";
+    }
+    if (column.logicalType === 'enum' && column.enumValues) {
+      // mysqlEnum takes a tuple as its second positional argument, not
+      // an options object. Emitting `as const` preserves the literal
+      // type so Drizzle's output type is a narrow union.
+      const values = column.enumValues.map((v) => `'${v}'`).join(', ');
+      return `[${values}] as const`;
+    }
+    return undefined;
+  },
+};
+
 function profileFor(dialect: Dialect): DialectProfile {
   switch (dialect) {
     case 'sqlite':
       return SQLITE;
     case 'postgres':
       return POSTGRES;
+    case 'mysql':
+      return MYSQL;
   }
 }
 
@@ -181,6 +270,13 @@ export function emitPostgres(
   options: EmitOptions = {},
 ): string {
   return emitWithDialect(POSTGRES, tables, options);
+}
+
+export function emitMysql(
+  tables: readonly TableDescriptor[],
+  options: EmitOptions = {},
+): string {
+  return emitWithDialect(MYSQL, tables, options);
 }
 
 export function emitForDialect(

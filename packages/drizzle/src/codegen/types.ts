@@ -39,6 +39,12 @@ export interface ColumnDescriptor {
   logicalType: LogicalColumnType;
   /** Enum values, when `logicalType === 'enum'`. */
   enumValues?: readonly string[];
+  /**
+   * Explicit `.maxLength(n)` set on a string schema. Dialects that
+   * require a size hint (e.g. MySQL's `varchar`) use this to avoid
+   * hard-coding a default length when the author was specific.
+   */
+  maxLength?: number;
   /** True when the column is a primary key. */
   primaryKey: boolean;
   /** True when the column is NOT NULL. */
@@ -69,7 +75,7 @@ export interface TableDescriptor {
   columns: ColumnDescriptor[];
 }
 
-export type Dialect = 'sqlite' | 'postgres';
+export type Dialect = 'sqlite' | 'postgres' | 'mysql';
 
 export interface GenerateOptions {
   /** Database dialect. Defaults to `'sqlite'`. */

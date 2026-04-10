@@ -151,6 +151,7 @@ export {
   walkRouter,
   emitSqlite,
   emitPostgres,
+  emitMysql,
   emitForDialect,
   CodegenError,
 } from './codegen/index.js';

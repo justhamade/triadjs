@@ -29,6 +29,7 @@ const DEFAULT_OUTPUT = './src/db/schema.generated.ts';
 const SUPPORTED_DIALECTS: ReadonlySet<DbDialect> = new Set<DbDialect>([
   'sqlite',
   'postgres',
+  'mysql',
 ]);
 
 export async function runDbGenerate(opts: DbGenerateOptions): Promise<void> {
@@ -38,7 +39,7 @@ export async function runDbGenerate(opts: DbGenerateOptions): Promise<void> {
 
   if (!SUPPORTED_DIALECTS.has(dialect)) {
     throw new CliError(
-      `Dialect "${dialect}" is not yet supported. Available dialects: ${[...SUPPORTED_DIALECTS].join(', ')}. MySQL is queued as a follow-up.`,
+      `Dialect "${dialect}" is not yet supported. Available dialects: ${[...SUPPORTED_DIALECTS].join(', ')}.`,
       'VALIDATION_FAILED',
     );
   }
@@ -49,7 +50,7 @@ export async function runDbGenerate(opts: DbGenerateOptions): Promise<void> {
   let result;
   try {
     result = generateDrizzleSchema(router, {
-      dialect: dialect as 'sqlite' | 'postgres',
+      dialect,
       sourceDescription: path.relative(loaded.configDir, loaded.configPath),
     });
   } catch (err) {

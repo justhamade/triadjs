@@ -17,12 +17,13 @@ import { walkRouter, CodegenError } from './walker.js';
 import {
   emitSqlite,
   emitPostgres,
+  emitMysql,
   emitForDialect,
   type EmitOptions,
 } from './emit.js';
 import type { GenerateOptions, GeneratedFile } from './types.js';
 
-const SUPPORTED_DIALECTS = new Set(['sqlite', 'postgres']);
+const SUPPORTED_DIALECTS = new Set(['sqlite', 'postgres', 'mysql']);
 
 /**
  * Generate a complete Drizzle schema file from a Triad router.
@@ -40,8 +41,7 @@ export function generateDrizzleSchema(
   if (!SUPPORTED_DIALECTS.has(dialect)) {
     throw new CodegenError(
       `Dialect "${dialect}" is not supported. Available dialects: ` +
-        `${[...SUPPORTED_DIALECTS].join(', ')}. MySQL is queued as a ` +
-        `follow-up.`,
+        `${[...SUPPORTED_DIALECTS].join(', ')}.`,
     );
   }
 
@@ -63,6 +63,7 @@ export {
   walkRouter,
   emitSqlite,
   emitPostgres,
+  emitMysql,
   emitForDialect,
   CodegenError,
 };
