@@ -1,20 +1,24 @@
 /**
  * Router → Gherkin `.feature` files.
  *
- * Grouping strategy (in order of precedence):
+ * Grouping strategy (in order of precedence) — identical for HTTP
+ * endpoints and WebSocket channels:
  *
- *   1. If an endpoint is registered inside a bounded context, it goes under
- *      a feature named after that context. The context description becomes
- *      the `Feature:` description paragraph.
- *   2. Otherwise, the endpoint's first declared tag becomes the feature
+ *   1. If the route is registered inside a bounded context, it goes
+ *      under a feature named after that context. The context
+ *      description becomes the `Feature:` description paragraph.
+ *   2. Otherwise, the route's first declared tag becomes the feature
  *      name.
- *   3. Endpoints with neither a context nor tags go into an `Other` feature.
+ *   3. Routes with neither a context nor tags go into an `Other`
+ *      feature.
  *
- * Endpoints with no behaviors are skipped — there is nothing to write.
- * Features that end up with zero scenarios are not emitted.
+ * Within a feature, HTTP endpoint scenarios are emitted before channel
+ * scenarios, each in router-declaration order. Routes with no
+ * behaviors are skipped — there is nothing to write. Features that
+ * end up with zero scenarios are not emitted.
  */
 
-import type { Router, Endpoint, Behavior } from '@triad/core';
+import type { Router, Endpoint, Channel, Behavior } from '@triad/core';
 import { formatScenario } from './formatter.js';
 
 // ---------------------------------------------------------------------------
@@ -53,14 +57,13 @@ export function generateGherkin(router: Router): FeatureFile[] {
     );
   }
 
-  for (const endpoint of router.allEndpoints()) {
-    if (endpoint.behaviors.length === 0) continue;
+  const placeEndpoint = (endpoint: Endpoint): void => {
+    if (endpoint.behaviors.length === 0) return;
 
     const context = router.contextOf(endpoint);
     if (context) {
-      const feature = contextFeatures.get(context.name)!;
-      feature.add(endpoint);
-      continue;
+      contextFeatures.get(context.name)!.addEndpoint(endpoint);
+      return;
     }
 
     const firstTag = endpoint.tags[0];
@@ -68,12 +71,43 @@ export function generateGherkin(router: Router): FeatureFile[] {
       if (!tagFeatures.has(firstTag)) {
         tagFeatures.set(firstTag, new FeatureBuilder(firstTag));
       }
-      tagFeatures.get(firstTag)!.add(endpoint);
-      continue;
+      tagFeatures.get(firstTag)!.addEndpoint(endpoint);
+      return;
     }
 
     otherFeature ??= new FeatureBuilder('Other');
-    otherFeature.add(endpoint);
+    otherFeature.addEndpoint(endpoint);
+  };
+
+  const placeChannel = (channel: Channel): void => {
+    if (channel.behaviors.length === 0) return;
+
+    const context = router.contextOf(channel);
+    if (context) {
+      contextFeatures.get(context.name)!.addChannel(channel);
+      return;
+    }
+
+    const firstTag = channel.tags[0];
+    if (firstTag !== undefined) {
+      if (!tagFeatures.has(firstTag)) {
+        tagFeatures.set(firstTag, new FeatureBuilder(firstTag));
+      }
+      tagFeatures.get(firstTag)!.addChannel(channel);
+      return;
+    }
+
+    otherFeature ??= new FeatureBuilder('Other');
+    otherFeature.addChannel(channel);
+  };
+
+  // HTTP endpoints first so that within any feature they render before
+  // channel scenarios — stable, documented ordering.
+  for (const endpoint of router.allEndpoints()) {
+    placeEndpoint(endpoint);
+  }
+  for (const channel of router.allChannels()) {
+    placeChannel(channel);
   }
 
   const files: FeatureFile[] = [];
@@ -102,21 +136,33 @@ export function generateGherkin(router: Router): FeatureFile[] {
 // ---------------------------------------------------------------------------
 
 class FeatureBuilder {
-  private readonly scenarios: Behavior[] = [];
+  // HTTP endpoint behaviors and channel behaviors are tracked
+  // separately so we can emit all endpoint scenarios before any
+  // channel scenarios when building the final file.
+  private readonly endpointScenarios: Behavior[] = [];
+  private readonly channelScenarios: Behavior[] = [];
 
   constructor(
     readonly name: string,
     readonly description?: string,
   ) {}
 
-  add(endpoint: Endpoint): void {
+  addEndpoint(endpoint: Endpoint): void {
     for (const behavior of endpoint.behaviors) {
-      this.scenarios.push(behavior);
+      this.endpointScenarios.push(behavior);
+    }
+  }
+
+  addChannel(channel: Channel): void {
+    for (const behavior of channel.behaviors) {
+      this.channelScenarios.push(behavior);
     }
   }
 
   hasScenarios(): boolean {
-    return this.scenarios.length > 0;
+    return (
+      this.endpointScenarios.length > 0 || this.channelScenarios.length > 0
+    );
   }
 
   build(): FeatureFile {
@@ -131,7 +177,11 @@ class FeatureBuilder {
       }
     }
 
-    for (const behavior of this.scenarios) {
+    for (const behavior of this.endpointScenarios) {
+      lines.push('');
+      lines.push(...formatScenario(behavior));
+    }
+    for (const behavior of this.channelScenarios) {
       lines.push('');
       lines.push(...formatScenario(behavior));
     }

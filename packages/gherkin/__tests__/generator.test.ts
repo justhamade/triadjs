@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { createRouter, endpoint, scenario, t } from '@triad/core';
+import { channel, createRouter, endpoint, scenario, t } from '@triad/core';
 import { generateGherkin, toKebabCase } from '../src/generator.js';
 import { writeGherkinFiles } from '../src/writer.js';
 
@@ -340,5 +340,203 @@ describe('writeGherkinFiles', () => {
     } finally {
       fs.rmSync(parent, { recursive: true, force: true });
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// generateGherkin — channels
+// ---------------------------------------------------------------------------
+
+const ChatMessagePayload = t.model('ChatMessagePayload', {
+  text: t.string().minLength(1),
+});
+
+const ChatMessage = t.model('ChatMessage', {
+  id: t.string(),
+  text: t.string(),
+});
+
+function makeChatChannel(): ReturnType<typeof channel> {
+  return channel({
+    name: 'chatRoom',
+    path: '/ws/rooms/:roomId',
+    summary: 'Real-time chat room',
+    tags: ['Chat'],
+    connection: {
+      params: { roomId: t.string().format('uuid') },
+    },
+    clientMessages: {
+      sendMessage: {
+        schema: ChatMessagePayload,
+        description: 'Send a message',
+      },
+    },
+    serverMessages: {
+      message: { schema: ChatMessage, description: 'New message' },
+    },
+    handlers: {
+      sendMessage: async () => {},
+    },
+    behaviors: [
+      scenario('Users can post messages to a room they have joined')
+        .given('alice is connected to the chat room')
+        .body({ text: 'Hello everyone' })
+        .when('alice sends sendMessage')
+        .then('alice receives a message event')
+        .and('alice receives a message with text "Hello everyone"'),
+
+      scenario('Typing does not echo back to the sender')
+        .given('alice and bob are connected')
+        .when('alice sends typing')
+        .then('bob receives a typing event')
+        .and('alice does not receive a typing event'),
+    ],
+  });
+}
+
+describe('generateGherkin — channels', () => {
+  it('emits a scenario per channel behavior as part of the feature file', () => {
+    const chat = makeChatChannel();
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(chat);
+    const files = generateGherkin(router);
+    expect(files).toHaveLength(1);
+    expect(files[0]?.name).toBe('Chat');
+    expect(files[0]?.filename).toBe('chat.feature');
+
+    const content = files[0]?.content ?? '';
+    expect(content).toContain('Feature: Chat');
+    expect(content).toContain(
+      'Scenario: Users can post messages to a room they have joined',
+    );
+    expect(content).toContain('Given alice is connected to the chat room');
+    expect(content).toContain('When alice sends sendMessage');
+    expect(content).toContain('Then alice receives a message event');
+    expect(content).toContain(
+      'And alice receives a message with text "Hello everyone"',
+    );
+    expect(content).toContain('And alice does not receive a typing event');
+  });
+
+  it('groups channels under their bounded context', () => {
+    const chat = makeChatChannel();
+    const router = createRouter({ title: 'x', version: '1' });
+    router.context(
+      'Messaging',
+      { description: 'Real-time chat' },
+      (ctx) => ctx.add(chat),
+    );
+    const files = generateGherkin(router);
+    expect(files).toHaveLength(1);
+    expect(files[0]?.name).toBe('Messaging');
+    expect(files[0]?.content).toContain('Feature: Messaging');
+    expect(files[0]?.content).toContain('Real-time chat');
+    expect(files[0]?.content).toContain(
+      'Scenario: Users can post messages to a room they have joined',
+    );
+  });
+
+  it('places untagged channels in the Other feature', () => {
+    const untagged = channel({
+      name: 'ping',
+      path: '/ws/ping',
+      summary: 'Ping',
+      clientMessages: {
+        ping: { schema: t.model('PingPayload', {}), description: 'ping' },
+      },
+      serverMessages: {
+        pong: { schema: t.model('PongPayload', {}), description: 'pong' },
+      },
+      handlers: { ping: async () => {} },
+      behaviors: [
+        scenario('Ping responds with pong')
+          .given('a connected client')
+          .when('client sends ping')
+          .then('client receives a pong event'),
+      ],
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(untagged);
+    const files = generateGherkin(router);
+    expect(files).toHaveLength(1);
+    expect(files[0]?.name).toBe('Other');
+    expect(files[0]?.content).toContain('Scenario: Ping responds with pong');
+  });
+
+  it('skips channels that have no behaviors', () => {
+    const silent = channel({
+      name: 'silent',
+      path: '/ws/silent',
+      summary: 'Silent',
+      tags: ['Silent'],
+      clientMessages: {
+        noop: { schema: t.model('NoopPayload', {}), description: 'noop' },
+      },
+      serverMessages: {
+        ack: { schema: t.model('AckPayload', {}), description: 'ack' },
+      },
+      handlers: { noop: async () => {} },
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(silent);
+    expect(generateGherkin(router)).toHaveLength(0);
+  });
+
+  it('mixes HTTP endpoints and channels in one feature when they share a context, endpoints first', () => {
+    const chat = makeChatChannel();
+    const router = createRouter({ title: 'x', version: '1' });
+    router.context('Chat', {}, (ctx) => {
+      ctx.add(createPet, chat);
+    });
+    const files = generateGherkin(router);
+    expect(files).toHaveLength(1);
+    const content = files[0]?.content ?? '';
+
+    const petsIdx = content.indexOf(
+      'Scenario: Pets can be created with valid data',
+    );
+    const chatIdx = content.indexOf(
+      'Scenario: Users can post messages to a room they have joined',
+    );
+    expect(petsIdx).toBeGreaterThan(-1);
+    expect(chatIdx).toBeGreaterThan(-1);
+    expect(petsIdx).toBeLessThan(chatIdx);
+  });
+
+  it('produces a separate feature file per tag for HTTP + channels with different tags', () => {
+    const chat = makeChatChannel();
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(createPet, chat);
+    const files = generateGherkin(router);
+    expect(files.map((f) => f.name).sort()).toEqual(['Chat', 'Pets']);
+  });
+
+  it('orders contexts in declaration order, tags alphabetically, Other last — with channels mixed in', () => {
+    const chat = makeChatChannel(); // tag: Chat
+    const untagged = channel({
+      name: 'ping',
+      path: '/ws/ping',
+      summary: 'Ping',
+      clientMessages: {
+        ping: { schema: t.model('PingPayload2', {}), description: 'ping' },
+      },
+      serverMessages: {
+        pong: { schema: t.model('PongPayload2', {}), description: 'pong' },
+      },
+      handlers: { ping: async () => {} },
+      behaviors: [
+        scenario('Ping ok')
+          .given('x')
+          .when('client sends ping')
+          .then('client receives a pong event'),
+      ],
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.context('ZebraContext', {}, (ctx) => ctx.add(createPet));
+    router.add(chat); // tag: Chat
+    router.add(getPet); // tag: Pets
+    router.add(untagged); // no tag → Other
+    const names = generateGherkin(router).map((f) => f.name);
+    expect(names).toEqual(['ZebraContext', 'Chat', 'Pets', 'Other']);
   });
 });

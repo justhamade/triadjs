@@ -29,7 +29,7 @@ export async function runGherkin(opts: GherkinOptions): Promise<void> {
 
   if (files.length === 0) {
     process.stdout.write(
-      `${pc.yellow('!')} No features generated — the router has no endpoints with behaviors.\n`,
+      `${pc.yellow('!')} No features generated — the router has no endpoints or channels with behaviors.\n`,
     );
     return;
   }
