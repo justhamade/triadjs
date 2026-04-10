@@ -145,15 +145,19 @@ describe('example petstore — triad docs', () => {
 });
 
 describe('example petstore — triad gherkin', () => {
-  it('writes a .feature file per bounded context', async () => {
+  it('writes a .feature file per bounded context, including channels', async () => {
     const { output } = await withCapturedStdout(() =>
       runGherkin({ config: CONFIG }),
     );
-    expect(output).toContain('Wrote 2 feature file(s)');
+    expect(output).toContain('Wrote 3 feature file(s)');
 
     const dir = path.join(GENERATED, 'features');
     const files = fs.readdirSync(dir).sort();
-    expect(files).toEqual(['adoption.feature', 'pets.feature']);
+    expect(files).toEqual([
+      'adoption.feature',
+      'chat.feature',
+      'pets.feature',
+    ]);
 
     const petsFeature = fs.readFileSync(path.join(dir, 'pets.feature'), 'utf8');
     expect(petsFeature).toContain('Feature: Pets');
@@ -168,6 +172,18 @@ describe('example petstore — triad gherkin', () => {
     );
     expect(adoptionFeature).toContain('Feature: Adoption');
     expect(adoptionFeature).toContain('Scenario: Available pets can be adopted');
+
+    // Channel behaviors flow through the same feature file grouping.
+    const chatFeature = fs.readFileSync(path.join(dir, 'chat.feature'), 'utf8');
+    expect(chatFeature).toContain('Feature: Chat');
+    expect(chatFeature).toContain(
+      'Real-time chat rooms backed by WebSocket channels.',
+    );
+    expect(chatFeature).toContain(
+      'Scenario: Users can post messages to a room they have joined',
+    );
+    expect(chatFeature).toContain('When client sends sendMessage');
+    expect(chatFeature).toContain('Then client receives a message event');
   });
 });
 
@@ -338,6 +354,52 @@ describe('example petstore — triad db generate', () => {
       expect(source).toContain('Dialect: postgres');
     } finally {
       if (fs.existsSync(pgPath)) fs.rmSync(pgPath, { force: true });
+    }
+  });
+
+  it('emits a MySQL schema with mysql-core native types', async () => {
+    const myPath = path.join(EXAMPLE_DIR, 'src', 'db', 'schema.my.ts');
+    try {
+      await withCapturedStdout(() =>
+        runDbGenerate({
+          config: CONFIG,
+          output: './src/db/schema.my.ts',
+          dialect: 'mysql',
+        }),
+      );
+      expect(fs.existsSync(myPath)).toBe(true);
+      const source = fs.readFileSync(myPath, 'utf8');
+
+      // MySQL imports
+      expect(source).toContain(`from 'drizzle-orm/mysql-core'`);
+      expect(source).toContain('mysqlTable');
+
+      // Native MySQL column types
+      expect(source).toContain(`varchar('id', { length: 36 })`);
+      expect(source).toContain(`datetime('created_at', { fsp: 3 })`);
+      expect(source).toContain(`datetime('requested_at', { fsp: 3 })`);
+
+      // Each table uses mysqlTable
+      expect(source).toContain(`export const pets = mysqlTable('pets'`);
+      expect(source).toContain(`export const adopters = mysqlTable('adopters'`);
+      expect(source).toContain(
+        `export const adoptions = mysqlTable('adoptions'`,
+      );
+
+      // Foreign keys reference varchar uuid columns
+      expect(source).toContain(
+        `petId: varchar('pet_id', { length: 36 }).references(() => pets.id).notNull()`,
+      );
+
+      // Enum columns use the native mysqlEnum helper
+      expect(source).toContain(
+        `species: mysqlEnum('species', ['dog', 'cat', 'bird', 'fish'] as const).notNull()`,
+      );
+
+      // Header marks the dialect
+      expect(source).toContain('Dialect: mysql');
+    } finally {
+      if (fs.existsSync(myPath)) fs.rmSync(myPath, { force: true });
     }
   });
 });

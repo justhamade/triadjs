@@ -138,6 +138,85 @@ describe('runGherkin', () => {
     expect(cap.stdout).toContain('Wrote');
     expect(cap.stdout).toContain('pets.feature');
   });
+
+  it('emits channel behaviors as scenarios alongside endpoint behaviors', async () => {
+    // A tiny router with one HTTP endpoint and one WebSocket channel,
+    // both in the same bounded context, verifies that `runGherkin`
+    // passes channel behaviors through the same pipeline as endpoint
+    // behaviors and that the bounded-context grouping applies to both.
+    const channelRouterPath = path.join(FIXTURE_DIR, 'src/channel-app.ts');
+    fs.writeFileSync(
+      channelRouterPath,
+      `import { createRouter, endpoint, channel, scenario, t } from '@triad/core';\n` +
+        `const Msg = t.model('Msg', { text: t.string() });\n` +
+        `const Ping = t.model('Ping', { ok: t.boolean() });\n` +
+        `const ep = endpoint({\n` +
+        `  name: 'ping', method: 'GET', path: '/ping', summary: 'ping',\n` +
+        `  responses: { 200: { schema: Ping, description: 'ok' } },\n` +
+        `  handler: async (ctx) => ctx.respond[200]({ ok: true }),\n` +
+        `  behaviors: [\n` +
+        `    scenario('Ping returns ok')\n` +
+        `      .given('the service is up')\n` +
+        `      .when('I GET /ping')\n` +
+        `      .then('response status is 200'),\n` +
+        `  ],\n` +
+        `});\n` +
+        `const chat = channel({\n` +
+        `  name: 'chatRoom', path: '/ws/chat', summary: 'Chat',\n` +
+        `  clientMessages: { send: { schema: Msg, description: 'send' } },\n` +
+        `  serverMessages: { message: { schema: Msg, description: 'broadcast' } },\n` +
+        `  handlers: { send: async () => {} },\n` +
+        `  behaviors: [\n` +
+        `    scenario('Users can broadcast a message')\n` +
+        `      .given('a connected client')\n` +
+        `      .body({ text: 'hi' })\n` +
+        `      .when('client sends send')\n` +
+        `      .then('client receives a message event'),\n` +
+        `  ],\n` +
+        `});\n` +
+        `const router = createRouter({ title: 'x', version: '1' });\n` +
+        `router.context('Realtime', { description: 'Live messaging' }, (c) => c.add(ep, chat));\n` +
+        `export default router;\n`,
+    );
+
+    const cap = captureOutput();
+    try {
+      await runGherkin({
+        config: CONFIG_PATH,
+        router: './src/channel-app.ts',
+      });
+    } finally {
+      cap.restore();
+      fs.rmSync(channelRouterPath, { force: true });
+    }
+
+    const outDir = path.join(GENERATED_DIR, 'features');
+    expect(fs.existsSync(outDir)).toBe(true);
+    const files = fs.readdirSync(outDir);
+    expect(files).toEqual(['realtime.feature']);
+
+    const content = fs.readFileSync(
+      path.join(outDir, 'realtime.feature'),
+      'utf8',
+    );
+    expect(content).toContain('Feature: Realtime');
+    expect(content).toContain('Live messaging');
+    // Endpoint scenario emitted first.
+    expect(content).toContain('Scenario: Ping returns ok');
+    // Channel scenario emitted alongside it.
+    expect(content).toContain('Scenario: Users can broadcast a message');
+    expect(content).toContain('When client sends send');
+    expect(content).toContain('Then client receives a message event');
+
+    const pingIdx = content.indexOf('Scenario: Ping returns ok');
+    const chatIdx = content.indexOf('Scenario: Users can broadcast a message');
+    expect(pingIdx).toBeGreaterThan(-1);
+    expect(chatIdx).toBeGreaterThan(pingIdx);
+
+    // Report output mentions the single merged feature file.
+    expect(cap.stdout).toContain('realtime.feature');
+    expect(cap.stdout).toContain('2 scenarios');
+  });
 });
 
 // ---------------------------------------------------------------------------
