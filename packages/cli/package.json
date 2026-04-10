@@ -1,0 +1,41 @@
+{
+  "name": "@triad/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "triad": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@triad/asyncapi": "*",
+    "@triad/core": "*",
+    "@triad/gherkin": "*",
+    "@triad/openapi": "*",
+    "@triad/test-runner": "*",
+    "commander": "^12.1.0",
+    "jiti": "^2.4.0",
+    "picocolors": "^1.1.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

@@ -1,0 +1,6 @@
+generated/
+node_modules/
+dist/
+src/db/schema.generated.ts
+src/db/schema.pg.ts
+src/db/alt.generated.ts

@@ -1,0 +1,289 @@
+import { describe, expect, it, expectTypeOf } from 'vitest';
+import { t } from '../src/schema/index.js';
+import { endpoint } from '../src/endpoint.js';
+import { scenario } from '../src/behavior.js';
+import { buildRespondMap } from '../src/context.js';
+import { ValidationException } from '../src/schema/types.js';
+import { ModelSchema } from '../src/schema/model.js';
+
+const Pet = t.model('Pet', {
+  id: t.string().format('uuid').identity(),
+  name: t.string().minLength(1),
+  species: t.enum('dog', 'cat', 'bird', 'fish'),
+  age: t.int32().min(0).max(100),
+});
+
+const CreatePet = Pet.pick('name', 'species', 'age').named('CreatePet');
+
+const ApiError = t.model('ApiError', {
+  code: t.string(),
+  message: t.string(),
+});
+
+describe('endpoint() — basic construction', () => {
+  const createPet = endpoint({
+    name: 'createPet',
+    method: 'POST',
+    path: '/pets',
+    summary: 'Create a new pet',
+    description: 'Adds a new pet to the store',
+    tags: ['Pets'],
+    request: { body: CreatePet },
+    responses: {
+      201: { schema: Pet, description: 'Pet created' },
+      400: { schema: ApiError, description: 'Validation error' },
+    },
+    handler: async (ctx) => {
+      return ctx.respond[201]({
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        name: ctx.body.name,
+        species: ctx.body.species,
+        age: ctx.body.age,
+      });
+    },
+    behaviors: [
+      scenario('Pets can be created')
+        .given('a valid payload')
+        .body({ name: 'Buddy', species: 'dog', age: 3 })
+        .when('I create a pet')
+        .then('response status is 201'),
+    ],
+  });
+
+  it('captures name, method, path, summary, description, tags', () => {
+    expect(createPet.name).toBe('createPet');
+    expect(createPet.method).toBe('POST');
+    expect(createPet.path).toBe('/pets');
+    expect(createPet.summary).toBe('Create a new pet');
+    expect(createPet.description).toBe('Adds a new pet to the store');
+    expect(createPet.tags).toEqual(['Pets']);
+  });
+
+  it('stores the body schema as-is', () => {
+    expect(createPet.request.body).toBe(CreatePet);
+  });
+
+  it('stores the responses config', () => {
+    expect(createPet.responses[201]?.schema).toBe(Pet);
+    expect(createPet.responses[400]?.schema).toBe(ApiError);
+  });
+
+  it('stores behaviors', () => {
+    expect(createPet.behaviors).toHaveLength(1);
+    expect(createPet.behaviors[0]?.scenario).toBe('Pets can be created');
+  });
+
+  it('defaults missing optional fields', () => {
+    const minimal = endpoint({
+      name: 'ping',
+      method: 'GET',
+      path: '/ping',
+      summary: 'Ping',
+      responses: { 200: { schema: t.string(), description: 'pong' } },
+      handler: async (ctx) => ctx.respond[200]('pong'),
+    });
+    expect(minimal.tags).toEqual([]);
+    expect(minimal.behaviors).toEqual([]);
+    expect(minimal.description).toBeUndefined();
+  });
+});
+
+describe('endpoint() — inline request shapes are normalized to anonymous ModelSchemas', () => {
+  const getPet = endpoint({
+    name: 'getPet',
+    method: 'GET',
+    path: '/pets/:id',
+    summary: 'Get a pet by ID',
+    request: {
+      params: {
+        id: t.string().format('uuid'),
+      },
+      query: {
+        includeDeleted: t.boolean().default(false),
+      },
+      headers: {
+        authorization: t.string(),
+      },
+    },
+    responses: {
+      200: { schema: Pet, description: 'Found' },
+      404: { schema: ApiError, description: 'Not found' },
+    },
+    handler: async (ctx) => {
+      if (ctx.params.id === 'missing') {
+        return ctx.respond[404]({ code: 'NOT_FOUND', message: 'Pet not found' });
+      }
+      return ctx.respond[200]({
+        id: ctx.params.id,
+        name: 'Buddy',
+        species: 'dog',
+        age: 3,
+      });
+    },
+  });
+
+  it('wraps inline params into an anonymous ModelSchema', () => {
+    expect(getPet.request.params).toBeInstanceOf(ModelSchema);
+    expect(getPet.request.params?.name).toBe('getPetParams');
+    expect('id' in (getPet.request.params?.shape ?? {})).toBe(true);
+  });
+
+  it('wraps inline query into an anonymous ModelSchema', () => {
+    expect(getPet.request.query).toBeInstanceOf(ModelSchema);
+    expect(getPet.request.query?.name).toBe('getPetQuery');
+  });
+
+  it('wraps inline headers into an anonymous ModelSchema', () => {
+    expect(getPet.request.headers).toBeInstanceOf(ModelSchema);
+    expect(getPet.request.headers?.name).toBe('getPetHeaders');
+  });
+
+  it('passes through an already-named ModelSchema for params', () => {
+    const PetIdParams = t.model('PetIdParams', { id: t.string().format('uuid') });
+    const ep = endpoint({
+      name: 'getPet2',
+      method: 'GET',
+      path: '/pets/:id',
+      summary: 'Get pet',
+      request: { params: PetIdParams },
+      responses: { 200: { schema: Pet, description: 'OK' } },
+      handler: async (ctx) => ctx.respond[200]({
+        id: ctx.params.id,
+        name: 'x',
+        species: 'dog',
+        age: 1,
+      }),
+    });
+    expect(ep.request.params).toBe(PetIdParams);
+  });
+});
+
+describe('endpoint() — type-safe ctx.respond', () => {
+  it('respond validates outgoing payloads against the schema', async () => {
+    const ep = endpoint({
+      name: 'validatedEndpoint',
+      method: 'POST',
+      path: '/test',
+      summary: 'Test',
+      request: { body: CreatePet },
+      responses: {
+        201: { schema: Pet, description: 'Created' },
+      },
+      handler: async (ctx) => ctx.respond[201]({
+        id: 'not-a-uuid', // invalid!
+        name: 'Buddy',
+        species: 'dog',
+        age: 3,
+      }),
+    });
+
+    const respond = buildRespondMap(ep.responses);
+    const ctx = {
+      params: {},
+      query: {},
+      body: { name: 'Buddy', species: 'dog' as const, age: 3 },
+      headers: {},
+      services: {},
+      respond,
+    };
+    await expect(ep.handler(ctx as never)).rejects.toThrow(ValidationException);
+  });
+
+  it('respond returns { status, body } with validated body', async () => {
+    const ep = endpoint({
+      name: 'okEndpoint',
+      method: 'POST',
+      path: '/test',
+      summary: 'Test',
+      request: { body: CreatePet },
+      responses: {
+        201: { schema: Pet, description: 'Created' },
+      },
+      handler: async (ctx) => ctx.respond[201]({
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        name: ctx.body.name,
+        species: ctx.body.species,
+        age: ctx.body.age,
+      }),
+    });
+
+    const respond = buildRespondMap(ep.responses);
+    const ctx = {
+      params: {},
+      query: {},
+      body: { name: 'Buddy', species: 'dog' as const, age: 3 },
+      headers: {},
+      services: {},
+      respond,
+    };
+    const result = await ep.handler(ctx as never);
+    expect(result.status).toBe(201);
+    expect(result.body).toMatchObject({ name: 'Buddy', species: 'dog', age: 3 });
+  });
+});
+
+describe('endpoint() — type inference for ctx', () => {
+  it('ctx.body is typed from CreatePet', () => {
+    endpoint({
+      name: 'typecheck1',
+      method: 'POST',
+      path: '/t',
+      summary: 't',
+      request: { body: CreatePet },
+      responses: { 201: { schema: Pet, description: 'ok' } },
+      handler: async (ctx) => {
+        expectTypeOf(ctx.body).toMatchTypeOf<{
+          name: string;
+          species: 'dog' | 'cat' | 'bird' | 'fish';
+          age: number;
+        }>();
+        return ctx.respond[201]({
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          name: ctx.body.name,
+          species: ctx.body.species,
+          age: ctx.body.age,
+        });
+      },
+    });
+  });
+
+  it('ctx.params is typed from an inline shape', () => {
+    endpoint({
+      name: 'typecheck2',
+      method: 'GET',
+      path: '/t/:id',
+      summary: 't',
+      request: { params: { id: t.string() } },
+      responses: { 200: { schema: Pet, description: 'ok' } },
+      handler: async (ctx) => {
+        expectTypeOf(ctx.params).toMatchTypeOf<{ id: string }>();
+        return ctx.respond[200]({
+          id: ctx.params.id,
+          name: 'x',
+          species: 'dog',
+          age: 1,
+        });
+      },
+    });
+  });
+
+  it('ctx.respond only exposes declared status codes', () => {
+    endpoint({
+      name: 'typecheck3',
+      method: 'GET',
+      path: '/t',
+      summary: 't',
+      responses: {
+        200: { schema: Pet, description: 'ok' },
+        404: { schema: ApiError, description: 'not found' },
+      },
+      handler: async (ctx) => {
+        expectTypeOf(ctx.respond[200]).toBeFunction();
+        expectTypeOf(ctx.respond[404]).toBeFunction();
+        // @ts-expect-error — 500 is not declared
+        ctx.respond[500]?.({ code: 'X', message: 'Y' });
+        return ctx.respond[404]({ code: 'NOT_FOUND', message: 'missing' });
+      },
+    });
+  });
+});

@@ -1,0 +1,36 @@
+{
+  "name": "@triad/drizzle",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@triad/core": "*",
+    "drizzle-orm": ">=0.30.0"
+  },
+  "devDependencies": {
+    "@triad/core": "*",
+    "drizzle-orm": "^0.36.0",
+    "better-sqlite3": "^11.0.0",
+    "@types/better-sqlite3": "^7.6.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
