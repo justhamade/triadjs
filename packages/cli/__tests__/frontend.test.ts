@@ -97,7 +97,7 @@ describe('runFrontendGenerate', () => {
       runFrontendGenerate({
         config: CONFIG_PATH,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        target: 'solid-query' as any,
+        target: 'qwik-query' as any,
         output: makeTmp(),
       }),
     ).rejects.toBeInstanceOf(CliError);

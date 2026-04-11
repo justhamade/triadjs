@@ -10,6 +10,10 @@
       "@triad/gherkin": ["../gherkin/src/index.ts"],
       "@triad/tanstack-query": ["../tanstack-query/src/index.ts"],
       "@triad/channel-client": ["../channel-client/src/index.ts"],
+      "@triad/solid-query": ["../solid-query/src/index.ts"],
+      "@triad/vue-query": ["../vue-query/src/index.ts"],
+      "@triad/svelte-query": ["../svelte-query/src/index.ts"],
+      "@triad/forms": ["../forms/src/index.ts"],
       "@triad/test-runner": ["../test-runner/src/index.ts"]
     },
     "noEmit": true

@@ -244,6 +244,20 @@ End-to-end verified with a live two-client WebSocket smoke test:
 
 ---
 
+## Phase 10.5 — Ergonomic polish ✅
+
+**Status:** Shipped. Five small independent fixes surfaced during cross-example work, bundled as one polish commit:
+
+1. **Channel `when`-parser fallback preserves rejection** — `ensureConnected` now returns the client from `harness.connect()` directly, skipping subsequent sends if the client is `.rejected`. `connection_rejected` assertions work regardless of `when` phrasing.
+2. **`validateBeforeConnect` option on channels** — when `false`, handshake validation failures attach to `ctx.validationError` and `onConnect` runs anyway, letting users render custom rejections. Default (`true`) is unchanged.
+3. **`response body is empty` assertion phrase** — new `body_is_empty` variant targeting 204/205/304 scenarios paired with `t.empty()`.
+4. **`isUniqueViolation` predicate in `@triad/drizzle`** — duck-typed detection of unique-constraint errors from better-sqlite3, pg, and mysql2. Eliminates the `existsByEmail` race window pattern used in multiple examples.
+5. **`wrapBeforeHandler` across `@triad/otel`, `@triad/metrics`, `@triad/logging`** — all three observability wrappers now instrument the beforeHandler phase separately from the main handler, so auth failures are traced, timed, and logged correctly. `getLogger()` works inside a beforeHandler.
+
++37 tests. Zero existing tests broken — all changes additive or behind new flags.
+
+---
+
 ## Phase 10 — Tasktracker gap fixes ✅
 
 **Status:** Shipped across four sub-phases driven by ergonomic gaps the tasktracker example surfaced.
@@ -527,7 +541,14 @@ Ship sensible defaults (10MB max file, 10 files max) and let users override per 
 
 ---
 
-## Phase 17 — Developer tooling sprint (planned)
+## Phase 17 — Developer tooling sprint ✅
+
+**Status:** Shipped. Three new CLI commands in `@triad/cli`:
+- `triad new <project> --template <name>` scaffolds from one of four templates (fastify-petstore, express-tasktracker, fastify-bookshelf, hono-supabase), rewrites the copied `package.json`, and initializes git.
+- `triad mock` starts a zero-dependency HTTP server (using only `node:http`) that returns schema-generated fake data for every router endpoint. Honors `.example()`/`.default()` metadata first, then deterministic LCG generation. `--latency`, `--error-rate`, and `--seed` flags for chaos testing and reproducibility.
+- `triad docs check --against <ref|file>` diffs OpenAPI against a baseline, classifies changes as safe / risky / breaking, exits non-zero on breakages. Triad-unique capability — the router as a typed source means API drift is detectable from the source code alone.
+
+
 
 **Status:** Not started. Three small CLI additions that together dramatically improve the day-to-day experience. Small individually, high cumulative value.
 
@@ -572,7 +593,11 @@ Exits non-zero on breaking changes unless `--allow-breaking` is passed. In CI, t
 
 ---
 
-## Phase 18 — Auth cookbook (planned)
+## Phase 18 — Auth cookbook ✅
+
+**Status:** Shipped. `@triad/jwt` wraps `jose` (peer dep, not runtime) with a typed `requireJWT` BeforeHandler factory. Supports JWKS via `jwksUri` or shared secret via `secret`, checks issuer/audience/algorithms/clock-skew, projects verified claims into a user-defined `TUser` via `extractUser`. `docs/guides/auth.md` is the consolidated 881-line cookbook covering Auth0, Clerk, WorkOS, Firebase, Supabase (pointer), NextAuth, session cookies, API keys, multi-tenancy, and RBAC patterns.
+
+
 
 **Status:** Not started. `beforeHandler` is the mechanism; users need concrete integrations for the common identity providers.
 
@@ -623,7 +648,11 @@ Docs only, no additional packages. Each integration is 30-50 lines of wiring.
 
 ---
 
-## Phase 19 — Additional frontend targets (planned)
+## Phase 19 — Additional frontend targets ✅
+
+**Status:** Shipped. Four new codegen packages extending Phase 11's TanStack Query work to the rest of the frontend ecosystem: `@triad/solid-query`, `@triad/vue-query`, `@triad/svelte-query`, `@triad/forms`. Each walks `router.allEndpoints()` and emits framework-idiomatic bindings — Solid's accessor thunks, Vue's `MaybeRefOrGetter` + `toValue`, Svelte's `createXxxQuery` store factories. `@triad/forms` is structurally different: it emits a compact JSON descriptor per request body plus a ~140-line self-contained runtime validator, with optional resolver wrappers for `react-hook-form` and `@tanstack/form`. All four packages pass strict-mode `tsc --noEmit` against framework stubs in their bookshelf integration tests. +59 tests across the four. CLI targets `solid-query`, `vue-query`, `svelte-query`, `forms` are registered in `triad frontend generate --target`.
+
+
 
 **Status:** Not started. Extends Phase 11 beyond React.
 

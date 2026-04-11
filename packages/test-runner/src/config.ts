@@ -58,6 +58,11 @@ export interface FrontendConfig {
   /**
    * Codegen target. One of:
    *   - `'tanstack-query'`        — typed React Query hooks
+   *   - `'solid-query'`           — typed Solid Query hooks
+   *   - `'vue-query'`             — typed Vue Query composables
+   *   - `'svelte-query'`          — typed Svelte Query store factories
+   *   - `'forms'`                 — form validators from request body
+   *                                 schemas (rhf / tanstack-form resolvers)
    *   - `'channel-client'`        — typed vanilla WebSocket clients
    *   - `'channel-client-react'`  — vanilla clients + React hook
    *                                 wrappers (superset of `channel-client`)
@@ -73,6 +78,10 @@ export interface FrontendConfig {
    */
   target?:
     | 'tanstack-query'
+    | 'solid-query'
+    | 'vue-query'
+    | 'svelte-query'
+    | 'forms'
     | 'channel-client'
     | 'channel-client-react'
     | 'channel-client-solid'

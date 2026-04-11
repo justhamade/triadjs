@@ -22,12 +22,32 @@ import {
   generateChannelClient,
   writeFiles as writeChannelFiles,
 } from '@triad/channel-client';
+import {
+  generate as generateSolidQuery,
+  writeFiles as writeSolidQueryFiles,
+} from '@triad/solid-query';
+import {
+  generate as generateVueQuery,
+  writeFiles as writeVueQueryFiles,
+} from '@triad/vue-query';
+import {
+  generate as generateSvelteQuery,
+  writeFiles as writeSvelteQueryFiles,
+} from '@triad/svelte-query';
+import {
+  generate as generateForms,
+  writeFiles as writeFormsFiles,
+} from '@triad/forms';
 import { loadConfig } from '../load-config.js';
 import { loadRouter } from '../load-router.js';
 import { CliError } from '../errors.js';
 
 export type FrontendTarget =
   | 'tanstack-query'
+  | 'solid-query'
+  | 'vue-query'
+  | 'svelte-query'
+  | 'forms'
   | 'channel-client'
   | 'channel-client-react'
   | 'channel-client-solid'
@@ -79,6 +99,10 @@ export interface FrontendGenerateOptions {
 const DEFAULT_OUTPUT = './src/generated/api';
 const SUPPORTED_TARGETS: ReadonlySet<FrontendTarget> = new Set<FrontendTarget>([
   'tanstack-query',
+  'solid-query',
+  'vue-query',
+  'svelte-query',
+  'forms',
   'channel-client',
   'channel-client-react',
   'channel-client-solid',
@@ -148,6 +172,95 @@ export async function runFrontendGenerate(
       process.stdout.write(
         `${pc.green('✓')} TanStack Query client written to ${pc.bold(outputPath)}\n` +
           `  ${pc.dim(`${files.length} file(s) · baseUrl=${baseUrl}`)}\n`,
+      );
+      continue;
+    }
+
+    if (target === 'solid-query') {
+      const files = generateSolidQuery(router, {
+        outputDir: outputPath,
+        baseUrl,
+        emitRuntime,
+      });
+      try {
+        writeSolidQueryFiles(files, outputPath);
+      } catch (err) {
+        throw new CliError(
+          `Failed to write solid-query files to ${outputPath}: ${err instanceof Error ? err.message : String(err)}`,
+          'OUTPUT_WRITE_FAILED',
+        );
+      }
+      process.stdout.write(
+        `${pc.green('✓')} Solid Query client written to ${pc.bold(outputPath)}\n` +
+          `  ${pc.dim(`${files.length} file(s) · baseUrl=${baseUrl}`)}\n`,
+      );
+      continue;
+    }
+
+    if (target === 'vue-query') {
+      const files = generateVueQuery(router, {
+        outputDir: outputPath,
+        baseUrl,
+        emitRuntime,
+      });
+      try {
+        writeVueQueryFiles(files, outputPath);
+      } catch (err) {
+        throw new CliError(
+          `Failed to write vue-query files to ${outputPath}: ${err instanceof Error ? err.message : String(err)}`,
+          'OUTPUT_WRITE_FAILED',
+        );
+      }
+      process.stdout.write(
+        `${pc.green('✓')} Vue Query client written to ${pc.bold(outputPath)}\n` +
+          `  ${pc.dim(`${files.length} file(s) · baseUrl=${baseUrl}`)}\n`,
+      );
+      continue;
+    }
+
+    if (target === 'svelte-query') {
+      const files = generateSvelteQuery(router, {
+        outputDir: outputPath,
+        baseUrl,
+        emitRuntime,
+      });
+      try {
+        writeSvelteQueryFiles(files, outputPath);
+      } catch (err) {
+        throw new CliError(
+          `Failed to write svelte-query files to ${outputPath}: ${err instanceof Error ? err.message : String(err)}`,
+          'OUTPUT_WRITE_FAILED',
+        );
+      }
+      process.stdout.write(
+        `${pc.green('✓')} Svelte Query client written to ${pc.bold(outputPath)}\n` +
+          `  ${pc.dim(`${files.length} file(s) · baseUrl=${baseUrl}`)}\n`,
+      );
+      continue;
+    }
+
+    if (target === 'forms') {
+      const formsOutput = path.join(outputPath, 'forms');
+      const files = generateForms(router, {
+        outputDir: formsOutput,
+      });
+      if (files.length === 0) {
+        process.stdout.write(
+          `${pc.yellow('!')} Forms target skipped: router has no request body schemas.\n`,
+        );
+        continue;
+      }
+      try {
+        writeFormsFiles(files, formsOutput);
+      } catch (err) {
+        throw new CliError(
+          `Failed to write forms files to ${formsOutput}: ${err instanceof Error ? err.message : String(err)}`,
+          'OUTPUT_WRITE_FAILED',
+        );
+      }
+      process.stdout.write(
+        `${pc.green('✓')} Form validators written to ${pc.bold(formsOutput)}\n` +
+          `  ${pc.dim(`${files.length} file(s)`)}\n`,
       );
       continue;
     }
