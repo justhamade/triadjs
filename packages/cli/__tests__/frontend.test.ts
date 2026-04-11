@@ -125,6 +125,39 @@ describe('runFrontendGenerate', () => {
     expect(channelSrc).toContain('export function createBookReviewsClient');
   });
 
+  it('writes both vanilla and React hook files for the channel-client-react target', async () => {
+    const out = makeTmp();
+    const { stdout } = await captureStdout(async () =>
+      runFrontendGenerate({
+        config: BOOKSHELF_CONFIG,
+        target: 'channel-client-react',
+        output: out,
+      }),
+    );
+    expect(stdout).toContain('Channel client (React) written to');
+    const channelsDir = path.join(out, 'channels');
+    // Vanilla files (the React hooks depend on them)
+    for (const name of [
+      'client.ts',
+      'types.ts',
+      'index.ts',
+      'book-reviews.ts',
+    ]) {
+      expect(fs.existsSync(path.join(channelsDir, name))).toBe(true);
+    }
+    // React-specific files
+    expect(fs.existsSync(path.join(channelsDir, 'react-runtime.ts'))).toBe(true);
+    expect(fs.existsSync(path.join(channelsDir, 'book-reviews-react.ts'))).toBe(
+      true,
+    );
+    const hookSrc = fs.readFileSync(
+      path.join(channelsDir, 'book-reviews-react.ts'),
+      'utf8',
+    );
+    expect(hookSrc).toContain('export function useBookReviewsChannel');
+    expect(hookSrc).toContain("from 'react'");
+  });
+
   it('runs both targets when comma-separated', async () => {
     const out = makeTmp();
     await captureStdout(async () =>

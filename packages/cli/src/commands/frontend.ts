@@ -26,7 +26,10 @@ import { loadConfig } from '../load-config.js';
 import { loadRouter } from '../load-router.js';
 import { CliError } from '../errors.js';
 
-export type FrontendTarget = 'tanstack-query' | 'channel-client';
+export type FrontendTarget =
+  | 'tanstack-query'
+  | 'channel-client'
+  | 'channel-client-react';
 
 export interface FrontendGenerateOptions {
   config?: string;
@@ -41,6 +44,7 @@ const DEFAULT_OUTPUT = './src/generated/api';
 const SUPPORTED_TARGETS: ReadonlySet<FrontendTarget> = new Set<FrontendTarget>([
   'tanstack-query',
   'channel-client',
+  'channel-client-react',
 ]);
 
 function normalizeTargets(
@@ -109,15 +113,25 @@ export async function runFrontendGenerate(
       continue;
     }
 
-    if (target === 'channel-client') {
-      // Channel clients land in a `channels/` subdirectory so they
-      // don't collide with the TanStack Query hook files when both
-      // targets are generated into the same output directory.
+    if (target === 'channel-client' || target === 'channel-client-react') {
+      // `channel-client-react` is a superset of `channel-client`: it
+      // emits both the vanilla client files and the React hook
+      // wrappers. If both targets were passed explicitly, the
+      // dedupe above collapses them into a single React run; if
+      // only `channel-client` was passed (the plain one we already
+      // handled in an earlier loop iteration) we'd otherwise emit
+      // twice, so we skip the plain run when `channel-client-react`
+      // is also in the list.
+      if (target === 'channel-client' && targets.includes('channel-client-react')) {
+        continue;
+      }
       const channelOutput = path.join(outputPath, 'channels');
+      const isReact = target === 'channel-client-react';
       const files = generateChannelClient(router, {
         outputDir: channelOutput,
         baseUrl,
         emitRuntime,
+        target,
       });
       if (files.length === 0) {
         process.stdout.write(
@@ -133,8 +147,11 @@ export async function runFrontendGenerate(
           'OUTPUT_WRITE_FAILED',
         );
       }
+      const label = isReact
+        ? 'Channel client (React) written to'
+        : 'Channel client written to';
       process.stdout.write(
-        `${pc.green('✓')} Channel client written to ${pc.bold(channelOutput)}\n` +
+        `${pc.green('✓')} ${label} ${pc.bold(channelOutput)}\n` +
           `  ${pc.dim(`${files.length} file(s) · baseUrl=${baseUrl}`)}\n`,
       );
     }

@@ -6,6 +6,18 @@
  * or a build script writes them to disk.
  */
 
+/**
+ * Codegen targets supported by `generateChannelClient`.
+ *
+ *   - `'channel-client'`       — vanilla TypeScript WebSocket clients
+ *   - `'channel-client-react'` — vanilla clients PLUS a React hook
+ *                                wrapper per channel (a superset)
+ *
+ * When multiple targets are passed, the generator dedupes: passing
+ * both is equivalent to passing only the React target.
+ */
+export type ChannelClientTarget = 'channel-client' | 'channel-client-react';
+
 export interface GenerateChannelClientOptions {
   /**
    * Directory the files will eventually be written into. The
@@ -25,6 +37,13 @@ export interface GenerateChannelClientOptions {
    * the typed per-channel factories.
    */
   emitRuntime?: boolean;
+  /**
+   * Which target(s) to emit. Defaults to `'channel-client'` (vanilla
+   * only). Pass `'channel-client-react'` to additionally emit React
+   * hook wrappers; the vanilla files are always emitted because the
+   * React hooks import them.
+   */
+  target?: ChannelClientTarget | readonly ChannelClientTarget[];
 }
 
 export interface GeneratedFile {

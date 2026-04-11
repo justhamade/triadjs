@@ -109,11 +109,11 @@ export function createProgram(): Command {
   frontendCommand
     .command('generate')
     .description(
-      'Generate typed frontend clients from the router (tanstack-query, channel-client)',
+      'Generate typed frontend clients from the router (tanstack-query, channel-client, channel-client-react)',
     )
     .option(
       '-t, --target <target>',
-      'frontend target(s), comma-separated: tanstack-query, channel-client',
+      'frontend target(s), comma-separated: tanstack-query, channel-client, channel-client-react',
     )
     .option('-o, --output <path>', 'output directory')
     .option('-b, --base-url <url>', 'base URL embedded in the runtime client')
