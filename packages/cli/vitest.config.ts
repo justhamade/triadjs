@@ -16,6 +16,7 @@ export default defineConfig({
       '@triad/openapi': fileURLToPath(new URL('openapi/src/index.ts', root)),
       '@triad/asyncapi': fileURLToPath(new URL('asyncapi/src/index.ts', root)),
       '@triad/gherkin': fileURLToPath(new URL('gherkin/src/index.ts', root)),
+      '@triad/tanstack-query': fileURLToPath(new URL('tanstack-query/src/index.ts', root)),
       '@triad/test-runner': fileURLToPath(new URL('test-runner/src/index.ts', root)),
     },
   },

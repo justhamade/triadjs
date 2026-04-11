@@ -16,6 +16,7 @@ import { runGherkin } from './commands/gherkin.js';
 import { runTest } from './commands/test.js';
 import { runValidate } from './commands/validate.js';
 import { runDbGenerate, runDbMigrate } from './commands/db.js';
+import { runFrontendGenerate } from './commands/frontend.js';
 import { CliError } from './errors.js';
 
 const VERSION = '0.1.0';
@@ -98,6 +99,21 @@ export function createProgram(): Command {
     .option('-n, --name <name>', 'optional name suffix for the migration file')
     .action(async (cmdOpts) => {
       await runDbMigrate({ ...program.opts(), ...cmdOpts });
+    });
+
+  // `frontend` — codegen for frontend clients. v1 targets TanStack Query.
+  const frontendCommand = program
+    .command('frontend')
+    .description('Frontend client codegen (typed TanStack Query hooks, ...)');
+
+  frontendCommand
+    .command('generate')
+    .description('Generate a typed TanStack Query client from the router')
+    .option('-t, --target <target>', 'frontend target (default: tanstack-query)')
+    .option('-o, --output <path>', 'output directory')
+    .option('-b, --base-url <url>', 'base URL embedded in the runtime client')
+    .action(async (cmdOpts) => {
+      await runFrontendGenerate({ ...program.opts(), ...cmdOpts });
     });
 
   return program;

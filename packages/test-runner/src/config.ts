@@ -49,6 +49,20 @@ export interface TriadConfig {
 
   /** Database codegen and migration configuration. */
   db?: DbConfig;
+
+  /** Frontend client codegen configuration (`triad frontend generate`). */
+  frontend?: FrontendConfig;
+}
+
+export interface FrontendConfig {
+  /** Codegen target. Currently only `'tanstack-query'` is supported. */
+  target?: 'tanstack-query';
+  /** Output directory (relative to the config file). */
+  output?: string;
+  /** Base URL embedded in the generated runtime client (default: `/api`). */
+  baseUrl?: string;
+  /** Emit the runtime client alongside the hooks (default: `true`). */
+  emitRuntime?: boolean;
 }
 
 export interface DbConfig {

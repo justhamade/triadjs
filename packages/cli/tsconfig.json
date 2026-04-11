@@ -8,6 +8,7 @@
       "@triad/openapi": ["../openapi/src/index.ts"],
       "@triad/asyncapi": ["../asyncapi/src/index.ts"],
       "@triad/gherkin": ["../gherkin/src/index.ts"],
+      "@triad/tanstack-query": ["../tanstack-query/src/index.ts"],
       "@triad/test-runner": ["../test-runner/src/index.ts"]
     },
     "noEmit": true
