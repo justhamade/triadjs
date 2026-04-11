@@ -1,0 +1,70 @@
+name: Feature request
+description: Suggest a new feature or enhancement
+title: "[Feature]: "
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement to Triad. Please check the [ROADMAP](../ROADMAP.md) first to see if this is already planned.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem are you trying to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How would you like it to work? Code examples are welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other approaches did you think about, and why did you rule them out?
+    validations:
+      required: false
+  - type: dropdown
+    id: packages
+    attributes:
+      label: Which package(s)
+      description: Which Triad package(s) would this affect? Select all that apply.
+      multiple: true
+      options:
+        - "@triad/core"
+        - "@triad/openapi"
+        - "@triad/asyncapi"
+        - "@triad/gherkin"
+        - "@triad/test-runner"
+        - "@triad/fastify"
+        - "@triad/express"
+        - "@triad/hono"
+        - "@triad/drizzle"
+        - "@triad/cli"
+        - "examples/petstore"
+        - "examples/tasktracker"
+        - "docs"
+        - "other"
+    validations:
+      required: true
+  - type: dropdown
+    id: contribute
+    attributes:
+      label: Are you willing to contribute?
+      options:
+        - "Yes, I'd like to work on this"
+        - "Yes, with guidance"
+        - "No, just reporting"
+    validations:
+      required: true
+  - type: checkboxes
+    id: roadmap-check
+    attributes:
+      label: Roadmap check
+      options:
+        - label: I have checked the [ROADMAP](../ROADMAP.md) and this isn't already planned
+          required: true
