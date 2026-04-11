@@ -146,6 +146,22 @@ const listPets = endpoint({
   },
 });
 
+const deletePet = endpoint({
+  name: 'deletePet',
+  method: 'DELETE',
+  path: '/pets/:id',
+  summary: 'Delete a pet',
+  request: { params: { id: t.string().format('uuid') } },
+  responses: {
+    204: { schema: t.empty(), description: 'Pet deleted' },
+  },
+  handler: async (ctx) => {
+    void ctx.params.id;
+    // Zero-arg call — verifies the t.empty() ergonomics.
+    return ctx.respond[204]();
+  },
+});
+
 // Deliberate bug: returns a body that does not match the Pet schema.
 const badEndpoint = endpoint({
   name: 'bad',
@@ -167,7 +183,7 @@ const badEndpoint = endpoint({
 
 function buildRouter() {
   const router = createRouter({ title: 'Petstore', version: '1.0.0' });
-  router.add(createPet, getPet, listPets, badEndpoint);
+  router.add(createPet, getPet, listPets, deletePet, badEndpoint);
   return router;
 }
 
@@ -405,6 +421,29 @@ describe('triadPlugin — per-request services factory', () => {
 
     const res = await app.inject({ method: 'GET', url: '/pets' });
     expect(res.statusCode).toBe(200);
+    await app.close();
+  });
+});
+
+describe('triadPlugin — t.empty() responses', () => {
+  it('DELETE returns 204 with empty body and no content-type header', async () => {
+    const { app } = await buildApp();
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/pets/00000000-0000-0000-0000-000000000001',
+    });
+    expect(res.statusCode).toBe(204);
+    expect(res.body).toBe('');
+    // Critical: 204 must not advertise a body content-type.
+    expect(res.headers['content-type']).toBeUndefined();
+    await app.close();
+  });
+
+  it('non-empty responses still advertise application/json', async () => {
+    const { app } = await buildApp();
+    const res = await app.inject({ method: 'GET', url: '/pets' });
+    expect(res.statusCode).toBe(200);
+    expect(String(res.headers['content-type'])).toMatch(/application\/json/);
     await app.close();
   });
 });

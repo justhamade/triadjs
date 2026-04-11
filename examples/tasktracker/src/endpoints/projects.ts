@@ -28,7 +28,7 @@
 import { endpoint, scenario, t } from '@triad/core';
 import type { Infer } from '@triad/core';
 import { CreateProject, Project } from '../schemas/project.js';
-import { ApiError, AuthHeaders, NoContent } from '../schemas/common.js';
+import { ApiError, AuthHeaders } from '../schemas/common.js';
 import { requireAuth } from '../auth.js';
 
 type ProjectValue = Infer<typeof Project>;
@@ -289,7 +289,7 @@ export const deleteProject = endpoint({
     params: { projectId: t.string().format('uuid').doc('The project id') },
   },
   responses: {
-    204: { schema: NoContent, description: 'Project deleted (no body)' },
+    204: { schema: t.empty(), description: 'Project deleted (no body)' },
     401: { schema: ApiError, description: 'Missing or invalid token' },
     403: { schema: ApiError, description: 'The project belongs to another user' },
     404: { schema: ApiError, description: 'No project with that id' },
@@ -303,7 +303,7 @@ export const deleteProject = endpoint({
       return ctx.respond[404](loaded.error);
     }
     await ctx.services.projectRepo.delete(loaded.project.id);
-    return ctx.respond[204](undefined);
+    return ctx.respond[204]();
   },
   behaviors: [
     scenario('Owners can delete their own project')

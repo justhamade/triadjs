@@ -38,6 +38,7 @@ import {
   type ValidationError,
   ValidationException,
   buildRespondMap,
+  isEmptySchema,
 } from '@triad/core';
 
 import { RequestValidationError, type RequestPart } from './errors.js';
@@ -177,6 +178,14 @@ export function createRouteHandler(
         ctx as HandlerContext<any, any, any, any, ResponsesConfig>,
       );
 
+      // `t.empty()` responses send no body and no `Content-Type` header —
+      // `res.end()` explicitly avoids the JSON content-type that
+      // `res.json()` would attach.
+      const declared = endpoint.responses[response.status];
+      if (declared && isEmptySchema(declared.schema)) {
+        res.status(response.status).end();
+        return;
+      }
       res.status(response.status).json(response.body);
       return;
     } catch (err) {

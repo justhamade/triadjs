@@ -381,6 +381,63 @@ describe('runBehaviors — response schema safety net', () => {
     expect(summary.results[0]?.failure?.message).toContain('not declared');
   });
 
+  it('passes for a handler that calls ctx.respond[204]() with a t.empty() schema', async () => {
+    const ep = endpoint({
+      name: 'deleteThing',
+      method: 'DELETE',
+      path: '/things/:id',
+      summary: 'delete',
+      request: { params: { id: t.string() } },
+      responses: {
+        204: { schema: t.empty(), description: 'deleted' },
+      },
+      handler: async (ctx) => ctx.respond[204](),
+      behaviors: [
+        scenario('Thing can be deleted')
+          .given('a thing id')
+          .params({ id: 'abc' })
+          .when('I delete it')
+          .then('response status is 204'),
+      ],
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ep);
+    const summary = await runBehaviors(router);
+    expect(summary.passed).toBe(1);
+    expect(summary.failed).toBe(0);
+  });
+
+  it('fails when handler sidesteps ctx.respond and returns a body with a t.empty() schema', async () => {
+    const ep = endpoint({
+      name: 'leakyDelete',
+      method: 'DELETE',
+      path: '/leak/:id',
+      summary: 'leak',
+      request: { params: { id: t.string() } },
+      responses: {
+        204: { schema: t.empty(), description: 'deleted' },
+      },
+      // Bypasses ctx.respond — returns a raw body even though the schema
+      // declares the response as empty. The runner's response safety net
+      // must catch this.
+      handler: async () => ({ status: 204, body: { leaked: true } }),
+      behaviors: [
+        scenario('Empty response cannot carry a body')
+          .given('an id')
+          .params({ id: 'abc' })
+          .when('I delete')
+          .then('response status is 204'),
+      ],
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ep);
+    const summary = await runBehaviors(router);
+    expect(summary.failed).toBe(1);
+    expect(summary.results[0]?.failure?.message).toContain(
+      'does not match declared schema',
+    );
+  });
+
   it('fails when handler sidesteps ctx.respond and returns invalid body', async () => {
     const ep = endpoint({
       name: 'cheater',

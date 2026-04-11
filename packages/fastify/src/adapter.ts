@@ -44,6 +44,7 @@ import {
   type ValidationError,
   ValidationException,
   buildRespondMap,
+  isEmptySchema,
 } from '@triad/core';
 
 import { RequestValidationError, type RequestPart } from './errors.js';
@@ -191,6 +192,14 @@ export function createRouteHandler(
         ctx as HandlerContext<any, any, any, any, ResponsesConfig>,
       );
 
+      // If the response schema for this status is `t.empty()`, send with
+      // no body so Fastify omits `Content-Type: application/json`. This
+      // is how 204/205/304 ought to travel over the wire.
+      const declared = endpoint.responses[response.status];
+      if (declared && isEmptySchema(declared.schema)) {
+        reply.code(response.status).send();
+        return;
+      }
       reply.code(response.status).send(response.body);
       return;
     } catch (err) {

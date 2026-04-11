@@ -2,13 +2,7 @@
  * Shared schemas used by multiple bounded contexts.
  *
  * `ApiError` mirrors the petstore's error envelope verbatim so clients
- * of either example can parse errors uniformly. `NoContent` is a
- * placeholder body for DELETE endpoints: it exists so `ctx.respond[204]`
- * still has *something* to validate (handlers pass `undefined` and the
- * test runner's response validation lets it through because the node
- * is optional). This is one of the documented gaps in this example —
- * Triad does not yet ship a dedicated "empty body" response helper, so
- * every 204 has to reach for this pattern.
+ * of either example can parse errors uniformly.
  *
  * `AuthHeaders` is the inline header shape every auth-required
  * endpoint plugs into `request.headers`. We declare `authorization` as
@@ -17,6 +11,9 @@
  * a framework-level 400 validation failure when the client forgets the
  * header. Swap `.optional()` off and the test runner will reject the
  * "missing auth" scenarios before they ever reach the handler.
+ *
+ * 204 responses use the first-class `t.empty()` primitive — see the
+ * DELETE endpoints in the projects/tasks modules.
  */
 
 import { t } from '@triad/core';
@@ -29,12 +26,6 @@ export const ApiError = t.model('ApiError', {
     .optional()
     .doc('Additional context about the error'),
 });
-
-/**
- * 204 "no body" response schema. See module-level comment for the
- * reasoning — this is a workaround, not an idiomatic API surface.
- */
-export const NoContent = t.unknown().optional().doc('Empty response body');
 
 /** Inline header shape for endpoints that read the Authorization header. */
 export const AuthHeaders = {

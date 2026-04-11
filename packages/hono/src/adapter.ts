@@ -41,6 +41,7 @@ import {
   type ValidationError,
   ValidationException,
   buildRespondMap,
+  isEmptySchema,
 } from '@triad/core';
 
 import { RequestValidationError, type RequestPart } from './errors.js';
@@ -139,11 +140,27 @@ type HonoHandler = (c: AnyContext) => Promise<Response>;
 
 const EMPTY_BODY_STATUSES: ReadonlySet<number> = new Set([204, 205, 304]);
 
-function dispatch(c: AnyContext, response: HandlerResponse): Response {
+function dispatch(
+  c: AnyContext,
+  endpoint: Endpoint,
+  response: HandlerResponse,
+): Response {
   const status = response.status;
+
+  // Primary path: schema-driven. If the endpoint declared `t.empty()`
+  // for this status, we know to send no body with no content-type.
+  const declared = endpoint.responses[status];
+  if (declared && isEmptySchema(declared.schema)) {
+    return c.body(null, status as StatusCode);
+  }
+
+  // Defensive fallback: even if a user forgot to declare `t.empty()`,
+  // per the HTTP spec 204/205/304 MUST NOT carry a body. We'd rather
+  // silently drop the body than emit a malformed response.
   if (EMPTY_BODY_STATUSES.has(status) || response.body === undefined) {
     return c.body(null, status as StatusCode);
   }
+
   // Hono's json() overloads require ContentfulStatusCode; our status
   // came from the endpoint's declared responses so this narrowing is
   // safe at runtime.
@@ -248,7 +265,7 @@ export function createRouteHandler(
         ctx as HandlerContext<any, any, any, any, ResponsesConfig>,
       );
 
-      return dispatch(c, response);
+      return dispatch(c, endpoint, response);
     } catch (err) {
       if (err instanceof RequestValidationError) {
         return validationErrorResponse(c, err);

@@ -25,6 +25,7 @@ import {
   type ModelShape,
   type SchemaNode,
   createOpenAPIContext,
+  isEmptySchema,
 } from '@triad/core';
 
 // ---------------------------------------------------------------------------
@@ -314,11 +315,17 @@ function buildResponses(
   for (const status of statusCodes) {
     const config = responses[status]!;
     const response: Response = { description: config.description };
-    response.content = {
-      'application/json': {
-        schema: config.schema.toOpenAPI(ctx),
-      },
-    };
+    // `t.empty()` responses intentionally omit `content` — per the HTTP
+    // spec, 204/205/304 must not carry a message body, and OpenAPI tools
+    // (client generators, mock servers) rely on the absence of `content`
+    // to know not to expect one.
+    if (!isEmptySchema(config.schema)) {
+      response.content = {
+        'application/json': {
+          schema: config.schema.toOpenAPI(ctx),
+        },
+      };
+    }
     out[String(status)] = response;
   }
 

@@ -7,7 +7,7 @@
 
 // --- Schema DSL ------------------------------------------------------------
 
-export { t } from './schema/index.js';
+export { t, isEmptySchema } from './schema/index.js';
 export {
   StringSchema,
   NumberSchema,
@@ -16,6 +16,7 @@ export {
   EnumSchema,
   LiteralSchema,
   UnknownSchema,
+  EmptySchema,
   ArraySchema,
   RecordSchema,
   TupleSchema,
@@ -65,6 +66,7 @@ export {
   type ResponsesConfig,
   type HandlerResponse,
   type HandlerContext,
+  type RespondFn,
   type RespondMap,
   type InferRequestPart,
   type InferBody,

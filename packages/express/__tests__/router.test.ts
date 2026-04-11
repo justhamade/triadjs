@@ -175,6 +175,21 @@ const tenantEcho = endpoint({
     ctx.respond[200]({ tenantId: ctx.services.tenantId ?? 'none' }),
 });
 
+const deletePet = endpoint({
+  name: 'deletePet',
+  method: 'DELETE',
+  path: '/pets/:id',
+  summary: 'Delete a pet',
+  request: { params: { id: t.string().format('uuid') } },
+  responses: {
+    204: { schema: t.empty(), description: 'Pet deleted' },
+  },
+  handler: async (ctx) => {
+    void ctx.params.id;
+    return ctx.respond[204]();
+  },
+});
+
 // Handler that returns an invalid body — exercises the ValidationException
 // path via ctx.respond.
 const badResponse = endpoint({
@@ -197,7 +212,7 @@ const badResponse = endpoint({
 
 function buildRouter() {
   const r = createRouter({ title: 'Petstore', version: '1.0.0' });
-  r.add(createPet, getPet, listPets, echoHeader, tenantEcho, badResponse);
+  r.add(createPet, getPet, listPets, echoHeader, tenantEcho, deletePet, badResponse);
   return r;
 }
 
@@ -426,6 +441,26 @@ describe('createTriadRouter — per-request services factory', () => {
       .set('x-tenant-id', 'acme');
     expect(res.status).toBe(200);
     expect(res.body.tenantId).toBe('acme');
+  });
+});
+
+describe('createTriadRouter — t.empty() responses', () => {
+  it('DELETE returns 204 with empty body and no content-type header', async () => {
+    const { app } = buildApp();
+    const res = await request(app).delete(
+      '/pets/00000000-0000-0000-0000-000000000001',
+    );
+    expect(res.status).toBe(204);
+    expect(res.text).toBe('');
+    // Critical: res.end() must not advertise a JSON content-type.
+    expect(res.headers['content-type']).toBeUndefined();
+  });
+
+  it('non-empty responses still advertise application/json', async () => {
+    const { app } = buildApp();
+    const res = await request(app).get('/pets');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/application\/json/);
   });
 });
 

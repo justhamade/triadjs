@@ -14,6 +14,7 @@
 
 import type { SchemaNode } from './schema/types.js';
 import type { ModelSchema, InferShape } from './schema/model.js';
+import { isEmptySchema, type EmptySchema } from './schema/empty.js';
 
 // ---------------------------------------------------------------------------
 // Service container (user-extensible)
@@ -74,10 +75,17 @@ type InferSchema<T> = T extends SchemaNode<infer U> ? U : never;
  * ctx.respond[500]('x')        // compile error — not declared
  * ```
  */
+/**
+ * Conditional: if the declared schema for a status is `EmptySchema`, the
+ * responder is a zero-argument function. Otherwise it takes the inferred
+ * body type. This powers the `t.empty()` ergonomics for 204/205/304.
+ */
+export type RespondFn<TSchema extends SchemaNode> = TSchema extends EmptySchema
+  ? () => HandlerResponse
+  : (data: InferSchema<TSchema>) => HandlerResponse;
+
 export type RespondMap<TResponses extends ResponsesConfig> = {
-  [K in keyof TResponses & number]: (
-    data: InferSchema<TResponses[K]['schema']>,
-  ) => HandlerResponse;
+  [K in keyof TResponses & number]: RespondFn<TResponses[K]['schema']>;
 };
 
 /**
@@ -135,6 +143,14 @@ export function buildRespondMap(
   const map: Record<number, (data: unknown) => HandlerResponse> = {};
   for (const [statusStr, config] of Object.entries(responses)) {
     const status = Number(statusStr);
+    if (isEmptySchema(config.schema)) {
+      // Empty responses: zero-argument at the call site. We ignore any
+      // stray argument a JS caller might pass (TypeScript blocks it at
+      // the type level via RespondFn) and emit `undefined` as the body
+      // marker, which adapters translate into no-body/no-content-type.
+      map[status] = (): HandlerResponse => ({ status, body: undefined });
+      continue;
+    }
     map[status] = (data: unknown): HandlerResponse => {
       // Validate outgoing payload against the declared schema.
       const validated = config.schema.parse(data);

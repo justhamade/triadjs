@@ -267,6 +267,56 @@ describe('endpoint() — type inference for ctx', () => {
     });
   });
 
+  it('ctx.respond[204] for t.empty() is a zero-arg function', () => {
+    endpoint({
+      name: 'typecheckEmpty',
+      method: 'DELETE',
+      path: '/t/:id',
+      summary: 't',
+      request: { params: { id: t.string() } },
+      responses: {
+        204: { schema: t.empty(), description: 'deleted' },
+        404: { schema: ApiError, description: 'not found' },
+      },
+      handler: async (ctx) => {
+        expectTypeOf(ctx.respond[204]).parameters.toEqualTypeOf<[]>();
+        expectTypeOf(ctx.respond[404]).parameters.toMatchTypeOf<
+          [{ code: string; message: string }]
+        >();
+        if (ctx.params.id === 'missing') {
+          return ctx.respond[404]({ code: 'NOT_FOUND', message: 'x' });
+        }
+        return ctx.respond[204]();
+      },
+    });
+  });
+
+  it('buildRespondMap produces a zero-arg responder for t.empty() at runtime', async () => {
+    const ep = endpoint({
+      name: 'deleteThing',
+      method: 'DELETE',
+      path: '/things/:id',
+      summary: 'Delete',
+      request: { params: { id: t.string() } },
+      responses: {
+        204: { schema: t.empty(), description: 'deleted' },
+      },
+      handler: async (ctx) => ctx.respond[204](),
+    });
+
+    const respond = buildRespondMap(ep.responses);
+    const result = await ep.handler({
+      params: { id: 'abc' },
+      query: {},
+      body: undefined,
+      headers: {},
+      services: {},
+      respond,
+    } as never);
+    expect(result.status).toBe(204);
+    expect(result.body).toBeUndefined();
+  });
+
   it('ctx.respond only exposes declared status codes', () => {
     endpoint({
       name: 'typecheck3',

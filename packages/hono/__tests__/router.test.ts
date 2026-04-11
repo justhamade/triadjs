@@ -149,9 +149,9 @@ const deletePet = endpoint({
   summary: 'Delete a pet',
   request: { params: { id: t.string().format('uuid') } },
   responses: {
-    204: { schema: t.unknown().optional(), description: 'Deleted' },
+    204: { schema: t.empty(), description: 'Deleted' },
   },
-  handler: async (ctx) => ctx.respond[204](undefined),
+  handler: async (_ctx) => _ctx.respond[204](),
 });
 
 const echoHeader = endpoint({
@@ -305,7 +305,7 @@ describe('createTriadApp — happy path', () => {
     expect(body.code).toBe('DUPLICATE');
   });
 
-  it('DELETE /pets/:id returns 204 with empty body', async () => {
+  it('DELETE /pets/:id returns 204 with empty body and no content-type', async () => {
     const del = await app.fetch(
       new Request('http://localhost/pets/00000000-0000-0000-0000-000000000001', {
         method: 'DELETE',
@@ -314,6 +314,14 @@ describe('createTriadApp — happy path', () => {
     expect(del.status).toBe(204);
     const text = await del.text();
     expect(text).toBe('');
+    // Critical: a t.empty() response must not advertise a body content-type.
+    expect(del.headers.get('content-type')).toBeNull();
+  });
+
+  it('non-empty responses still advertise application/json', async () => {
+    const res = await app.fetch(new Request('http://localhost/pets'));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toMatch(/application\/json/);
   });
 });
 

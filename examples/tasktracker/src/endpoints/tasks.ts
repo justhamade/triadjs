@@ -26,7 +26,7 @@ import { endpoint, scenario, t } from '@triad/core';
 import type { Infer } from '@triad/core';
 import { CreateTask, Task, TaskPage, UpdateTask } from '../schemas/task.js';
 import { Project } from '../schemas/project.js';
-import { ApiError, AuthHeaders, NoContent } from '../schemas/common.js';
+import { ApiError, AuthHeaders } from '../schemas/common.js';
 import { requireAuth } from '../auth.js';
 
 type ProjectValue = Infer<typeof Project>;
@@ -464,7 +464,7 @@ export const deleteTask = endpoint({
     },
   },
   responses: {
-    204: { schema: NoContent, description: 'Task deleted (no body)' },
+    204: { schema: t.empty(), description: 'Task deleted (no body)' },
     401: { schema: ApiError, description: 'Missing or invalid token' },
     403: { schema: ApiError, description: 'Project belongs to another user' },
     404: { schema: ApiError, description: 'Project or task not found' },
@@ -485,7 +485,7 @@ export const deleteTask = endpoint({
       });
     }
     await ctx.services.taskRepo.delete(ctx.params.taskId);
-    return ctx.respond[204](undefined);
+    return ctx.respond[204]();
   },
   behaviors: [
     scenario('Owners can delete a task')

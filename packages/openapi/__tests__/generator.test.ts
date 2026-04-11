@@ -361,3 +361,57 @@ describe('serialize — YAML and JSON', () => {
     expect(parsed).toEqual(doc);
   });
 });
+
+// ---------------------------------------------------------------------------
+// t.empty() — content field is omitted for empty responses
+// ---------------------------------------------------------------------------
+
+describe('generateOpenAPI — t.empty() responses', () => {
+  const deletePet = endpoint({
+    name: 'deletePet',
+    method: 'DELETE',
+    path: '/pets/:id',
+    summary: 'Delete a pet',
+    tags: ['Pets'],
+    request: { params: { id: t.string().format('uuid') } },
+    responses: {
+      204: { schema: t.empty(), description: 'Pet deleted' },
+      404: { schema: ApiError, description: 'Not found' },
+    },
+    handler: async (ctx) => {
+      if (ctx.params.id === 'missing') {
+        return ctx.respond[404]({ code: 'NOT_FOUND', message: 'x' });
+      }
+      return ctx.respond[204]();
+    },
+  });
+
+  function docWithDelete() {
+    const router = createRouter({ title: 'Petstore', version: '1.0.0' });
+    router.add(createPet, deletePet);
+    return generateOpenAPI(router);
+  }
+
+  it('204 response has a description but no content field', () => {
+    const doc = docWithDelete();
+    const op = doc.paths['/pets/{id}']?.delete;
+    expect(op?.responses['204']).toBeDefined();
+    expect(op?.responses['204']?.description).toBe('Pet deleted');
+    expect(op?.responses['204']?.content).toBeUndefined();
+  });
+
+  it('non-empty responses on the same operation still have content', () => {
+    const doc = docWithDelete();
+    const op = doc.paths['/pets/{id}']?.delete;
+    expect(op?.responses['404']?.content).toBeDefined();
+    expect(op?.responses['404']?.content?.['application/json']?.schema).toEqual({
+      $ref: '#/components/schemas/ApiError',
+    });
+  });
+
+  it('a 200 response on a different endpoint still has content (unaffected)', () => {
+    const doc = docWithDelete();
+    const op = doc.paths['/pets']?.post;
+    expect(op?.responses['201']?.content).toBeDefined();
+  });
+});

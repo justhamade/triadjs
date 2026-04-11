@@ -21,6 +21,7 @@ import { DateTimeSchema } from './datetime.js';
 import { EnumSchema } from './enum.js';
 import { LiteralSchema, type LiteralBase } from './literal.js';
 import { UnknownSchema } from './unknown.js';
+import { EmptySchema } from './empty.js';
 import { ArraySchema } from './array.js';
 import { RecordSchema } from './record.js';
 import { TupleSchema } from './tuple.js';
@@ -39,6 +40,7 @@ export const t = {
   boolean: () => new BooleanSchema(),
   datetime: () => new DateTimeSchema(),
   unknown: () => new UnknownSchema(),
+  empty: () => new EmptySchema(),
 
   enum: <const V extends readonly [string, ...string[]]>(...values: V) =>
     new EnumSchema<V>(values),
@@ -84,6 +86,7 @@ export {
   EnumSchema,
   LiteralSchema,
   UnknownSchema,
+  EmptySchema,
   ArraySchema,
   RecordSchema,
   TupleSchema,
@@ -91,3 +94,5 @@ export {
   ModelSchema,
   ValueSchema,
 };
+
+export { isEmptySchema } from './empty.js';
