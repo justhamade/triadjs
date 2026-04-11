@@ -146,6 +146,13 @@ export function parseAssertion(raw: string): Assertion {
     return { type: 'body_has', path: hasBool[1]!, value: hasBool[2] === 'true', raw };
   }
 
+  // "response body has <path> null" — the bare keyword `null` yields the
+  // JavaScript `null` value. Quoted `"null"` stays a string (handled above).
+  const hasNull = text.match(/^response body has (\S+) null$/);
+  if (hasNull) {
+    return { type: 'body_has', path: hasNull[1]!, value: null, raw };
+  }
+
   // -------------------------------------------------------------------
   // Channel assertions (Phase 9.4)
   // -------------------------------------------------------------------

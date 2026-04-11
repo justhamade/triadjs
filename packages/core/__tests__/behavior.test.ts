@@ -35,6 +35,33 @@ describe('parseAssertion', () => {
     });
   });
 
+  it('parses body has <field> null as the null literal', () => {
+    const a = parseAssertion('response body has token null');
+    expect(a).toMatchObject({ type: 'body_has', path: 'token', value: null });
+  });
+
+  it('parses body has nextCursor null', () => {
+    const a = parseAssertion('response body has nextCursor null');
+    expect(a).toMatchObject({
+      type: 'body_has',
+      path: 'nextCursor',
+      value: null,
+    });
+  });
+
+  it('keeps quoted "null" as a string, not the null literal', () => {
+    const a = parseAssertion('response body has name "null"');
+    expect(a).toMatchObject({ type: 'body_has', path: 'name', value: 'null' });
+    // Guard against accidental null coercion.
+    expect((a as { value: unknown }).value).not.toBeNull();
+    expect(typeof (a as { value: unknown }).value).toBe('string');
+  });
+
+  it('parses body has count null regardless of the field name', () => {
+    const a = parseAssertion('response body has count null');
+    expect(a).toMatchObject({ type: 'body_has', path: 'count', value: null });
+  });
+
   it('parses the body_has_code idiom', () => {
     const a = parseAssertion('response body has code "NOT_FOUND"');
     expect(a).toMatchObject({ type: 'body_has_code', code: 'NOT_FOUND' });

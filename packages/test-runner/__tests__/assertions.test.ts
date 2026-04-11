@@ -152,6 +152,60 @@ describe('runSingleAssertion — body_has', () => {
   });
 });
 
+describe('runSingleAssertion — body_has with null literal', () => {
+  const a: Assertion = {
+    type: 'body_has',
+    path: 'token',
+    value: null,
+    raw: 'response body has token null',
+  };
+
+  it('passes when the field value is exactly null', async () => {
+    await expect(
+      runSingleAssertion(res(200, { token: null }), a, baseOpts),
+    ).resolves.toBeUndefined();
+  });
+
+  it('fails when the field has a non-null string value', async () => {
+    await expectFailure(
+      runSingleAssertion(res(200, { token: 'abc' }), a, baseOpts),
+      'response body.token',
+    );
+  });
+
+  // Strict null semantics: an absent field (undefined) is NOT the same as
+  // an explicit null. Users asserting `null` are asking "the key exists and
+  // its value is null" — not "the key is missing". The evaluator uses strict
+  // equality so `undefined !== null` and this assertion fails.
+  it('fails when the field is undefined (undefined !== null)', async () => {
+    await expectFailure(
+      runSingleAssertion(res(200, {}), a, baseOpts),
+      'response body.token',
+    );
+  });
+
+  it('fails when the field is 0 (0 !== null)', async () => {
+    await expectFailure(
+      runSingleAssertion(res(200, { token: 0 }), a, baseOpts),
+      'response body.token',
+    );
+  });
+
+  it('fails when the field is false (false !== null)', async () => {
+    await expectFailure(
+      runSingleAssertion(res(200, { token: false }), a, baseOpts),
+      'response body.token',
+    );
+  });
+
+  it('fails when the field is the string "null" (type mismatch)', async () => {
+    await expectFailure(
+      runSingleAssertion(res(200, { token: 'null' }), a, baseOpts),
+      'response body.token',
+    );
+  });
+});
+
 describe('runSingleAssertion — body_has_code', () => {
   const a: Assertion = {
     type: 'body_has_code',
