@@ -86,6 +86,59 @@ export interface BaseChannelClientOptions {
    * the \`ws\` package's \`WebSocket\` to run in Node without a DOM.
    */
   WebSocketImpl?: typeof WebSocket;
+  /**
+   * When \`true\`, this client joins a module-level shared connection
+   * pool keyed by \`(url, query, headers, auth, token)\`. Multiple
+   * clients with the same key share one underlying WebSocket; a
+   * reference count tracks live subscribers, and the socket is torn
+   * down (after \`sharedCloseDelayMs\`) when the last subscriber
+   * leaves.
+   *
+   * Default: \`false\`. Opt in per-instance.
+   *
+   * Interacts with \`queueOfflineSends\`: when both are set, the
+   * queue lives on the pool entry, so every subscriber contributes
+   * to the same FIFO and messages are flushed once when the shared
+   * socket opens.
+   */
+  shared?: boolean;
+  /**
+   * Grace period (ms) between the last shared subscriber leaving
+   * and the underlying socket being closed. If a new subscriber
+   * joins within the window, teardown is cancelled. Only meaningful
+   * when \`shared: true\`.
+   *
+   * Default: \`1000\`. Set to \`0\` to close immediately.
+   */
+  sharedCloseDelayMs?: number;
+  /**
+   * Buffer sends that occur while the socket is not \`'open'\`. When
+   * the connection transitions to \`'open'\`, queued messages flush
+   * in FIFO order. Useful for UI code that wants fire-and-forget
+   * sends without state checks.
+   *
+   * Default: \`false\`. When disabled, calling \`send()\` before the
+   * socket is open throws (existing behavior).
+   *
+   * Note: \`close()\` does NOT drain the queue — explicitly-closed
+   * clients drop any unflushed messages.
+   */
+  queueOfflineSends?: boolean;
+  /**
+   * Maximum number of buffered messages when \`queueOfflineSends\`
+   * is enabled. When a send would exceed the limit, the OLDEST
+   * queued message is dropped (drop-oldest FIFO) and
+   * \`onQueueDropped\` is invoked for it.
+   *
+   * Default: \`100\`.
+   */
+  maxQueueSize?: number;
+  /**
+   * Callback invoked with each message dropped due to
+   * \`maxQueueSize\` overflow. Useful for telemetry or surfacing a
+   * user-facing warning.
+   */
+  onQueueDropped?: (dropped: { type: string; payload: unknown }) => void;
 }
 
 export interface ChannelEnvelope {
@@ -99,6 +152,308 @@ export interface ChannelCloseEvent {
 }
 
 type Listener<T> = (arg: T) => void;
+
+interface QueuedSend {
+  type: string;
+  payload: unknown;
+}
+
+interface CoreListeners {
+  messages: Map<string, Set<Listener<unknown>>>;
+  states: Set<Listener<ChannelState>>;
+  opens: Set<Listener<void>>;
+  closes: Set<Listener<ChannelCloseEvent>>;
+  errors: Set<Listener<unknown>>;
+}
+
+function newCoreListeners(): CoreListeners {
+  return {
+    messages: new Map(),
+    states: new Set(),
+    opens: new Set(),
+    closes: new Set(),
+    errors: new Set(),
+  };
+}
+
+/**
+ * \`ConnectionCore\` owns the underlying WebSocket, connection state,
+ * reconnect loop, and (optionally) an offline send queue. A core
+ * can be shared across multiple \`BaseChannelClient\` instances
+ * (ref-counted via the module-level pool) or owned exclusively by
+ * a single client.
+ */
+class ConnectionCore {
+  readonly options: BaseChannelClientOptions;
+  socket: WebSocket | undefined;
+  state: ChannelState = 'connecting';
+  readonly subscribers = new Set<CoreListeners>();
+  attempts = 0;
+  explicitClose = false;
+  refCount = 0;
+  closeTimer: ReturnType<typeof setTimeout> | undefined;
+  readonly queueEnabled: boolean;
+  readonly maxQueueSize: number;
+  readonly onQueueDropped?: (d: QueuedSend) => void;
+  queue: QueuedSend[] = [];
+  poolKey: string | undefined;
+
+  constructor(options: BaseChannelClientOptions) {
+    this.options = options;
+    this.queueEnabled = options.queueOfflineSends === true;
+    this.maxQueueSize = options.maxQueueSize ?? 100;
+    this.onQueueDropped = options.onQueueDropped;
+  }
+
+  addSubscriber(listeners: CoreListeners): void {
+    this.subscribers.add(listeners);
+  }
+
+  removeSubscriber(listeners: CoreListeners): void {
+    this.subscribers.delete(listeners);
+  }
+
+  setState(next: ChannelState): void {
+    if (this.state === next) return;
+    this.state = next;
+    for (const l of this.subscribers) {
+      for (const cb of l.states) cb(next);
+    }
+    if (next === 'open') this.flushQueue();
+  }
+
+  flushQueue(): void {
+    if (!this.queueEnabled) return;
+    const sock = this.socket;
+    if (!sock || sock.readyState !== 1) return;
+    const pending = this.queue;
+    this.queue = [];
+    for (const item of pending) {
+      sock.send(JSON.stringify({ type: item.type, data: item.payload }));
+    }
+  }
+
+  enqueueOrSend(type: string, payload: unknown): void {
+    const sock = this.socket;
+    if (sock && sock.readyState === 1 && this.state === 'open') {
+      sock.send(JSON.stringify({ type, data: payload }));
+      return;
+    }
+    if (!this.queueEnabled) {
+      throw new Error(
+        'Cannot send on a channel that is not open (state=' + this.state + ')',
+      );
+    }
+    if (this.queue.length >= this.maxQueueSize) {
+      const dropped = this.queue.shift();
+      if (dropped && this.onQueueDropped) this.onQueueDropped(dropped);
+    }
+    this.queue.push({ type, payload });
+  }
+
+  dispatchMessage(envelope: ChannelEnvelope): void {
+    for (const l of this.subscribers) {
+      const set = l.messages.get(envelope.type);
+      if (!set) continue;
+      for (const cb of set) cb(envelope.data);
+    }
+  }
+
+  dispatchOpen(): void {
+    for (const l of this.subscribers) {
+      for (const cb of l.opens) cb();
+    }
+  }
+
+  dispatchClose(info: ChannelCloseEvent): void {
+    for (const l of this.subscribers) {
+      for (const cb of l.closes) cb(info);
+    }
+  }
+
+  dispatchError(err: unknown): void {
+    for (const l of this.subscribers) {
+      for (const cb of l.errors) cb(err);
+    }
+  }
+
+  connect(): void {
+    const url = buildUrl(this.options);
+    const Impl =
+      this.options.WebSocketImpl ??
+      (typeof WebSocket !== 'undefined' ? WebSocket : undefined);
+    if (!Impl) {
+      throw new Error(
+        'No WebSocket implementation available. Pass options.WebSocketImpl.',
+      );
+    }
+
+    this.setState(this.attempts === 0 ? 'connecting' : 'reconnecting');
+
+    const subprotocols: string[] = [];
+    if (this.options.auth === 'subprotocol' && this.options.token !== undefined) {
+      subprotocols.push('bearer', this.options.token);
+    }
+
+    const sock =
+      subprotocols.length > 0
+        ? new Impl(url, subprotocols)
+        : new Impl(url);
+    this.socket = sock;
+
+    sock.addEventListener('open', () => {
+      this.attempts = 0;
+      if (this.options.auth === 'first-message') {
+        const type = this.options.firstMessageType ?? '__auth';
+        const payload =
+          this.options.firstMessagePayload !== undefined
+            ? this.options.firstMessagePayload
+            : { token: this.options.token };
+        try {
+          sock.send(JSON.stringify({ type, data: payload }));
+        } catch (err) {
+          this.dispatchError(err);
+        }
+      }
+      this.setState('open');
+      this.dispatchOpen();
+    });
+
+    sock.addEventListener('message', (event: MessageEvent) => {
+      let envelope: ChannelEnvelope;
+      try {
+        const text =
+          typeof event.data === 'string'
+            ? event.data
+            : event.data instanceof ArrayBuffer
+              ? new TextDecoder().decode(event.data)
+              : String(event.data);
+        envelope = JSON.parse(text) as ChannelEnvelope;
+      } catch (err) {
+        this.dispatchError(err);
+        return;
+      }
+      if (typeof envelope !== 'object' || envelope === null) return;
+      this.dispatchMessage(envelope);
+    });
+
+    sock.addEventListener('error', (event: Event) => {
+      this.dispatchError(event);
+    });
+
+    sock.addEventListener('close', (event: CloseEvent) => {
+      const closeInfo: ChannelCloseEvent = {
+        code: event.code,
+        reason: event.reason,
+      };
+      this.dispatchClose(closeInfo);
+      if (this.explicitClose) {
+        this.setState('closed');
+        return;
+      }
+      const rc = this.options.reconnect;
+      if (!rc || rc.enabled === false) {
+        this.setState('closed');
+        return;
+      }
+      const maxAttempts = rc.maxAttempts ?? 5;
+      if (this.attempts >= maxAttempts) {
+        this.setState('closed');
+        return;
+      }
+      this.attempts += 1;
+      const initial = rc.initialDelayMs ?? 500;
+      const factor = rc.factor ?? 2;
+      const max = rc.maxDelayMs ?? 10_000;
+      const base = Math.min(max, initial * Math.pow(factor, this.attempts - 1));
+      const delay = jitterDelay(base, rc.jitter ?? true);
+      this.setState('reconnecting');
+      setTimeout(() => {
+        if (this.explicitClose) return;
+        this.connect();
+      }, delay);
+    });
+  }
+
+  teardown(): void {
+    this.explicitClose = true;
+    const sock = this.socket;
+    if (!sock) return;
+    if (sock.readyState === 3) return;
+    try {
+      sock.close();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+/**
+ * Module-level shared connection pool. Keyed by a stable
+ * serialization of the connection descriptor. Tests can retrieve
+ * this via \`__internals.getPool()\`.
+ */
+class ConnectionPool {
+  private readonly entries = new Map<string, ConnectionCore>();
+
+  size(): number {
+    return this.entries.size;
+  }
+
+  acquire(key: string, options: BaseChannelClientOptions): ConnectionCore {
+    let core = this.entries.get(key);
+    if (core) {
+      if (core.closeTimer !== undefined) {
+        clearTimeout(core.closeTimer);
+        core.closeTimer = undefined;
+      }
+      core.refCount += 1;
+      return core;
+    }
+    core = new ConnectionCore(options);
+    core.poolKey = key;
+    core.refCount = 1;
+    this.entries.set(key, core);
+    core.connect();
+    return core;
+  }
+
+  release(core: ConnectionCore): void {
+    if (core.poolKey === undefined) return;
+    core.refCount -= 1;
+    if (core.refCount > 0) return;
+    const delay = core.options.sharedCloseDelayMs ?? 1000;
+    const finalize = () => {
+      core.closeTimer = undefined;
+      if (core.refCount > 0) return;
+      if (core.poolKey !== undefined) this.entries.delete(core.poolKey);
+      core.teardown();
+    };
+    if (delay <= 0) {
+      finalize();
+      return;
+    }
+    core.closeTimer = setTimeout(finalize, delay);
+  }
+}
+
+const __pool = new ConnectionPool();
+
+export const __internals = {
+  getPool(): ConnectionPool {
+    return __pool;
+  },
+};
+
+function poolKey(options: BaseChannelClientOptions): string {
+  return JSON.stringify({
+    url: options.url,
+    query: options.query ?? null,
+    headers: options.headers ?? null,
+    auth: options.auth ?? null,
+    token: options.token ?? null,
+  });
+}
 
 function buildUrl(options: BaseChannelClientOptions): string {
   let url = options.url;
@@ -134,44 +489,36 @@ function jitterDelay(base: number, jitter: boolean): number {
  * channel \`create*Client\` factories do the typed wiring.
  */
 export class BaseChannelClient {
-  private readonly options: BaseChannelClientOptions;
-  private socket: WebSocket | undefined;
-  private _state: ChannelState = 'connecting';
-  private readonly messageListeners = new Map<
-    string,
-    Set<Listener<unknown>>
-  >();
-  private readonly stateListeners = new Set<Listener<ChannelState>>();
-  private readonly openListeners = new Set<Listener<void>>();
-  private readonly closeListeners = new Set<Listener<ChannelCloseEvent>>();
-  private readonly errorListeners = new Set<Listener<unknown>>();
-  private attempts = 0;
-  private explicitClose = false;
+  private readonly core: ConnectionCore;
+  private readonly listeners: CoreListeners = newCoreListeners();
+  private readonly isShared: boolean;
+  private released = false;
 
   constructor(options: BaseChannelClientOptions) {
-    this.options = options;
-    this.connect();
+    this.isShared = options.shared === true;
+    if (this.isShared) {
+      this.core = __pool.acquire(poolKey(options), options);
+    } else {
+      this.core = new ConnectionCore(options);
+      this.core.refCount = 1;
+      this.core.connect();
+    }
+    this.core.addSubscriber(this.listeners);
   }
 
   get state(): ChannelState {
-    return this._state;
+    return this.core.state;
   }
 
   send(type: string, payload: unknown): void {
-    const sock = this.socket;
-    if (!sock || sock.readyState !== 1) {
-      throw new Error(
-        'Cannot send on a channel that is not open (state=' + this._state + ')',
-      );
-    }
-    sock.send(JSON.stringify({ type, data: payload }));
+    this.core.enqueueOrSend(type, payload);
   }
 
   onMessage(type: string, cb: Listener<unknown>): () => void {
-    let set = this.messageListeners.get(type);
+    let set = this.listeners.messages.get(type);
     if (!set) {
       set = new Set();
-      this.messageListeners.set(type, set);
+      this.listeners.messages.set(type, set);
     }
     set.add(cb);
     return () => {
@@ -180,36 +527,46 @@ export class BaseChannelClient {
   }
 
   onStateChange(cb: Listener<ChannelState>): () => void {
-    this.stateListeners.add(cb);
+    this.listeners.states.add(cb);
     return () => {
-      this.stateListeners.delete(cb);
+      this.listeners.states.delete(cb);
     };
   }
 
   onOpen(cb: Listener<void>): () => void {
-    this.openListeners.add(cb);
+    this.listeners.opens.add(cb);
     return () => {
-      this.openListeners.delete(cb);
+      this.listeners.opens.delete(cb);
     };
   }
 
   onClose(cb: Listener<ChannelCloseEvent>): () => void {
-    this.closeListeners.add(cb);
+    this.listeners.closes.add(cb);
     return () => {
-      this.closeListeners.delete(cb);
+      this.listeners.closes.delete(cb);
     };
   }
 
   onError(cb: Listener<unknown>): () => void {
-    this.errorListeners.add(cb);
+    this.listeners.errors.add(cb);
     return () => {
-      this.errorListeners.delete(cb);
+      this.listeners.errors.delete(cb);
     };
   }
 
   async close(): Promise<void> {
-    this.explicitClose = true;
-    const sock = this.socket;
+    if (this.released) return;
+    this.released = true;
+    this.core.removeSubscriber(this.listeners);
+    if (this.isShared) {
+      __pool.release(this.core);
+      return;
+    }
+    // Drop the queue on explicit close. Exclusive cores are torn
+    // down immediately.
+    this.core.queue = [];
+    const sock = this.core.socket;
+    this.core.explicitClose = true;
     if (!sock) return;
     if (sock.readyState === 3) return;
     await new Promise<void>((resolve) => {
@@ -219,112 +576,6 @@ export class BaseChannelClient {
       } catch {
         resolve();
       }
-    });
-  }
-
-  private setState(next: ChannelState): void {
-    if (this._state === next) return;
-    this._state = next;
-    for (const cb of this.stateListeners) cb(next);
-  }
-
-  private connect(): void {
-    const url = buildUrl(this.options);
-    const Impl =
-      this.options.WebSocketImpl ??
-      (typeof WebSocket !== 'undefined' ? WebSocket : undefined);
-    if (!Impl) {
-      throw new Error(
-        'No WebSocket implementation available. Pass options.WebSocketImpl.',
-      );
-    }
-
-    this.setState(this.attempts === 0 ? 'connecting' : 'reconnecting');
-
-    const subprotocols: string[] = [];
-    if (this.options.auth === 'subprotocol' && this.options.token !== undefined) {
-      subprotocols.push('bearer', this.options.token);
-    }
-
-    const sock =
-      subprotocols.length > 0
-        ? new Impl(url, subprotocols)
-        : new Impl(url);
-    this.socket = sock;
-
-    sock.addEventListener('open', () => {
-      this.attempts = 0;
-      if (this.options.auth === 'first-message') {
-        const type = this.options.firstMessageType ?? '__auth';
-        const payload =
-          this.options.firstMessagePayload !== undefined
-            ? this.options.firstMessagePayload
-            : { token: this.options.token };
-        try {
-          sock.send(JSON.stringify({ type, data: payload }));
-        } catch (err) {
-          for (const cb of this.errorListeners) cb(err);
-        }
-      }
-      this.setState('open');
-      for (const cb of this.openListeners) cb();
-    });
-
-    sock.addEventListener('message', (event: MessageEvent) => {
-      let envelope: ChannelEnvelope;
-      try {
-        const text =
-          typeof event.data === 'string'
-            ? event.data
-            : event.data instanceof ArrayBuffer
-              ? new TextDecoder().decode(event.data)
-              : String(event.data);
-        envelope = JSON.parse(text) as ChannelEnvelope;
-      } catch (err) {
-        for (const cb of this.errorListeners) cb(err);
-        return;
-      }
-      if (typeof envelope !== 'object' || envelope === null) return;
-      const set = this.messageListeners.get(envelope.type);
-      if (!set) return;
-      for (const cb of set) cb(envelope.data);
-    });
-
-    sock.addEventListener('error', (event: Event) => {
-      for (const cb of this.errorListeners) cb(event);
-    });
-
-    sock.addEventListener('close', (event: CloseEvent) => {
-      const closeInfo: ChannelCloseEvent = {
-        code: event.code,
-        reason: event.reason,
-      };
-      for (const cb of this.closeListeners) cb(closeInfo);
-      if (this.explicitClose) {
-        this.setState('closed');
-        return;
-      }
-      const rc = this.options.reconnect;
-      if (!rc || rc.enabled === false) {
-        this.setState('closed');
-        return;
-      }
-      const maxAttempts = rc.maxAttempts ?? 5;
-      if (this.attempts >= maxAttempts) {
-        this.setState('closed');
-        return;
-      }
-      this.attempts += 1;
-      const initial = rc.initialDelayMs ?? 500;
-      const factor = rc.factor ?? 2;
-      const max = rc.maxDelayMs ?? 10_000;
-      const base = Math.min(max, initial * Math.pow(factor, this.attempts - 1));
-      const delay = jitterDelay(base, rc.jitter ?? true);
-      this.setState('reconnecting');
-      setTimeout(() => {
-        if (this.explicitClose) return;
-        this.connect();
-      }, delay);
     });
   }
 }
