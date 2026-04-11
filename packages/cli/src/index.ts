@@ -15,7 +15,7 @@ import { runDocs } from './commands/docs.js';
 import { runGherkin } from './commands/gherkin.js';
 import { runTest } from './commands/test.js';
 import { runValidate } from './commands/validate.js';
-import { runDbGenerate } from './commands/db.js';
+import { runDbGenerate, runDbMigrate } from './commands/db.js';
 import { CliError } from './errors.js';
 
 const VERSION = '0.1.0';
@@ -83,6 +83,21 @@ export function createProgram(): Command {
     )
     .action(async (cmdOpts) => {
       await runDbGenerate({ ...program.opts(), ...cmdOpts });
+    });
+
+  dbCommand
+    .command('migrate')
+    .description(
+      'Diff the router against the last snapshot and write an SQL migration file',
+    )
+    .option(
+      '-d, --dialect <dialect>',
+      'database dialect: sqlite, postgres, or mysql',
+    )
+    .option('--dir <path>', 'migrations directory (default: ./migrations)')
+    .option('-n, --name <name>', 'optional name suffix for the migration file')
+    .action(async (cmdOpts) => {
+      await runDbMigrate({ ...program.opts(), ...cmdOpts });
     });
 
   return program;

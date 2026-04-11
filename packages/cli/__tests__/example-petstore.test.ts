@@ -24,7 +24,8 @@ import { runDocs } from '../src/commands/docs.js';
 import { runGherkin } from '../src/commands/gherkin.js';
 import { runTest } from '../src/commands/test.js';
 import { runValidate } from '../src/commands/validate.js';
-import { runDbGenerate } from '../src/commands/db.js';
+import * as os from 'node:os';
+import { runDbGenerate, runDbMigrate } from '../src/commands/db.js';
 
 const EXAMPLE_DIR = fileURLToPath(
   new URL('../../../examples/petstore/', import.meta.url),
@@ -401,5 +402,59 @@ describe('example petstore — triad db generate', () => {
     } finally {
       if (fs.existsSync(myPath)) fs.rmSync(myPath, { force: true });
     }
+  });
+});
+
+describe('example petstore — triad db migrate', () => {
+  let tmpDir = '';
+
+  beforeAll(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'triad-petstore-migrate-'));
+  });
+
+  afterAll(() => {
+    if (fs.existsSync(tmpDir)) {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('writes an initial migration with CREATE TABLE for pets, adopters, adoptions', async () => {
+    const { output } = await withCapturedStdout(() =>
+      runDbMigrate({
+        config: CONFIG,
+        dir: tmpDir,
+        dialect: 'sqlite',
+      }),
+    );
+    expect(output).toContain('Migration written');
+    const files = fs
+      .readdirSync(tmpDir)
+      .filter((f) => f.endsWith('.sql'))
+      .sort();
+    expect(files.length).toBe(1);
+    const sql = fs.readFileSync(path.join(tmpDir, files[0] as string), 'utf8');
+    expect(sql).toContain('CREATE TABLE "pets"');
+    expect(sql).toContain('CREATE TABLE "adopters"');
+    expect(sql).toContain('CREATE TABLE "adoptions"');
+    // Snapshot committed alongside the SQL file.
+    expect(fs.existsSync(path.join(tmpDir, '.snapshot.json'))).toBe(true);
+  });
+
+  it('writes no new file on a second run with no changes', async () => {
+    const before = fs
+      .readdirSync(tmpDir)
+      .filter((f) => f.endsWith('.sql')).length;
+    const { output } = await withCapturedStdout(() =>
+      runDbMigrate({
+        config: CONFIG,
+        dir: tmpDir,
+        dialect: 'sqlite',
+      }),
+    );
+    expect(output).toContain('No schema changes');
+    const after = fs
+      .readdirSync(tmpDir)
+      .filter((f) => f.endsWith('.sql')).length;
+    expect(after).toBe(before);
   });
 });

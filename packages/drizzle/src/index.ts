@@ -166,3 +166,9 @@ export type {
   LogicalColumnType,
   Dialect,
 } from './codegen/index.js';
+
+// ---------------------------------------------------------------------------
+// Migration codegen — diff two router snapshots and emit SQL migrations
+// ---------------------------------------------------------------------------
+
+export * from './migrations/index.js';

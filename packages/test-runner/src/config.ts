@@ -46,6 +46,18 @@ export interface TriadConfig {
 
   /** Gherkin generator configuration. */
   gherkin?: GherkinConfig;
+
+  /** Database codegen and migration configuration. */
+  db?: DbConfig;
+}
+
+export interface DbConfig {
+  /** Default database dialect for codegen and migrations. */
+  dialect?: 'sqlite' | 'postgres' | 'mysql';
+  /** Output file path for `triad db generate`. */
+  output?: string;
+  /** Directory for `triad db migrate` (snapshot + migration files). */
+  migrations?: string;
 }
 
 export interface TestConfig {
