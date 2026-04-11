@@ -207,8 +207,15 @@ export class ModelSchema<
     const out: Record<string, unknown> = {};
     for (const [fieldName, fieldSchema] of Object.entries(this.shape as ModelShape)) {
       const fieldPath = joinPath(path, fieldName);
-      const fieldValue = fieldSchema._validateAt(input[fieldName], fieldPath, errors);
-      if (fieldValue !== undefined || fieldName in input) {
+      // Use Object.hasOwn to avoid the prototype chain — a field named
+      // `valueOf`, `toString`, `constructor`, etc. must not resolve to
+      // the corresponding Object.prototype method when the user input
+      // doesn't have its own property of that name. Phase 25 property
+      // tests discovered this as a real correctness bug.
+      const hasOwn = Object.hasOwn(input, fieldName);
+      const rawFieldValue = hasOwn ? input[fieldName] : undefined;
+      const fieldValue = fieldSchema._validateAt(rawFieldValue, fieldPath, errors);
+      if (fieldValue !== undefined || hasOwn) {
         out[fieldName] = fieldValue;
       }
     }

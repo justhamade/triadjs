@@ -10,6 +10,8 @@ Topical how-tos for picking adapters, ORMs, and working productively with AI cod
 - [**Triad on Supabase**](./supabase.md) — deploying a Triad API as a Supabase Edge Function on Deno, with Supabase Auth, per-request Supabase clients, RLS as defense in depth, and the memory-vs-Supabase repository split.
 - [**Deploying to AWS**](./deploying-to-aws.md) — Lambda via `@triad/lambda`, ECS Fargate, App Runner, Beanstalk, EC2. Decision matrix, SAM/CDK snippets, cold-start tuning, CI/CD patterns, and cost math for realistic workloads.
 - [**Observability**](./observability.md) — OpenTelemetry via `@triad/otel`, six backend integrations (Honeycomb, Datadog, Grafana Tempo, Jaeger, Sentry, AWS X-Ray), span reference, debugging missing spans, and what the package does NOT do.
+- [**Authentication**](./auth.md) — `@triad/jwt` deep dive plus integration cookbooks for Auth0, Clerk, WorkOS, Firebase, NextAuth, session cookies, API keys, multi-tenancy, and RBAC layered on `beforeHandler`.
+- [**Security**](./security.md) — `@triad/security-headers` with opinionated CSP/HSTS/frame/permissions defaults plus cookbook for rate limiting per adapter, CORS, CSRF, secrets, dependency scanning, OWASP Top 10 audit, and a pre-production checklist.
 
 ## When to read what
 
@@ -22,6 +24,8 @@ Topical how-tos for picking adapters, ORMs, and working productively with AI cod
 | Brief an AI agent so it writes idiomatic Triad code | [Working with AI](./working-with-ai.md) |
 | Deploy to AWS (Lambda, Fargate, EC2, etc.) | [Deploying to AWS](./deploying-to-aws.md) |
 | Add traces / metrics / structured logging | [Observability](./observability.md) |
+| Wire up JWT, OAuth, session cookies, API keys | [Authentication](./auth.md) |
+| Set security headers and harden for production | [Security](./security.md) |
 | Understand DDD patterns (aggregates, repositories, bounded contexts) | [`docs/ddd-patterns.md`](../ddd-patterns.md) |
 | See the full schema DSL reference | [`docs/schema-dsl.md`](../schema-dsl.md) |
 | Wire Triad schemas to a Drizzle-backed database | [`docs/drizzle-integration.md`](../drizzle-integration.md) |

@@ -678,26 +678,27 @@ For users who don't want a query library at all — just typed fetch wrappers wi
 
 ---
 
-## Phase 20 — Security helpers (planned)
+## Phase 20 — Security helpers ✅
 
-**Status:** Not started. Mostly docs with a tiny shared package for cross-adapter helpers.
+**Status:** Shipped. `@triad/security-headers` ships per-adapter middleware for Fastify, Express, and Hono backed by a shared `computeHeaders()` function that produces the standard security header set (CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, COOP/COEP/CORP) with sensible opinionated defaults. CSP nonce support via a per-request factory — static configs cache the frozen header map at plugin-load time, nonce configs generate a fresh 16-byte base64 nonce per request and inject it into `script-src`/`style-src`. `docs/guides/security.md` (578 lines, 12 sections) is the consolidated security cookbook covering threat modeling, rate limiting, CORS, CSRF, input sanitization, secrets management, dependency security, observability-as-security, OWASP Top 10 coverage audit, and a pre-production checklist.
 
-### `@triad/security-headers`
+---
 
-A small package that emits Content-Security-Policy, Strict-Transport-Security, X-Frame-Options, X-Content-Type-Options, and Permissions-Policy headers with sensible defaults. Works as middleware for fastify/express/hono. ~100 lines.
+## Phase 23 — End-to-end integration tests ✅
 
-### Security cookbook
+**Status:** Phase 23.1 shipped. Each of the four reference examples (petstore, tasktracker, bookshelf, supabase-edge) gained an `e2e/` test suite that starts the example's server in-process on an ephemeral port, makes real HTTP (`fetch`) and real WebSocket (`ws`) calls, and asserts on wire responses. Complements the existing in-process `triad test` suites rather than replacing them. +74 tests across 17 files. Each example exports a `createApp()` factory from `src/server.ts` so tests can start a server without binding to a fixed port, with an entry-guard that preserves the existing `npm start` path. Phase 23.2 (Playwright-based frontend codegen runtime verification — build a React app with generated hooks, render in headless Chrome) remains on the backlog.
 
-`docs/guides/security.md`:
-- Rate limiting per adapter (`@fastify/rate-limit`, `express-rate-limit`, `hono/rate-limiter`)
-- CORS configuration per adapter
-- CSRF protection for cookie-based auth
-- Input sanitization beyond schema validation
-- Secrets management (env vars, AWS Secrets Manager, Vault)
-- Dependency scanning in CI (`npm audit`, `snyk`, `socket.dev`)
-- OWASP Top 10 coverage audit for Triad apps
+---
 
-Docs only plus one tiny package.
+## Phase 24 — Behavior coverage audit ✅
+
+**Status:** Shipped. 148 new tests across 9 packages filling in error-branch gaps that existing happy-path tests didn't cover. Zero source modifications, zero bugs discovered — every branch behaved as the source intended, which is a strong signal that the error paths are genuinely defensive. Focused on `@triad/core` schema/router, `@triad/openapi`, `@triad/asyncapi`, `@triad/drizzle`, `@triad/cli`, and adapter coerce logic. Deliberately avoided padding (variant tests that only change one value), testing JavaScript (assertions on Triad codes, not JS semantics), and testing private APIs.
+
+---
+
+## Phase 25 — Property-based fuzzing ✅
+
+**Status:** Shipped. 72 property tests across 7 files using `fast-check` to encode universal invariants about the schema DSL, endpoint composition, router construction, OpenAPI generation, and Drizzle codegen. Discovered one real bug: `ModelSchema._validate` read fields via plain member access, which resolved `Object.prototype.valueOf` when a field was named `valueOf` (and similar for `toString`, `constructor`, `hasOwnProperty`). Bug fixed in the same wave via `Object.hasOwn(input, fieldName)` guard. 390 core tests now green, zero skipped.
 
 ---
 

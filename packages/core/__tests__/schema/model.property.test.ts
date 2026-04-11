@@ -213,17 +213,40 @@ describe('ModelSchema — named properties', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Known bug: Object.prototype name collision (documented, not fixed)
+// Object.prototype name collision — fixed in model.ts via Object.hasOwn
 // ---------------------------------------------------------------------------
 
-describe('ModelSchema — Object.prototype field name bug', () => {
-  it.skip('partial({}) should accept an empty object for any field name (BUG)', () => {
-    // This fails today because ModelSchema._validate reads fields via
-    // plain member access, which returns the prototype chain member for
-    // names like `valueOf`, `toString`, etc. Fix this by switching to
-    // `Object.hasOwn(input, fieldName)` before dispatch.
+describe('ModelSchema — Object.prototype field name handling', () => {
+  it('partial({}) accepts an empty object for fields named valueOf / toString / etc.', () => {
+    // Regression test for the prototype-chain bug Phase 25 discovered.
+    // ModelSchema._validate now uses Object.hasOwn(input, fieldName)
+    // instead of plain member access, so a field named `valueOf` no
+    // longer resolves to Object.prototype.valueOf when the user input
+    // doesn't have its own property of that name.
+    expect(() => t.model('X', { valueOf: t.int32() }).partial().parse({})).not.toThrow();
+    expect(() => t.model('X', { toString: t.string() }).partial().parse({})).not.toThrow();
+    expect(() => t.model('X', { constructor: t.boolean() }).partial().parse({})).not.toThrow();
+    expect(() => t.model('X', { hasOwnProperty: t.int32() }).partial().parse({})).not.toThrow();
+  });
+
+  it('required fields with prototype names still report missing correctly', () => {
+    // The field is required and missing; we expect a validation failure,
+    // NOT a "got Function instead of int32" error.
     const model = t.model('X', { valueOf: t.int32() });
-    expect(() => model.partial().parse({})).not.toThrow();
+    const result = model.validate({});
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      // The error must be about a missing int, not about receiving a function
+      const err = result.errors[0];
+      expect(err).toBeDefined();
+      expect(err?.message ?? '').not.toMatch(/function/i);
+    }
+  });
+
+  it('own properties with prototype names are parsed correctly', () => {
+    const model = t.model('X', { valueOf: t.int32() });
+    const result = model.parse({ valueOf: 42 });
+    expect(result).toEqual({ valueOf: 42 });
   });
 });
 
