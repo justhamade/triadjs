@@ -17,6 +17,9 @@ import { runTest } from './commands/test.js';
 import { runValidate } from './commands/validate.js';
 import { runDbGenerate, runDbMigrate } from './commands/db.js';
 import { runFrontendGenerate } from './commands/frontend.js';
+import { runNew } from './commands/new.js';
+import { runMock } from './commands/mock.js';
+import { runDocsCheck } from './commands/docs-check.js';
 import { CliError } from './errors.js';
 
 const VERSION = '0.1.0';
@@ -105,6 +108,61 @@ export function createProgram(): Command {
   const frontendCommand = program
     .command('frontend')
     .description('Frontend client codegen (typed TanStack Query hooks, ...)');
+
+  // `triad new` — scaffold a project from a built-in example template.
+  program
+    .command('new')
+    .description(
+      'Scaffold a new Triad project from a built-in template (fastify-petstore, express-tasktracker, fastify-bookshelf, hono-supabase)',
+    )
+    .argument('[project-path]', 'where to create the project')
+    .option('-t, --template <name>', 'template to use')
+    .option('--force', 'overwrite the target directory if it is not empty')
+    .action(async (projectPath: string | undefined, cmdOpts) => {
+      await runNew({
+        ...program.opts(),
+        ...cmdOpts,
+        ...(projectPath !== undefined && { projectPath }),
+      });
+    });
+
+  // `triad mock` — zero-dependency fake HTTP server driven by the router.
+  program
+    .command('mock')
+    .description(
+      'Start a mock HTTP server that returns schema-valid fake responses from the router',
+    )
+    .option('-p, --port <n>', 'bind port (default 3333)', (v) => Number(v))
+    .option('--latency <ms>', 'artificial latency in ms', (v) => Number(v))
+    .option('--error-rate <r>', 'fraction of requests that return 500', (v) =>
+      Number(v),
+    )
+    .option('--seed <n>', 'seed the fake-data RNG for reproducibility', (v) =>
+      Number(v),
+    )
+    .action(async (cmdOpts) => {
+      await runMock({ ...program.opts(), ...cmdOpts });
+    });
+
+  // `triad docs check` — breaking-change detection against a baseline.
+  // Attach as a subcommand of the pre-existing `docs` command without
+  // touching its original definition.
+  const docsCommand = program.commands.find((c) => c.name() === 'docs');
+  if (docsCommand) {
+    docsCommand
+      .command('check')
+      .description(
+        'Diff the current OpenAPI against a baseline and classify changes as safe, risky, or breaking',
+      )
+      .option(
+        '--against <ref-or-path>',
+        'git ref or file path to compare against (default: main)',
+      )
+      .option('--allow-breaking', 'exit 0 even if breaking changes are found')
+      .action(async (cmdOpts) => {
+        await runDocsCheck({ ...program.opts(), ...cmdOpts });
+      });
+  }
 
   frontendCommand
     .command('generate')
