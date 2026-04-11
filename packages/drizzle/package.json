@@ -26,9 +26,10 @@
   },
   "devDependencies": {
     "@triad/core": "*",
-    "drizzle-orm": "^0.36.0",
-    "better-sqlite3": "^11.0.0",
     "@types/better-sqlite3": "^7.6.0",
+    "better-sqlite3": "^11.0.0",
+    "drizzle-orm": "^0.36.0",
+    "fast-check": "^3.23.2",
     "tsup": "^8.3.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
