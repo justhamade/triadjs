@@ -95,7 +95,6 @@ Create `src/channels/book-reviews.ts`:
 import { channel, scenario, t } from '@triad/core';
 import {
   ChannelError,
-  CreateReview,
   Review,
   ReviewSubmittedPayload,
 } from '../schemas/review.js';
@@ -215,7 +214,7 @@ export const bookReviews = channel({
       .fixtures({ bookId: '00000000-0000-0000-0000-000000000000' })
       .params({ bookId: '{bookId}' })
       .headers({ authorization: '' })
-      .when('client attempts to connect')
+      .when('client connects')
       .then('connection is rejected with code 401'),
   ],
 });
