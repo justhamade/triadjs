@@ -84,6 +84,7 @@ For WebSocket channels, `channel()` works the same way and produces AsyncAPI.
 
 ## Documentation
 
+- [**AI Agent Guide**](docs/ai-agent-guide.md) — Canonical "how to use Triad" reference for Claude Code, Cursor, Copilot, and other AI coding assistants
 - [**Quickstart**](docs/quickstart.md) — Build a Petstore API in 5 minutes
 - [**Schema DSL reference**](docs/schema-dsl.md) — Every primitive, composition, and constraint
 - [**DDD integration patterns**](docs/ddd-patterns.md) — Repositories, aggregates, domain services, factories, sagas, bounded contexts
