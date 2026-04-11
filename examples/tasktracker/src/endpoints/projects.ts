@@ -1,0 +1,349 @@
+/**
+ * Project endpoints.
+ *
+ * Every handler in this file begins with the same three-line auth
+ * preamble:
+ *
+ * ```ts
+ * const auth = await requireAuth(ctx);
+ * if (!auth.ok) return ctx.respond[401](auth.error);
+ * const user = auth.user;
+ * ```
+ *
+ * That repetition is Triad's middleware-shaped gap in action. For this
+ * example we accept the cost: three lines at the top of each handler
+ * is visible and obviously correct. If the pattern were three times
+ * longer (load tenant, compute scopes, enforce plan limits), we would
+ * extract it to a helper returning a richer context object.
+ *
+ * Ownership enforcement is factored into a tiny `loadOwnedProject`
+ * helper so get/delete/task-endpoints don't duplicate the 404 vs 403
+ * branching. We deliberately make the distinction: 404 when the
+ * project id is unknown globally, 403 when it exists but belongs to
+ * another user. Returning 404 in both cases would be safer from an
+ * enumeration standpoint but less honest about the error the client
+ * actually hit.
+ */
+
+import { endpoint, scenario, t } from '@triad/core';
+import type { Infer } from '@triad/core';
+import { CreateProject, Project } from '../schemas/project.js';
+import { ApiError, AuthHeaders, NoContent } from '../schemas/common.js';
+import { requireAuth } from '../auth.js';
+
+type ProjectValue = Infer<typeof Project>;
+type ErrorBody = { code: string; message: string };
+
+/**
+ * Shared helper: load a project by id and enforce ownership. Returns
+ * either the loaded project or a `{ status, error }` tuple the caller
+ * passes to the right `ctx.respond[...]` slot.
+ */
+async function loadOwnedProject(
+  services: { projectRepo: { findById(id: string): Promise<ProjectValue | null> } },
+  projectId: string,
+  userId: string,
+): Promise<
+  | { ok: true; project: ProjectValue }
+  | { ok: false; status: 404 | 403; error: ErrorBody }
+> {
+  const project = await services.projectRepo.findById(projectId);
+  if (!project) {
+    return {
+      ok: false,
+      status: 404,
+      error: { code: 'NOT_FOUND', message: `No project with id ${projectId}.` },
+    };
+  }
+  if (project.ownerId !== userId) {
+    return {
+      ok: false,
+      status: 403,
+      error: { code: 'FORBIDDEN', message: 'You do not own this project.' },
+    };
+  }
+  return { ok: true, project };
+}
+
+// ---------------------------------------------------------------------------
+// POST /projects
+// ---------------------------------------------------------------------------
+
+export const createProject = endpoint({
+  name: 'createProject',
+  method: 'POST',
+  path: '/projects',
+  summary: 'Create a project owned by the authenticated user',
+  tags: ['Projects'],
+  request: { headers: AuthHeaders, body: CreateProject },
+  responses: {
+    201: { schema: Project, description: 'Project created' },
+    401: { schema: ApiError, description: 'Missing or invalid token' },
+  },
+  handler: async (ctx) => {
+    const auth = await requireAuth(ctx);
+    if (!auth.ok) return ctx.respond[401](auth.error);
+    const project = await ctx.services.projectRepo.create({
+      ownerId: auth.user.id,
+      name: ctx.body.name,
+      ...(ctx.body.description !== undefined && { description: ctx.body.description }),
+    });
+    return ctx.respond[201](project);
+  },
+  behaviors: [
+    scenario('An authenticated user can create a project')
+      .given('a logged-in user')
+      .setup(async (services) => {
+        const user = await services.userRepo.create({
+          email: 'alice@example.com',
+          password: 'pw',
+          name: 'Alice',
+        });
+        const token = services.tokens.issue(user.id);
+        return { token, userId: user.id };
+      })
+      .headers({ authorization: 'Bearer {token}' })
+      .body({ name: 'Website redesign', description: 'Shipping Q3' })
+      .when('I POST /projects')
+      .then('response status is 201')
+      .and('response body matches Project')
+      .and('response body has name "Website redesign"')
+      .and('response body has ownerId "{userId}"'),
+
+    scenario('Creating a project without auth returns 401')
+      .given('no credentials')
+      .body({ name: 'Unauthorized project' })
+      .when('I POST /projects')
+      .then('response status is 401')
+      .and('response body has code "UNAUTHENTICATED"'),
+  ],
+});
+
+// ---------------------------------------------------------------------------
+// GET /projects — the authenticated user's projects
+// ---------------------------------------------------------------------------
+
+export const listProjects = endpoint({
+  name: 'listProjects',
+  method: 'GET',
+  path: '/projects',
+  summary: "List the authenticated user's projects",
+  description: 'Projects are scoped to the authenticated user — a user never sees another user\'s projects.',
+  tags: ['Projects'],
+  request: { headers: AuthHeaders },
+  responses: {
+    200: { schema: t.array(Project), description: 'Projects owned by the authenticated user' },
+    401: { schema: ApiError, description: 'Missing or invalid token' },
+  },
+  handler: async (ctx) => {
+    const auth = await requireAuth(ctx);
+    if (!auth.ok) return ctx.respond[401](auth.error);
+    const projects = await ctx.services.projectRepo.listByOwner(auth.user.id);
+    return ctx.respond[200](projects);
+  },
+  behaviors: [
+    scenario('Each user sees only their own projects')
+      .given('two users each with one project')
+      .setup(async (services) => {
+        const alice = await services.userRepo.create({
+          email: 'alice@example.com',
+          password: 'pw',
+          name: 'Alice',
+        });
+        const bob = await services.userRepo.create({
+          email: 'bob@example.com',
+          password: 'pw',
+          name: 'Bob',
+        });
+        await services.projectRepo.create({ ownerId: alice.id, name: "Alice's project" });
+        await services.projectRepo.create({ ownerId: bob.id, name: "Bob's project" });
+        const aliceToken = services.tokens.issue(alice.id);
+        return { aliceToken };
+      })
+      .headers({ authorization: 'Bearer {aliceToken}' })
+      .when('I GET /projects')
+      .then('response status is 200')
+      .and('response body is an array')
+      .and('response body has length 1'),
+
+    scenario('Listing projects without auth returns 401')
+      .given('no credentials')
+      .when('I GET /projects')
+      .then('response status is 401')
+      .and('response body has code "UNAUTHENTICATED"'),
+  ],
+});
+
+// ---------------------------------------------------------------------------
+// GET /projects/:projectId
+// ---------------------------------------------------------------------------
+
+export const getProject = endpoint({
+  name: 'getProject',
+  method: 'GET',
+  path: '/projects/:projectId',
+  summary: 'Fetch a single project the user owns',
+  tags: ['Projects'],
+  request: {
+    headers: AuthHeaders,
+    params: { projectId: t.string().format('uuid').doc('The project id') },
+  },
+  responses: {
+    200: { schema: Project, description: 'The project' },
+    401: { schema: ApiError, description: 'Missing or invalid token' },
+    403: { schema: ApiError, description: 'The project belongs to another user' },
+    404: { schema: ApiError, description: 'No project with that id' },
+  },
+  handler: async (ctx) => {
+    const auth = await requireAuth(ctx);
+    if (!auth.ok) return ctx.respond[401](auth.error);
+    const loaded = await loadOwnedProject(ctx.services, ctx.params.projectId, auth.user.id);
+    if (!loaded.ok) {
+      if (loaded.status === 403) return ctx.respond[403](loaded.error);
+      return ctx.respond[404](loaded.error);
+    }
+    return ctx.respond[200](loaded.project);
+  },
+  behaviors: [
+    scenario('Owners can fetch their own project')
+      .given('a user and a project they own')
+      .setup(async (services) => {
+        const user = await services.userRepo.create({
+          email: 'alice@example.com',
+          password: 'pw',
+          name: 'Alice',
+        });
+        const project = await services.projectRepo.create({ ownerId: user.id, name: 'Alpha' });
+        const token = services.tokens.issue(user.id);
+        return { token, projectId: project.id };
+      })
+      .headers({ authorization: 'Bearer {token}' })
+      .params({ projectId: '{projectId}' })
+      .when('I GET /projects/{projectId}')
+      .then('response status is 200')
+      .and('response body has name "Alpha"'),
+
+    scenario('A user cannot fetch another user\'s project')
+      .given('Alice owns a project and Bob is logged in')
+      .setup(async (services) => {
+        const alice = await services.userRepo.create({
+          email: 'alice@example.com',
+          password: 'pw',
+          name: 'Alice',
+        });
+        const bob = await services.userRepo.create({
+          email: 'bob@example.com',
+          password: 'pw',
+          name: 'Bob',
+        });
+        const project = await services.projectRepo.create({ ownerId: alice.id, name: 'Alpha' });
+        const bobToken = services.tokens.issue(bob.id);
+        return { bobToken, projectId: project.id };
+      })
+      .headers({ authorization: 'Bearer {bobToken}' })
+      .params({ projectId: '{projectId}' })
+      .when('I GET /projects/{projectId}')
+      .then('response status is 403')
+      .and('response body has code "FORBIDDEN"'),
+
+    scenario('Fetching an unknown project returns 404')
+      .given('a logged-in user and no such project')
+      .setup(async (services) => {
+        const user = await services.userRepo.create({
+          email: 'alice@example.com',
+          password: 'pw',
+          name: 'Alice',
+        });
+        const token = services.tokens.issue(user.id);
+        return { token };
+      })
+      .headers({ authorization: 'Bearer {token}' })
+      .params({ projectId: '00000000-0000-0000-0000-000000000000' })
+      .when('I GET /projects/{projectId}')
+      .then('response status is 404')
+      .and('response body has code "NOT_FOUND"'),
+
+    scenario('Fetching a project without auth returns 401')
+      .given('no credentials')
+      .params({ projectId: '00000000-0000-0000-0000-000000000000' })
+      .when('I GET /projects/{projectId}')
+      .then('response status is 401')
+      .and('response body has code "UNAUTHENTICATED"'),
+  ],
+});
+
+// ---------------------------------------------------------------------------
+// DELETE /projects/:projectId
+// ---------------------------------------------------------------------------
+
+export const deleteProject = endpoint({
+  name: 'deleteProject',
+  method: 'DELETE',
+  path: '/projects/:projectId',
+  summary: 'Delete a project the user owns',
+  description:
+    'Deletes the project and, via ON DELETE CASCADE on the storage schema, every task that belonged to it.',
+  tags: ['Projects'],
+  request: {
+    headers: AuthHeaders,
+    params: { projectId: t.string().format('uuid').doc('The project id') },
+  },
+  responses: {
+    204: { schema: NoContent, description: 'Project deleted (no body)' },
+    401: { schema: ApiError, description: 'Missing or invalid token' },
+    403: { schema: ApiError, description: 'The project belongs to another user' },
+    404: { schema: ApiError, description: 'No project with that id' },
+  },
+  handler: async (ctx) => {
+    const auth = await requireAuth(ctx);
+    if (!auth.ok) return ctx.respond[401](auth.error);
+    const loaded = await loadOwnedProject(ctx.services, ctx.params.projectId, auth.user.id);
+    if (!loaded.ok) {
+      if (loaded.status === 403) return ctx.respond[403](loaded.error);
+      return ctx.respond[404](loaded.error);
+    }
+    await ctx.services.projectRepo.delete(loaded.project.id);
+    return ctx.respond[204](undefined);
+  },
+  behaviors: [
+    scenario('Owners can delete their own project')
+      .given('a user and a project they own')
+      .setup(async (services) => {
+        const user = await services.userRepo.create({
+          email: 'alice@example.com',
+          password: 'pw',
+          name: 'Alice',
+        });
+        const project = await services.projectRepo.create({ ownerId: user.id, name: 'Alpha' });
+        const token = services.tokens.issue(user.id);
+        return { token, projectId: project.id };
+      })
+      .headers({ authorization: 'Bearer {token}' })
+      .params({ projectId: '{projectId}' })
+      .when('I DELETE /projects/{projectId}')
+      .then('response status is 204'),
+
+    scenario('A user cannot delete another user\'s project')
+      .given('Alice owns a project and Bob is logged in')
+      .setup(async (services) => {
+        const alice = await services.userRepo.create({
+          email: 'alice@example.com',
+          password: 'pw',
+          name: 'Alice',
+        });
+        const bob = await services.userRepo.create({
+          email: 'bob@example.com',
+          password: 'pw',
+          name: 'Bob',
+        });
+        const project = await services.projectRepo.create({ ownerId: alice.id, name: 'Alpha' });
+        const bobToken = services.tokens.issue(bob.id);
+        return { bobToken, projectId: project.id };
+      })
+      .headers({ authorization: 'Bearer {bobToken}' })
+      .params({ projectId: '{projectId}' })
+      .when('I DELETE /projects/{projectId}')
+      .then('response status is 403')
+      .and('response body has code "FORBIDDEN"'),
+  ],
+});
