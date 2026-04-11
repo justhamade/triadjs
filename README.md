@@ -1,5 +1,7 @@
 # Triad
 
+[![CI](https://github.com/justhamade/triad/actions/workflows/ci.yml/badge.svg)](https://github.com/justhamade/triad/actions/workflows/ci.yml)
+
 **One TypeScript definition. Validation, OpenAPI, AsyncAPI, BDD tests, Gherkin, and database schemas — all generated from the same source of truth.**
 
 Triad is a TypeScript-first API framework built on the idea that an API's *specification*, *implementation*, *validation*, and *tests* should never drift apart, because they are the same thing. You write TypeScript once using Triad's declarative DSL, and you get:
