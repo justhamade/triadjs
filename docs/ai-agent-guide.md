@@ -481,21 +481,25 @@ export const ApiError = t.model('ApiError', {
 
 Return it via `ctx.respond[4xx](apiError)`.
 
-#### 204 No Content (current workaround)
+#### 204 No Content
 
-Triad does not yet ship `t.empty()`. The idiomatic workaround:
+Use `t.empty()` for any response with no body (204, 205, 304):
 
 ```ts
-export const NoContent = t.unknown().optional().doc('Empty response body');
-
-responses: { 204: { schema: NoContent, description: 'Deleted' } },
+responses: { 204: { schema: t.empty(), description: 'Deleted' } },
 handler: async (ctx) => {
   await ctx.services.taskRepo.delete(ctx.params.id);
-  return ctx.respond[204](undefined);
+  return ctx.respond[204](); // zero arguments
 },
 ```
 
-> GOTCHA: If you use a non-optional schema for 204, the runtime validator will reject `undefined`.
+`t.empty()` is a first-class primitive that:
+
+1. Narrows the `ctx.respond[status]` type to a zero-argument function (passing a body is a type error)
+2. Tells the OpenAPI generator to omit the `content` field entirely on that response (per spec — 204 with a `content` field is wrong)
+3. Tells all three adapters to send the response without a `Content-Type` header and without a body
+
+Do NOT use `t.unknown().optional()` — that was the pre-Phase-10.2 workaround and is now obsolete.
 
 ---
 

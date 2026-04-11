@@ -86,17 +86,26 @@ For WebSocket channels, `channel()` works the same way and produces AsyncAPI.
 
 ## Documentation
 
-- [**AI Agent Guide**](docs/ai-agent-guide.md) — Canonical "how to use Triad" reference for Claude Code, Cursor, Copilot, and other AI coding assistants
-- [**Quickstart**](docs/quickstart.md) — Build a Petstore API in 5 minutes
-- [**Schema DSL reference**](docs/schema-dsl.md) — Every primitive, composition, and constraint
-- [**DDD integration patterns**](docs/ddd-patterns.md) — Repositories, aggregates, domain services, factories, sagas, bounded contexts
-- [**Drizzle integration**](docs/drizzle-integration.md) — Triad schemas as your canonical data model
-- [**WebSocket channels**](docs/phase-9-websockets.md) — Typed channels, handlers, broadcasts, tests
-- [**Roadmap**](ROADMAP.md) — What's shipped, what's next
-- [**Contributing**](CONTRIBUTING.md) — How to get involved
-- [**License**](LICENSE) — MIT
+Start at the **[docs index](docs/README.md)** — it points at everything below based on what you're trying to do.
 
-A full reference implementation lives in [`examples/petstore`](examples/petstore) — HTTP endpoints, a WebSocket chat room, Drizzle/SQLite persistence, DDD bounded contexts, and behavior tests.
+**Learn by building**
+- [**Tutorial**](docs/tutorial/README.md) — Build the "Bookshelf" app from hello-world to production-ready in 7 steps
+
+**Pick your stack**
+- [**Choosing an adapter**](docs/guides/choosing-an-adapter.md) — Fastify vs Express vs Hono
+- [**Choosing an ORM**](docs/guides/choosing-an-orm.md) — Drizzle (the default), Prisma, Kysely, or raw SQL
+
+**Work with AI**
+- [**Working with AI assistants**](docs/guides/working-with-ai.md) — Prompt library + how to use the AI Agent Guide
+- [**AI Agent Guide**](docs/ai-agent-guide.md) — Canonical source-grounded reference for Claude Code, Cursor, Copilot, Aider
+
+**Reference**
+- [**Schema DSL**](docs/schema-dsl.md) · [**DDD patterns**](docs/ddd-patterns.md) · [**Drizzle integration**](docs/drizzle-integration.md) · [**WebSocket design**](docs/phase-9-websockets.md)
+
+**Project**
+- [**Roadmap**](ROADMAP.md) · [**Contributing**](CONTRIBUTING.md) · [**Code of Conduct**](CODE_OF_CONDUCT.md) · [**License**](LICENSE)
+
+Two reference implementations live under [`examples/`](examples) — [`petstore`](examples/petstore) (Fastify + channels) and [`tasktracker`](examples/tasktracker) (Express + auth + pagination). Read their source for the most honest picture of idiomatic Triad.
 
 ---
 
