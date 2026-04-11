@@ -29,7 +29,43 @@ import { CliError } from '../errors.js';
 export type FrontendTarget =
   | 'tanstack-query'
   | 'channel-client'
-  | 'channel-client-react';
+  | 'channel-client-react'
+  | 'channel-client-solid'
+  | 'channel-client-vue'
+  | 'channel-client-svelte';
+
+const CHANNEL_CLIENT_TARGETS: ReadonlySet<FrontendTarget> = new Set<FrontendTarget>([
+  'channel-client',
+  'channel-client-react',
+  'channel-client-solid',
+  'channel-client-vue',
+  'channel-client-svelte',
+]);
+
+function isChannelClientTarget(target: FrontendTarget): boolean {
+  return CHANNEL_CLIENT_TARGETS.has(target);
+}
+
+function isChannelFrameworkTarget(target: FrontendTarget): boolean {
+  return target !== 'channel-client' && isChannelClientTarget(target);
+}
+
+function channelTargetLabel(target: FrontendTarget): string {
+  switch (target) {
+    case 'channel-client':
+      return 'Channel client written to';
+    case 'channel-client-react':
+      return 'Channel client (React) written to';
+    case 'channel-client-solid':
+      return 'Channel client (Solid) written to';
+    case 'channel-client-vue':
+      return 'Channel client (Vue) written to';
+    case 'channel-client-svelte':
+      return 'Channel client (Svelte) written to';
+    default:
+      return 'Channel client written to';
+  }
+}
 
 export interface FrontendGenerateOptions {
   config?: string;
@@ -45,6 +81,9 @@ const SUPPORTED_TARGETS: ReadonlySet<FrontendTarget> = new Set<FrontendTarget>([
   'tanstack-query',
   'channel-client',
   'channel-client-react',
+  'channel-client-solid',
+  'channel-client-vue',
+  'channel-client-svelte',
 ]);
 
 function normalizeTargets(
@@ -113,20 +152,19 @@ export async function runFrontendGenerate(
       continue;
     }
 
-    if (target === 'channel-client' || target === 'channel-client-react') {
-      // `channel-client-react` is a superset of `channel-client`: it
-      // emits both the vanilla client files and the React hook
-      // wrappers. If both targets were passed explicitly, the
-      // dedupe above collapses them into a single React run; if
-      // only `channel-client` was passed (the plain one we already
-      // handled in an earlier loop iteration) we'd otherwise emit
-      // twice, so we skip the plain run when `channel-client-react`
-      // is also in the list.
-      if (target === 'channel-client' && targets.includes('channel-client-react')) {
+    if (isChannelClientTarget(target)) {
+      // Every framework-flavored channel target is a SUPERSET of
+      // `channel-client`: it emits the vanilla files plus framework
+      // hook files. If the plain `channel-client` target is combined
+      // with any framework target, we skip its plain run — otherwise
+      // the vanilla files would be written twice to the same dir.
+      if (
+        target === 'channel-client' &&
+        targets.some((t) => isChannelFrameworkTarget(t))
+      ) {
         continue;
       }
       const channelOutput = path.join(outputPath, 'channels');
-      const isReact = target === 'channel-client-react';
       const files = generateChannelClient(router, {
         outputDir: channelOutput,
         baseUrl,
@@ -147,11 +185,8 @@ export async function runFrontendGenerate(
           'OUTPUT_WRITE_FAILED',
         );
       }
-      const label = isReact
-        ? 'Channel client (React) written to'
-        : 'Channel client written to';
       process.stdout.write(
-        `${pc.green('✓')} ${label} ${pc.bold(channelOutput)}\n` +
+        `${pc.green('✓')} ${channelTargetLabel(target)} ${pc.bold(channelOutput)}\n` +
           `  ${pc.dim(`${files.length} file(s) · baseUrl=${baseUrl}`)}\n`,
       );
     }

@@ -8,6 +8,12 @@
  *   - `<name>.ts`   — one typed factory per channel
  *   - `index.ts`    — a barrel re-exporting all of the above
  *
+ * Optional framework targets (`channel-client-react`,
+ * `channel-client-solid`, `channel-client-vue`, `channel-client-svelte`)
+ * each add their own runtime file plus one per-channel hook file;
+ * the vanilla client files are emitted once regardless of how many
+ * framework targets are combined.
+ *
  * The generator never writes to disk — use `writeFiles` from
  * `./write.js` or the CLI integration for that.
  */
@@ -23,6 +29,12 @@ import { emitChannelClient } from './channel-generator.js';
 import { renderClientRuntime } from './client-template.js';
 import { emitChannelReactHook } from './react-hook-generator.js';
 import { renderReactRuntime } from './react-template.js';
+import { emitChannelSolidHook } from './solid-hook-generator.js';
+import { renderSolidRuntime } from './solid-template.js';
+import { emitChannelVueHook } from './vue-hook-generator.js';
+import { renderVueRuntime } from './vue-template.js';
+import { emitChannelSvelteHook } from './svelte-hook-generator.js';
+import { renderSvelteRuntime } from './svelte-template.js';
 
 function normalizeTargets(
   raw: GenerateChannelClientOptions['target'],
@@ -47,14 +59,27 @@ export function generateChannelClient(
   const baseUrl = options.baseUrl ?? '/';
   const targets = normalizeTargets(options.target);
   const includeReact = targets.has('channel-client-react');
+  const includeSolid = targets.has('channel-client-solid');
+  const includeVue = targets.has('channel-client-vue');
+  const includeSvelte = targets.has('channel-client-svelte');
 
   const channelFiles = channels.map((channel) =>
     emitChannelClient(channel, emitter),
   );
-  // React hook files must walk the channels against the same emitter
-  // so any types they reference (e.g. ChannelError) land in types.ts.
+  // Framework hook files walk channels against the same emitter so
+  // any referenced types land in types.ts even when only a framework
+  // target is used.
   const reactFiles = includeReact
     ? channels.map((channel) => emitChannelReactHook(channel, emitter))
+    : [];
+  const solidFiles = includeSolid
+    ? channels.map((channel) => emitChannelSolidHook(channel, emitter))
+    : [];
+  const vueFiles = includeVue
+    ? channels.map((channel) => emitChannelVueHook(channel, emitter))
+    : [];
+  const svelteFiles = includeSvelte
+    ? channels.map((channel) => emitChannelSvelteHook(channel, emitter))
     : [];
 
   // types.ts
@@ -82,6 +107,27 @@ export function generateChannelClient(
       indexLines.push(`export * from './${base}.js';`);
     }
   }
+  if (includeSolid) {
+    indexLines.push("export * from './solid-runtime.js';");
+    for (const sf of solidFiles) {
+      const base = sf.path.replace(/\.ts$/, '');
+      indexLines.push(`export * from './${base}.js';`);
+    }
+  }
+  if (includeVue) {
+    indexLines.push("export * from './vue-runtime.js';");
+    for (const vf of vueFiles) {
+      const base = vf.path.replace(/\.ts$/, '');
+      indexLines.push(`export * from './${base}.js';`);
+    }
+  }
+  if (includeSvelte) {
+    indexLines.push("export * from './svelte-runtime.js';");
+    for (const sf of svelteFiles) {
+      const base = sf.path.replace(/\.ts$/, '');
+      indexLines.push(`export * from './${base}.js';`);
+    }
+  }
 
   const files: GeneratedFile[] = [
     { path: 'types.ts', contents: `${typeLines.join('\n')}\n` },
@@ -97,6 +143,33 @@ export function generateChannelClient(
     });
     for (const rf of reactFiles) {
       files.push({ path: rf.path, contents: rf.contents });
+    }
+  }
+  if (includeSolid) {
+    files.push({
+      path: 'solid-runtime.ts',
+      contents: renderSolidRuntime(),
+    });
+    for (const sf of solidFiles) {
+      files.push({ path: sf.path, contents: sf.contents });
+    }
+  }
+  if (includeVue) {
+    files.push({
+      path: 'vue-runtime.ts',
+      contents: renderVueRuntime(),
+    });
+    for (const vf of vueFiles) {
+      files.push({ path: vf.path, contents: vf.contents });
+    }
+  }
+  if (includeSvelte) {
+    files.push({
+      path: 'svelte-runtime.ts',
+      contents: renderSvelteRuntime(),
+    });
+    for (const sf of svelteFiles) {
+      files.push({ path: sf.path, contents: sf.contents });
     }
   }
 

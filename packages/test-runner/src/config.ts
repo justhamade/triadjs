@@ -57,15 +57,27 @@ export interface TriadConfig {
 export interface FrontendConfig {
   /**
    * Codegen target. One of:
-   *   - `'tanstack-query'`       — typed React Query hooks
-   *   - `'channel-client'`       — typed vanilla WebSocket clients
-   *   - `'channel-client-react'` — vanilla clients + React hook
-   *                                wrappers (superset of `channel-client`)
+   *   - `'tanstack-query'`        — typed React Query hooks
+   *   - `'channel-client'`        — typed vanilla WebSocket clients
+   *   - `'channel-client-react'`  — vanilla clients + React hook
+   *                                 wrappers (superset of `channel-client`)
+   *   - `'channel-client-solid'`  — vanilla clients + Solid factory
+   *                                 wrappers (superset of `channel-client`)
+   *   - `'channel-client-vue'`    — vanilla clients + Vue Composition
+   *                                 API wrappers (superset of `channel-client`)
+   *   - `'channel-client-svelte'` — vanilla clients + Svelte store
+   *                                 wrappers (superset of `channel-client`)
    *
    * May be a single target or a comma-separated string / array for
    * running multiple generators against the same router.
    */
-  target?: 'tanstack-query' | 'channel-client' | 'channel-client-react';
+  target?:
+    | 'tanstack-query'
+    | 'channel-client'
+    | 'channel-client-react'
+    | 'channel-client-solid'
+    | 'channel-client-vue'
+    | 'channel-client-svelte';
   /** Output directory (relative to the config file). */
   output?: string;
   /** Base URL embedded in the generated runtime client (default: `/api`). */

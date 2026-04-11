@@ -158,6 +158,93 @@ describe('runFrontendGenerate', () => {
     expect(hookSrc).toContain("from 'react'");
   });
 
+  it('writes Solid hook files for the channel-client-solid target', async () => {
+    const out = makeTmp();
+    const { stdout } = await captureStdout(async () =>
+      runFrontendGenerate({
+        config: BOOKSHELF_CONFIG,
+        target: 'channel-client-solid',
+        output: out,
+      }),
+    );
+    expect(stdout).toContain('Channel client (Solid) written to');
+    const channelsDir = path.join(out, 'channels');
+    for (const name of [
+      'client.ts',
+      'types.ts',
+      'index.ts',
+      'book-reviews.ts',
+      'solid-runtime.ts',
+      'book-reviews-solid.ts',
+    ]) {
+      expect(fs.existsSync(path.join(channelsDir, name))).toBe(true);
+    }
+    const hookSrc = fs.readFileSync(
+      path.join(channelsDir, 'book-reviews-solid.ts'),
+      'utf8',
+    );
+    expect(hookSrc).toContain('export function createBookReviewsChannel');
+    expect(hookSrc).toContain("from 'solid-js'");
+  });
+
+  it('writes Vue hook files for the channel-client-vue target', async () => {
+    const out = makeTmp();
+    const { stdout } = await captureStdout(async () =>
+      runFrontendGenerate({
+        config: BOOKSHELF_CONFIG,
+        target: 'channel-client-vue',
+        output: out,
+      }),
+    );
+    expect(stdout).toContain('Channel client (Vue) written to');
+    const channelsDir = path.join(out, 'channels');
+    for (const name of [
+      'client.ts',
+      'types.ts',
+      'index.ts',
+      'book-reviews.ts',
+      'vue-runtime.ts',
+      'book-reviews-vue.ts',
+    ]) {
+      expect(fs.existsSync(path.join(channelsDir, name))).toBe(true);
+    }
+    const hookSrc = fs.readFileSync(
+      path.join(channelsDir, 'book-reviews-vue.ts'),
+      'utf8',
+    );
+    expect(hookSrc).toContain('export function useBookReviewsChannel');
+    expect(hookSrc).toContain("from 'vue'");
+  });
+
+  it('writes Svelte hook files for the channel-client-svelte target', async () => {
+    const out = makeTmp();
+    const { stdout } = await captureStdout(async () =>
+      runFrontendGenerate({
+        config: BOOKSHELF_CONFIG,
+        target: 'channel-client-svelte',
+        output: out,
+      }),
+    );
+    expect(stdout).toContain('Channel client (Svelte) written to');
+    const channelsDir = path.join(out, 'channels');
+    for (const name of [
+      'client.ts',
+      'types.ts',
+      'index.ts',
+      'book-reviews.ts',
+      'svelte-runtime.ts',
+      'book-reviews-svelte.ts',
+    ]) {
+      expect(fs.existsSync(path.join(channelsDir, name))).toBe(true);
+    }
+    const hookSrc = fs.readFileSync(
+      path.join(channelsDir, 'book-reviews-svelte.ts'),
+      'utf8',
+    );
+    expect(hookSrc).toContain('export function bookReviewsChannel');
+    expect(hookSrc).toContain("from 'svelte'");
+  });
+
   it('runs both targets when comma-separated', async () => {
     const out = makeTmp();
     await captureStdout(async () =>

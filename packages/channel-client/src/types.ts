@@ -9,14 +9,26 @@
 /**
  * Codegen targets supported by `generateChannelClient`.
  *
- *   - `'channel-client'`       — vanilla TypeScript WebSocket clients
- *   - `'channel-client-react'` — vanilla clients PLUS a React hook
- *                                wrapper per channel (a superset)
+ *   - `'channel-client'`        — vanilla TypeScript WebSocket clients
+ *   - `'channel-client-react'`  — vanilla clients + React hook wrapper
+ *                                 per channel (a superset)
+ *   - `'channel-client-solid'`  — vanilla clients + Solid signal-based
+ *                                 wrapper per channel (a superset)
+ *   - `'channel-client-vue'`    — vanilla clients + Vue Composition API
+ *                                 wrapper per channel (a superset)
+ *   - `'channel-client-svelte'` — vanilla clients + Svelte store-based
+ *                                 wrapper per channel (a superset)
  *
- * When multiple targets are passed, the generator dedupes: passing
- * both is equivalent to passing only the React target.
+ * When multiple targets are passed, the generator dedupes: the vanilla
+ * files are only emitted once regardless of how many framework
+ * targets are combined.
  */
-export type ChannelClientTarget = 'channel-client' | 'channel-client-react';
+export type ChannelClientTarget =
+  | 'channel-client'
+  | 'channel-client-react'
+  | 'channel-client-solid'
+  | 'channel-client-vue'
+  | 'channel-client-svelte';
 
 export interface GenerateChannelClientOptions {
   /**
