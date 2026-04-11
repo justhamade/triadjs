@@ -327,9 +327,14 @@ async function executeWhen(
     const messageType = sendMatch[2]!;
     const name =
       rawName.toLowerCase() === 'client' ? DEFAULT_CLIENT : rawName;
-    await ensureConnected(harness, name, inputs);
-    await harness.send(name, messageType, inputs.body);
-    return harness.getClient(name);
+    const connected = await ensureConnected(harness, name, inputs);
+    // Skip `send` entirely if the connection was rejected — `send`
+    // would throw "no client with id X is connected" and mask the
+    // rejection outcome the scenario is actually testing.
+    if (!connected.rejected) {
+      await harness.send(name, messageType, inputs.body);
+    }
+    return harness.getClient(name) ?? connected;
   }
 
   // ---- Fallback -------------------------------------------------------
@@ -337,7 +342,16 @@ async function executeWhen(
   // clientMessages key. This is the "happy path" shape for a channel
   // scenario: one client, one message type, assertions on the
   // broadcast.
-  await ensureConnected(harness, DEFAULT_CLIENT, inputs);
+  //
+  // Crucially we KEEP the client returned by `ensureConnected` even
+  // when it was rejected. `harness.getClient(DEFAULT_CLIENT)` returns
+  // `undefined` for rejected clients (they never enter the registry),
+  // which used to hide the rejection outcome from assertions like
+  // `connection is rejected with code 401`.
+  const connected = await ensureConnected(harness, DEFAULT_CLIENT, inputs);
+  if (connected.rejected) {
+    return connected;
+  }
   const clientMsgKeys = Object.keys(inputs.channel.clientMessages);
   if (clientMsgKeys.length > 0 && inputs.body !== undefined) {
     // Prefer an exact keyword match embedded in the description.
@@ -347,21 +361,28 @@ async function executeWhen(
     const messageType = matched ?? clientMsgKeys[0]!;
     await harness.send(DEFAULT_CLIENT, messageType, inputs.body);
   }
-  return harness.getClient(DEFAULT_CLIENT);
+  return harness.getClient(DEFAULT_CLIENT) ?? connected;
 }
 
 /**
  * Connect a client if it isn't already registered. Lets scenarios
  * write `alice sends chat` without a separate connect step when
  * there's no reason to treat the handshake as a distinct event.
+ *
+ * Returns the connected (or rejected) client so callers can observe
+ * the outcome — critical for the fallback branch of `executeWhen`,
+ * where rejection assertions need to see the client that was just
+ * connected even though rejected clients never enter the harness's
+ * internal registry via `getClient`.
  */
 async function ensureConnected(
   harness: ChannelHarness,
   clientId: string,
   inputs: WhenInputs,
-): Promise<void> {
-  if (harness.getClient(clientId)) return;
-  await harness.connect(clientId, {
+): Promise<ChannelTestClient> {
+  const existing = harness.getClient(clientId);
+  if (existing) return existing;
+  return await harness.connect(clientId, {
     params: inputs.params,
     query: inputs.query,
     headers: inputs.headers,
@@ -517,6 +538,7 @@ async function runOneChannelAssertion(
     case 'body_matches':
     case 'body_has':
     case 'body_is_array':
+    case 'body_is_empty':
     case 'body_length':
     case 'body_has_code': {
       throw new AssertionFailure(

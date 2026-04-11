@@ -205,7 +205,12 @@ function wrapBeforeHandler(
           });
           const result = await original(ctx);
           if (result.ok === false) {
-            span.setAttribute('http.status_code', result.response.status);
+            span.setAttributes({
+              'http.status_code': result.response.status,
+              'triad.beforeHandler.outcome': 'shortcircuit',
+            });
+          } else {
+            span.setAttribute('triad.beforeHandler.outcome', 'ok');
           }
           span.setStatus({ code: SpanStatusCode.OK });
           return result;

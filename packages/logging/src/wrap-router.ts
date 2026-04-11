@@ -207,6 +207,56 @@ function wrapEndpointHandler(
 }
 
 // ---------------------------------------------------------------------------
+// beforeHandler wrapping
+// ---------------------------------------------------------------------------
+
+/**
+ * Wrap `endpoint.beforeHandler` so that `getLogger()` inside the
+ * beforeHandler returns a child logger with endpoint context attached.
+ * Without this, the AsyncLocalStorage scope only starts when the main
+ * handler runs, so auth code calling `getLogger()` in a beforeHandler
+ * would throw. The child logger bound here has an extra
+ * `triad.phase: 'beforeHandler'` field so logs from the two phases
+ * are trivially filterable in downstream aggregation.
+ */
+function wrapBeforeHandler(
+  endpoint: Endpoint,
+  contextName: string,
+  options: ResolvedOptions,
+): void {
+  if (!endpoint.beforeHandler) return;
+  const original = endpoint.beforeHandler;
+
+  endpoint.beforeHandler = async (ctx) => {
+    const fields = {
+      ...buildEndpointContext(endpoint, contextName, ctx, options),
+      'triad.phase': 'beforeHandler',
+    };
+    const childLogger = options.logger.child(fields);
+    return loggerStorage.run(childLogger, async () => {
+      if (options.autoLog) childLogger.info('beforeHandler.start');
+      try {
+        const result = await original(ctx);
+        if (options.autoLog) {
+          if (result.ok === false) {
+            childLogger.info('beforeHandler.shortcircuit', {
+              'http.status_code': result.response.status,
+            });
+          } else {
+            childLogger.info('beforeHandler.end');
+          }
+        }
+        return result;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        childLogger.error('beforeHandler.error', { error: message });
+        throw err;
+      }
+    });
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Channel wrapping
 // ---------------------------------------------------------------------------
 
@@ -308,6 +358,7 @@ export function withLoggingInstrumentation(
   for (const endpoint of router.allEndpoints()) {
     const contextName = endpointContextName(router, endpoint);
     wrapEndpointHandler(endpoint, contextName, resolved);
+    wrapBeforeHandler(endpoint, contextName, resolved);
   }
 
   if (resolved.instrumentChannels) {

@@ -349,23 +349,65 @@ export function createChannelHandler(
     request: FastifyRequest,
   ) {
     // ---- 1. Handshake validation -----------------------------------------
-    let params: Record<string, unknown>;
-    let query: Record<string, unknown>;
-    let headers: Record<string, unknown>;
-    try {
-      params = validateHandshakePart(channel, 'params', request.params);
-      query = validateHandshakePart(channel, 'query', request.query);
-      headers = validateHandshakePart(channel, 'headers', request.headers);
-    } catch (err) {
-      if (err instanceof RequestValidationError) {
-        sendAdapterError(socket, {
-          code: 'VALIDATION_ERROR',
-          message: err.message,
-          details: err.errors,
-        });
-        socket.close(4400, 'validation error');
-        return;
+    //
+    // When `channel.connection.validateBeforeConnect` is `true` (the
+    // default), any schema failure here closes the socket with 4400
+    // BEFORE `onConnect` runs. When it's `false`, we capture the first
+    // validation error and defer it into `ctx.validationError` so
+    // `onConnect` can render a custom rejection. If `onConnect` does
+    // NOT call `reject` explicitly when a validationError is present,
+    // we fall back to the standard close below.
+    let params: Record<string, unknown> = {};
+    let query: Record<string, unknown> = {};
+    let headers: Record<string, unknown> = {};
+    let deferredValidationError: RequestValidationError | undefined;
+    const validateDeferred =
+      channel.connection.validateBeforeConnect === false;
+
+    const runValidation = (): RequestValidationError | undefined => {
+      try {
+        params = validateHandshakePart(channel, 'params', request.params);
+        query = validateHandshakePart(channel, 'query', request.query);
+        headers = validateHandshakePart(channel, 'headers', request.headers);
+        return undefined;
+      } catch (err) {
+        if (err instanceof RequestValidationError) {
+          return err;
+        }
+        throw err;
       }
+    };
+
+    try {
+      const validationErr = runValidation();
+      if (validationErr) {
+        if (!validateDeferred) {
+          sendAdapterError(socket, {
+            code: 'VALIDATION_ERROR',
+            message: validationErr.message,
+            details: validationErr.errors,
+          });
+          socket.close(4400, 'validation error');
+          return;
+        }
+        // Defer: best-effort populate params/query/headers with the
+        // raw request values so onConnect still has something to
+        // inspect. The user is opting into seeing malformed input.
+        params =
+          typeof request.params === 'object' && request.params !== null
+            ? { ...(request.params as Record<string, unknown>) }
+            : {};
+        query =
+          typeof request.query === 'object' && request.query !== null
+            ? { ...(request.query as Record<string, unknown>) }
+            : {};
+        headers =
+          typeof request.headers === 'object' && request.headers !== null
+            ? { ...(request.headers as Record<string, unknown>) }
+            : {};
+        deferredValidationError = validationErr;
+      }
+    } catch (err) {
       logError(err, request);
       sendAdapterError(socket, {
         code: 'INTERNAL_ERROR',
@@ -419,24 +461,41 @@ export function createChannelHandler(
       reject: (code: number, message: string) => void;
       broadcast: Record<string, (data: unknown) => void>;
       authPayload?: unknown;
-    } => ({
-      params,
-      query,
-      headers,
-      services,
-      state: record.state,
-      reject: (code: number, message: string) => {
-        record.rejected = true;
-        sendAdapterError(socket, {
-          code: 'CONNECTION_REJECTED',
-          message,
-          details: { httpCode: code },
-        });
-        socket.close(4000 + code, message);
-      },
-      broadcast: connectBroadcast,
-      authPayload,
-    });
+      validationError?: readonly ValidationError[];
+    } => {
+      const ctx: {
+        params: Record<string, unknown>;
+        query: Record<string, unknown>;
+        headers: Record<string, unknown>;
+        services: ServiceContainer;
+        state: Record<string, unknown>;
+        reject: (code: number, message: string) => void;
+        broadcast: Record<string, (data: unknown) => void>;
+        authPayload?: unknown;
+        validationError?: readonly ValidationError[];
+      } = {
+        params,
+        query,
+        headers,
+        services,
+        state: record.state,
+        reject: (code: number, message: string) => {
+          record.rejected = true;
+          sendAdapterError(socket, {
+            code: 'CONNECTION_REJECTED',
+            message,
+            details: { httpCode: code },
+          });
+          socket.close(4000 + code, message);
+        },
+        broadcast: connectBroadcast,
+        authPayload,
+      };
+      if (deferredValidationError) {
+        ctx.validationError = deferredValidationError.errors;
+      }
+      return ctx;
+    };
 
     // ---- 4a. First-message auth: defer onConnect ------------------------
     // When the channel opts into first-message auth, we install a
@@ -517,6 +576,20 @@ export function createChannelHandler(
 
     if (record.rejected) {
       // `ctx.reject` already sent the envelope and closed the socket.
+      return;
+    }
+
+    // Deferred-validation fallback: if validation failed earlier and
+    // onConnect did NOT reject explicitly, close now with the standard
+    // validation envelope. The channel opted into seeing the error;
+    // we don't silently let a malformed handshake proceed.
+    if (deferredValidationError) {
+      sendAdapterError(socket, {
+        code: 'VALIDATION_ERROR',
+        message: deferredValidationError.message,
+        details: deferredValidationError.errors,
+      });
+      socket.close(4400, 'validation error');
       return;
     }
 

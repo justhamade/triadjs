@@ -55,6 +55,23 @@ export type ChannelMessageMeta = {
   error?: boolean;
 };
 
+/**
+ * One observation of an endpoint's `beforeHandler` phase. Reported as
+ * a dedicated histogram family (`<ns>_http_before_handler_duration_seconds`)
+ * with the `outcome` label set to `'ok'` (passed through to the main
+ * handler), `'shortcircuit'` (returned `{ ok: false }`), or `'error'`
+ * (threw). Short-circuits still contribute `latency_seconds` so the
+ * auth path's p99 is visible in the same dashboard as the handler's.
+ */
+export type BeforeHandlerMeta = {
+  method: string;
+  route: string;
+  endpointName: string;
+  context: string;
+  latencySeconds: number;
+  outcome: 'ok' | 'shortcircuit' | 'error';
+};
+
 export type SeriesSnapshot = {
   labels: Readonly<Record<string, string>>;
   count: number;
@@ -72,6 +89,7 @@ export type MetricsSnapshot = {
 export type MetricsCollector = {
   recordRequest: (meta: RequestMeta) => void;
   recordChannelMessage: (meta: ChannelMessageMeta) => void;
+  recordBeforeHandler: (meta: BeforeHandlerMeta) => void;
   render: () => string;
   reset: () => void;
   snapshot: () => MetricsSnapshot;
@@ -116,6 +134,20 @@ type ChannelLabels = {
 
 type ChannelSeries = {
   labels: ChannelLabels;
+  count: number;
+  sum: number;
+  bucketCounts: number[];
+};
+
+type BeforeHandlerLabels = {
+  method: string;
+  route: string;
+  context: string;
+  outcome: 'ok' | 'shortcircuit' | 'error';
+};
+
+type BeforeHandlerSeriesEntry = {
+  labels: BeforeHandlerLabels;
   count: number;
   sum: number;
   bucketCounts: number[];
@@ -179,6 +211,17 @@ function channelLabelEntries(
   ];
 }
 
+function beforeHandlerLabelEntries(
+  l: BeforeHandlerLabels,
+): ReadonlyArray<readonly [string, string]> {
+  return [
+    ['method', l.method],
+    ['route', l.route],
+    ['context', l.context],
+    ['outcome', l.outcome],
+  ];
+}
+
 function seriesKey(entries: ReadonlyArray<readonly [string, string]>): string {
   return entries.map(([k, v]) => `${k}=${v}`).join('|');
 }
@@ -198,6 +241,7 @@ export function createMetricsCollector(
 
   const httpSeries = new Map<string, HttpSeries>();
   const channelSeries = new Map<string, ChannelSeries>();
+  const beforeHandlerSeries = new Map<string, BeforeHandlerSeriesEntry>();
   let totalRequests = 0;
   let totalErrors = 0;
   let warnedOverflow = false;
@@ -291,6 +335,34 @@ export function createMetricsCollector(
     totalRequests += 1;
   }
 
+  function getOrCreateBeforeHandlerSeries(
+    labels: BeforeHandlerLabels,
+  ): BeforeHandlerSeriesEntry {
+    const key = seriesKey(beforeHandlerLabelEntries(labels));
+    const existing = beforeHandlerSeries.get(key);
+    if (existing) return existing;
+    const created: BeforeHandlerSeriesEntry = {
+      labels,
+      count: 0,
+      sum: 0,
+      bucketCounts: newBucketCounts(),
+    };
+    beforeHandlerSeries.set(key, created);
+    return created;
+  }
+
+  function recordBeforeHandler(meta: BeforeHandlerMeta): void {
+    const series = getOrCreateBeforeHandlerSeries({
+      method: meta.method,
+      route: meta.route,
+      context: meta.context,
+      outcome: meta.outcome,
+    });
+    series.count += 1;
+    series.sum += meta.latencySeconds;
+    observeBuckets(series.bucketCounts, meta.latencySeconds);
+  }
+
   function recordChannelMessage(meta: ChannelMessageMeta): void {
     const labels: ChannelLabels = {
       channel: meta.channel,
@@ -306,6 +378,7 @@ export function createMetricsCollector(
   function reset(): void {
     httpSeries.clear();
     channelSeries.clear();
+    beforeHandlerSeries.clear();
     totalRequests = 0;
     totalErrors = 0;
     warnedOverflow = false;
@@ -426,6 +499,34 @@ export function createMetricsCollector(
     }
   }
 
+  function renderBeforeHandlerHistogram(lines: string[]): void {
+    if (beforeHandlerSeries.size === 0) return;
+    const name = `${namespace}_http_before_handler_duration_seconds`;
+    lines.push(`# HELP ${name} Endpoint beforeHandler phase latency in seconds`);
+    lines.push(`# TYPE ${name} histogram`);
+    const sorted = [...beforeHandlerSeries.entries()].sort((a, b) =>
+      a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0,
+    );
+    for (const [, s] of sorted) {
+      const baseLabels = beforeHandlerLabelEntries(s.labels);
+      for (let i = 0; i < buckets.length; i += 1) {
+        const le = buckets[i]!;
+        const count = s.bucketCounts[i] ?? 0;
+        lines.push(
+          `${name}_bucket${formatLabels([
+            ...baseLabels,
+            ['le', formatFloat(le)],
+          ])} ${count}`,
+        );
+      }
+      lines.push(
+        `${name}_bucket${formatLabels([...baseLabels, ['le', '+Inf']])} ${s.count}`,
+      );
+      lines.push(`${name}_sum${formatLabels(baseLabels)} ${s.sum}`);
+      lines.push(`${name}_count${formatLabels(baseLabels)} ${s.count}`);
+    }
+  }
+
   function render(): string {
     const lines: string[] = [];
     if (httpSeries.size > 0) {
@@ -438,6 +539,10 @@ export function createMetricsCollector(
         renderHttpErrors(lines);
       }
     }
+    if (beforeHandlerSeries.size > 0) {
+      if (lines.length > 0) lines.push('');
+      renderBeforeHandlerHistogram(lines);
+    }
     if (channelSeries.size > 0) {
       if (lines.length > 0) lines.push('');
       renderChannelHistogram(lines);
@@ -449,6 +554,7 @@ export function createMetricsCollector(
   return {
     recordRequest,
     recordChannelMessage,
+    recordBeforeHandler,
     render,
     reset,
     snapshot,

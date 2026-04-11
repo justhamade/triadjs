@@ -80,6 +80,13 @@ describe('parseAssertion', () => {
     });
   });
 
+  it('parses "response body is empty" into body_is_empty', () => {
+    expect(parseAssertion('response body is empty')).toMatchObject({
+      type: 'body_is_empty',
+      raw: 'response body is empty',
+    });
+  });
+
   // -----------------------------------------------------------------------
   // Channel assertions (Phase 9.4)
   // -----------------------------------------------------------------------

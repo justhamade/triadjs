@@ -172,3 +172,9 @@ export type {
 // ---------------------------------------------------------------------------
 
 export * from './migrations/index.js';
+
+// ---------------------------------------------------------------------------
+// Error introspection — detect unique-constraint violations portably
+// ---------------------------------------------------------------------------
+
+export { isUniqueViolation, type DbError } from './errors.js';

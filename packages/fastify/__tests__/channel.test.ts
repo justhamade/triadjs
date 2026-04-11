@@ -433,6 +433,143 @@ describe('channel adapter — handshake', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Phase 10.5 — Fix 2: validateBeforeConnect option
+// ---------------------------------------------------------------------------
+
+describe('channel adapter — validateBeforeConnect option', () => {
+  async function startDeferredServer(opts: {
+    onConnectBehavior: 'reject-401' | 'reject-custom' | 'do-nothing';
+  }): Promise<RunningServer> {
+    const app = Fastify({ logger: false });
+    const router = createRouter({ title: 'Deferred', version: '1' });
+    const Ping = t.model('Ping', { nonce: t.string() });
+    const deferred = channel({
+      name: 'deferredAuth',
+      path: '/ws/deferred',
+      summary: 'Deferred handshake validation',
+      connection: {
+        headers: {
+          authorization: t.string(),
+        },
+        validateBeforeConnect: false,
+      },
+      clientMessages: {
+        ping: { schema: Ping, description: 'p' },
+      },
+      serverMessages: {
+        pong: { schema: Ping, description: 'p' },
+      },
+      onConnect: (ctx) => {
+        const errs = (
+          ctx as unknown as { validationError?: readonly unknown[] }
+        ).validationError;
+        if (errs && errs.length > 0) {
+          if (opts.onConnectBehavior === 'reject-401') {
+            ctx.reject(401, 'missing or invalid authorization header');
+            return;
+          }
+          if (opts.onConnectBehavior === 'reject-custom') {
+            ctx.reject(418, 'teapot-auth');
+            return;
+          }
+          // do-nothing: let the adapter fall back to its default close.
+        }
+      },
+      handlers: {
+        ping: (ctx, data) => ctx.send.pong(data),
+      },
+    });
+    router.add(deferred);
+    await app.register(triadPlugin, { router });
+    await app.listen({ port: 0, host: '127.0.0.1' });
+    const address = app.server.address();
+    if (!address || typeof address === 'string') {
+      throw new Error('Fastify did not bind to a TCP port');
+    }
+    return { app, port: address.port, sockets: [] };
+  }
+
+  it('default validateBeforeConnect (unset) keeps the old behavior: missing header auto-closes before onConnect', async () => {
+    // Uses the top-level `chatRoom` channel which does NOT set the
+    // option — equivalent to `validateBeforeConnect: true` and must
+    // behave exactly like existing tests.
+    server = await startServer();
+    const socket = await openClient(server, '/ws/rooms/abc', {
+      expectClose: true,
+    });
+    const close = await waitForClose(socket);
+    expect(close.code).toBe(4400);
+  });
+
+  it('validateBeforeConnect: false defers validation so onConnect can render a custom rejection', async () => {
+    server = await startDeferredServer({ onConnectBehavior: 'reject-401' });
+    const messages: Envelope[] = [];
+    const socket = new WebSocket(
+      `ws://127.0.0.1:${server.port}/ws/deferred`,
+      // NOTE: no authorization header
+    );
+    server.sockets.push(socket);
+    socket.on('message', (raw: Buffer) => {
+      try {
+        messages.push(JSON.parse(raw.toString('utf8')) as Envelope);
+      } catch {
+        /* ignore */
+      }
+    });
+    const close = await waitForClose(socket);
+    // 4000 + 401 = 4401 per the adapter's close-code convention.
+    expect(close.code).toBe(4401);
+    const err = messages.find((m) => m.type === 'error');
+    expect(err).toBeDefined();
+    expect((err!.data as { code: string }).code).toBe('CONNECTION_REJECTED');
+  });
+
+  it('validateBeforeConnect: false with valid headers proceeds through the normal flow', async () => {
+    server = await startDeferredServer({ onConnectBehavior: 'reject-401' });
+    const socket = new WebSocket(
+      `ws://127.0.0.1:${server.port}/ws/deferred`,
+      { headers: { authorization: 'Bearer valid' } },
+    );
+    server.sockets.push(socket);
+    await new Promise<void>((resolve, reject) => {
+      socket.once('open', () => resolve());
+      socket.once('error', (err) => reject(err));
+      socket.once('close', (code, reason) =>
+        reject(
+          new Error(
+            `socket closed: code=${code} reason=${reason.toString()}`,
+          ),
+        ),
+      );
+    });
+    socket.send(JSON.stringify({ type: 'ping', data: { nonce: 'n1' } }));
+    const env = await waitForType(socket, 'pong');
+    expect(env).toEqual({ type: 'pong', data: { nonce: 'n1' } });
+  });
+
+  it('validateBeforeConnect: false falls back to 4400 close when onConnect does not reject', async () => {
+    server = await startDeferredServer({ onConnectBehavior: 'do-nothing' });
+    const messages: Envelope[] = [];
+    const socket = new WebSocket(
+      `ws://127.0.0.1:${server.port}/ws/deferred`,
+    );
+    server.sockets.push(socket);
+    socket.on('message', (raw: Buffer) => {
+      try {
+        messages.push(JSON.parse(raw.toString('utf8')) as Envelope);
+      } catch {
+        /* ignore */
+      }
+    });
+    const close = await waitForClose(socket);
+    expect(close.code).toBe(4400);
+    const err = messages.find((m) => m.type === 'error');
+    expect(err).toBeDefined();
+    expect((err!.data as { code: string }).code).toBe('VALIDATION_ERROR');
+  });
+});
+
 describe('channel adapter — connection lifecycle', () => {
   it('onConnect mutates state that later handlers can read', async () => {
     server = await startServer();

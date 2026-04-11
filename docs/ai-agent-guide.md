@@ -39,7 +39,10 @@ Everything downstream (docs, tests, db schema) is regenerated from the router. T
 | `@triad/gherkin` | `generateGherkin`, `writeGherkinFiles` |
 | `@triad/fastify` | `triadPlugin` (HTTP + WebSocket) |
 | `@triad/express` | `createTriadRouter`, `triadErrorHandler` (HTTP only — no channels) |
-| `@triad/drizzle` | `generateDrizzleSchema`, `CodegenError` |
+| `@triad/drizzle` | `generateDrizzleSchema`, `CodegenError`, `isUniqueViolation`, `DbError` |
+| `@triad/otel` | `withOtelInstrumentation` — spans for `handler`, `beforeHandler`, channel connect + message handlers |
+| `@triad/metrics` | `createMetricsCollector`, `withMetricsInstrumentation` — Prometheus histograms for requests + `beforeHandler` phase |
+| `@triad/logging` | `withLoggingInstrumentation`, `getLogger`, `tryGetLogger` — AsyncLocalStorage-scoped child loggers covering `handler` and `beforeHandler` |
 | `@triad/cli` | the `triad` binary (`triad test`, `triad docs`, `triad gherkin`, `triad db generate`, `triad validate`) |
 
 ### Golden rules (memorize these)
@@ -684,6 +687,7 @@ export const chatRoom = channel({
 | `ctx.reject(code, message)` | Refuse the handshake (HTTP-style status) |
 | `ctx.broadcast.*` | Send to every connected client including the current one |
 | `ctx.authPayload` | Parsed first-message auth payload when `auth.strategy: 'first-message'` — `unknown`, cast inside the handler |
+| `ctx.validationError` | Handshake schema errors when `connection.validateBeforeConnect: false` — see §4.4b |
 
 ### 4.3 Per-message handler context
 
@@ -715,6 +719,34 @@ channel({
 ```
 
 Without a state witness, `ctx.state` is `Record<string, any>`.
+
+### 4.4b Deferring handshake validation (`validateBeforeConnect: false`)
+
+By default, missing or invalid handshake params/query/headers are rejected with close code `4400` **before** `onConnect` runs — schema validation wins. Set `connection.validateBeforeConnect: false` to defer errors into `ctx.validationError` so your `onConnect` can inspect them and render a tailored rejection via `ctx.reject(code, message)`:
+
+```ts
+channel({
+  name: 'secureRoom',
+  path: '/ws/secure',
+  summary: 'Auth header required',
+  connection: {
+    headers: { authorization: t.string() },
+    validateBeforeConnect: false,  // opt in to deferred handling
+  },
+  clientMessages: { /* ... */ },
+  serverMessages: { /* ... */ },
+  onConnect: (ctx) => {
+    if (ctx.validationError) {
+      ctx.reject(401, 'missing or invalid authorization header');
+      return;
+    }
+    // normal auth / state seeding here
+  },
+  handlers: { /* ... */ },
+});
+```
+
+If `onConnect` does NOT call `ctx.reject` when `validationError` is present, the adapter still falls back to closing with the standard 4400 validation-error envelope — you opt into handling the error, never into silently proceeding with malformed input. The option defaults to `true` for backward compatibility; all existing channels keep the pre-existing auto-close behavior.
 
 ### 4.5 First-message auth (browser-friendly)
 
@@ -843,6 +875,7 @@ Source: `packages/test-runner/src/assertions.ts` + `packages/core/src/behavior.t
 | `response status is <N>` | Asserts HTTP status code |
 | `response body matches <ModelName>` | Validates body against a named `ModelSchema` registered on the router (must be reachable from an endpoint's request or response) |
 | `response body is an array` | `Array.isArray(body)` |
+| `response body is empty` | `body === undefined` / `null` / `""`. Use this on 204 scenarios where the endpoint returns `t.empty()`. An empty object `{}` is NOT considered empty — use `response body matches <EmptyModel>` for that. |
 | `response body has length <N>` | `body.length === N` (body must be an array) |
 | `response body has <path> "<string>"` | Dotted path equality, string literal |
 | `response body has <path> <number>` | Dotted path equality, numeric literal (integers or decimals, negative allowed) |
@@ -983,6 +1016,24 @@ Put DB code in `src/repositories/`. Handlers call `ctx.services.xRepo.method(...
 handler: async (ctx) => {
   const pet = await ctx.services.petRepo.create(ctx.body);
   return ctx.respond[201](pet);
+}
+```
+
+**Detecting unique-constraint violations.** `@triad/drizzle` exports `isUniqueViolation(err)` so repositories can map driver-specific duplicate-key errors into domain-level conflicts without a race-prone pre-check `SELECT`. Supported drivers: `better-sqlite3` (`SQLITE_CONSTRAINT_UNIQUE`), `pg` (SQLSTATE `23505`), `mysql2` (`ER_DUP_ENTRY`). The helper returns a structured `{ table?, column?, constraint? }` descriptor on match (possibly empty if the parser can't extract details) or `null` otherwise:
+
+```ts
+import { isUniqueViolation } from '@triad/drizzle';
+
+async create(input: NewUser): Promise<User> {
+  try {
+    return await this.db.insert(users).values(input).returning().get();
+  } catch (err) {
+    const conflict = isUniqueViolation(err);
+    if (conflict) {
+      throw new DuplicateEmailError(input.email, conflict);
+    }
+    throw err;
+  }
 }
 ```
 
@@ -1244,6 +1295,28 @@ export type Db = ReturnType<typeof createDatabase>;
 ```
 
 Your repositories then use standard Drizzle queries against the generated tables. Handlers stay agnostic — they only talk to the repository.
+
+---
+
+## 10b. Observability — traces, metrics, logs
+
+Three opt-in wrappers mutate the router in-place to add instrumentation across every endpoint **and** its `beforeHandler` (Phase 10.5). Wrap once after all endpoints are added:
+
+```ts
+withOtelInstrumentation(router);
+withMetricsInstrumentation(router, collector);
+withLoggingInstrumentation(router, { logger, autoLog: true });
+```
+
+Each wrapper covers the `beforeHandler` phase in addition to the main handler so auth short-circuits (the most common kind of rejection) are no longer a blind spot:
+
+| Package | What `beforeHandler` produces |
+|---|---|
+| `@triad/otel` | A sibling span named `<endpoint.name>.beforeHandler` with `triad.beforeHandler.outcome = 'ok' \| 'shortcircuit'` and, for short-circuits, `http.status_code`. |
+| `@triad/metrics` | A new histogram family `triad_http_before_handler_duration_seconds` labeled by `method`, `route`, `context`, and `outcome = 'ok' \| 'shortcircuit' \| 'error'`. |
+| `@triad/logging` | `getLogger()` inside a `beforeHandler` returns a child logger with endpoint context **and** `triad.phase: 'beforeHandler'`. `autoLog: true` additionally emits `beforeHandler.start`, `beforeHandler.end`, `beforeHandler.shortcircuit`, and `beforeHandler.error` lines. |
+
+Endpoints without a `beforeHandler` are unchanged.
 
 ---
 

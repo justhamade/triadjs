@@ -298,3 +298,49 @@ describe('runSingleAssertion — custom FAILS by default', () => {
     ).rejects.toThrow('custom matcher failed');
   });
 });
+
+describe('runSingleAssertion — body_is_empty', () => {
+  const a: Assertion = {
+    type: 'body_is_empty',
+    raw: 'response body is empty',
+  };
+
+  it('passes when body is undefined (typical 204 case)', async () => {
+    await expect(
+      runSingleAssertion(res(204, undefined), a, baseOpts),
+    ).resolves.toBeUndefined();
+  });
+
+  it('passes when body is null', async () => {
+    await expect(
+      runSingleAssertion(res(204, null), a, baseOpts),
+    ).resolves.toBeUndefined();
+  });
+
+  it('passes when body is an empty string', async () => {
+    await expect(
+      runSingleAssertion(res(204, ''), a, baseOpts),
+    ).resolves.toBeUndefined();
+  });
+
+  it('fails when body is an empty object (not considered empty)', async () => {
+    await expectFailure(
+      runSingleAssertion(res(200, {}), a, baseOpts),
+      'Expected response body to be empty',
+    );
+  });
+
+  it('fails when body is a non-empty object', async () => {
+    await expectFailure(
+      runSingleAssertion(res(200, { id: '1' }), a, baseOpts),
+      'Expected response body to be empty',
+    );
+  });
+
+  it('fails when body is a non-empty string', async () => {
+    await expectFailure(
+      runSingleAssertion(res(200, 'oops'), a, baseOpts),
+      'Expected response body to be empty',
+    );
+  });
+});

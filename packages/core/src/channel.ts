@@ -53,6 +53,29 @@ export interface ChannelConnectionConfig<TParams, TQuery, THeaders> {
   params?: TParams;
   query?: TQuery;
   headers?: THeaders;
+  /**
+   * Controls handshake validation ordering.
+   *
+   * When `true` (default), missing or invalid connection params/query/
+   * headers are rejected at the adapter level with close code 4400
+   * BEFORE `onConnect` ever runs. This matches the HTTP adapter's
+   * request-validation semantics and is the safest default.
+   *
+   * When `false`, validation errors are deferred into
+   * `ctx.validationError` on the `onConnect` context so the user can
+   * inspect them and render a custom rejection via
+   * `ctx.reject(code, message)`. This is the right flag to set when
+   * you want a missing `authorization` header to produce a tailored
+   * 401 response instead of a generic schema error — for instance to
+   * match observability expectations, or to emit a domain-specific
+   * error payload.
+   *
+   * Note: if `onConnect` does NOT reject explicitly, the adapter
+   * still falls back to closing with the standard validation error
+   * envelope. You opt into handling validation errors; the default
+   * behavior is preserved for every other case.
+   */
+  validateBeforeConnect?: boolean;
 }
 
 /**
@@ -246,6 +269,13 @@ export interface Channel {
     params?: ModelSchema<Record<string, SchemaNode>>;
     query?: ModelSchema<Record<string, SchemaNode>>;
     headers?: ModelSchema<Record<string, SchemaNode>>;
+    /**
+     * When `false`, handshake validation errors are deferred into
+     * `ctx.validationError` so `onConnect` can render a custom
+     * rejection. Defaults to `true` — errors auto-close with 4400
+     * before `onConnect` runs.
+     */
+    validateBeforeConnect: boolean;
   };
 
   clientMessages: Record<string, { schema: SchemaNode; description: string }>;
@@ -343,7 +373,9 @@ export function channel<
   >,
 ): Channel {
   const connection = config.connection ?? {};
-  const normalized: Channel['connection'] = {};
+  const normalized: Channel['connection'] = {
+    validateBeforeConnect: connection.validateBeforeConnect ?? true,
+  };
   const params = normalizeConnectionPart(
     connection.params,
     `${config.name}Params`,

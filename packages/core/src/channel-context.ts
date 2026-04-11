@@ -24,7 +24,7 @@
  * compile error when the channel doesn't declare that server message.
  */
 
-import type { SchemaNode } from './schema/types.js';
+import type { SchemaNode, ValidationError } from './schema/types.js';
 import type { ServiceContainer } from './context.js';
 import type { InferRequestPart } from './context.js';
 
@@ -156,6 +156,19 @@ export interface ChannelConnectContext<
    * types on `auth.firstMessageType`.
    */
   authPayload?: unknown;
+  /**
+   * Present only when the channel sets
+   * `connection.validateBeforeConnect: false` AND the handshake failed
+   * schema validation. Contains the validation errors so `onConnect`
+   * can inspect them and call `ctx.reject(code, message)` with a
+   * domain-specific rejection. When `undefined`, the handshake passed
+   * normally.
+   *
+   * If `onConnect` sees a `validationError` and does NOT call
+   * `reject`, the adapter falls back to closing with the standard
+   * validation-error envelope (same shape as the default flow).
+   */
+  validationError?: readonly ValidationError[];
 }
 
 // ---------------------------------------------------------------------------

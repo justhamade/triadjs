@@ -51,6 +51,7 @@ export type Assertion =
   | { type: 'body_matches'; model: string; raw: string }
   | { type: 'body_has'; path: string; value: unknown; raw: string }
   | { type: 'body_is_array'; raw: string }
+  | { type: 'body_is_empty'; raw: string }
   | { type: 'body_length'; expected: number; raw: string }
   | { type: 'body_has_code'; code: string; raw: string }
   // --- Channel assertions (Phase 9.4) -------------------------------------
@@ -118,6 +119,13 @@ export function parseAssertion(raw: string): Assertion {
   // "response body is an array"
   if (text === 'response body is an array') {
     return { type: 'body_is_array', raw };
+  }
+
+  // "response body is empty" — matches undefined/null/empty-string bodies
+  // (the typical 204 case with `t.empty()`). An empty object `{}` is NOT
+  // considered empty; use `response body matches <Empty>` for that instead.
+  if (text === 'response body is empty') {
+    return { type: 'body_is_empty', raw };
   }
 
   // "response body has length 5"

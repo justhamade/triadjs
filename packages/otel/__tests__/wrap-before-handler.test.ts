@@ -84,6 +84,52 @@ describe('withOtelInstrumentation — beforeHandler wrapping', () => {
     expect(span.status.code).toBe(SpanStatusCode.ERROR);
   });
 
+  it('tags the span with triad.beforeHandler.outcome="shortcircuit" on reject', async () => {
+    const router = createRouter({ title: 'T', version: '1' });
+    router.add(
+      endpoint({
+        name: 'getPet',
+        method: 'GET',
+        path: '/pets/:id',
+        summary: 'Get a pet',
+        responses: {
+          200: { schema: Pet, description: 'OK' },
+          401: { schema: ApiError, description: 'Unauthorized' },
+        },
+        beforeHandler: async (ctx) => ({
+          ok: false,
+          response: ctx.respond[401]({ message: 'no token' }),
+        }),
+        handler: async (ctx) => ctx.respond[200]({ id: '1', name: 'Rex' }),
+      }),
+    );
+    withOtelInstrumentation(router);
+    await router.allEndpoints()[0]!.beforeHandler!(rawCtx());
+    const span = harness.spans()[0]!;
+    expect(span.attributes['triad.beforeHandler.outcome']).toBe('shortcircuit');
+    expect(span.attributes['http.status_code']).toBe(401);
+  });
+
+  it('tags the span with triad.beforeHandler.outcome="ok" on success', async () => {
+    const router = createRouter({ title: 'T', version: '1' });
+    router.add(
+      endpoint({
+        name: 'getPet',
+        method: 'GET',
+        path: '/pets/:id',
+        summary: 'Get a pet',
+        responses: { 200: { schema: Pet, description: 'OK' } },
+        beforeHandler: async () => ({ ok: true, state: { userId: 'u1' } }),
+        handler: async (ctx) => ctx.respond[200]({ id: '1', name: 'Rex' }),
+      }),
+    );
+    withOtelInstrumentation(router);
+    const result = await router.allEndpoints()[0]!.beforeHandler!(rawCtx());
+    expect(result.ok).toBe(true);
+    const span = harness.spans()[0]!;
+    expect(span.attributes['triad.beforeHandler.outcome']).toBe('ok');
+  });
+
   it('is a no-op when no beforeHandler is declared', async () => {
     const router = createRouter({ title: 'T', version: '1' });
     router.add(

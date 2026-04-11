@@ -88,6 +88,43 @@ function wrapEndpointHandler(
   };
 }
 
+function wrapBeforeHandler(
+  endpoint: Endpoint,
+  contextName: string,
+  collector: MetricsCollector,
+): void {
+  if (!endpoint.beforeHandler) return;
+  const original = endpoint.beforeHandler;
+  const meta = {
+    method: endpoint.method,
+    route: endpoint.path,
+    endpointName: endpoint.name,
+    context: contextName,
+  };
+
+  endpoint.beforeHandler = async (ctx) => {
+    const start = nowSeconds();
+    try {
+      const result = await original(ctx);
+      const latencySeconds = nowSeconds() - start;
+      collector.recordBeforeHandler({
+        ...meta,
+        latencySeconds,
+        outcome: result.ok === false ? 'shortcircuit' : 'ok',
+      });
+      return result;
+    } catch (err) {
+      const latencySeconds = nowSeconds() - start;
+      collector.recordBeforeHandler({
+        ...meta,
+        latencySeconds,
+        outcome: 'error',
+      });
+      throw err;
+    }
+  };
+}
+
 function wrapChannelHandlers(
   channel: Channel,
   contextName: string,
@@ -149,6 +186,7 @@ export function withMetricsInstrumentation(
   for (const endpoint of router.allEndpoints()) {
     const contextName = endpointContextName(router, endpoint);
     wrapEndpointHandler(endpoint, contextName, collector);
+    wrapBeforeHandler(endpoint, contextName, collector);
   }
 
   if (resolved.instrumentChannels) {

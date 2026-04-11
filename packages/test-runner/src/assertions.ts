@@ -116,6 +116,21 @@ export async function runSingleAssertion(
       return;
     }
 
+    case 'body_is_empty': {
+      const body = response.body;
+      const isEmpty =
+        body === undefined ||
+        body === null ||
+        (typeof body === 'string' && body.length === 0);
+      if (!isEmpty) {
+        throw new AssertionFailure(
+          `Expected response body to be empty (undefined, null, or ""), got ${typeOfValue(body)}`,
+          assertion,
+        );
+      }
+      return;
+    }
+
     case 'body_length': {
       if (!Array.isArray(response.body)) {
         throw new AssertionFailure(

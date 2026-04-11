@@ -19,6 +19,7 @@ export {
   type SeriesSnapshot,
   type RequestMeta,
   type ChannelMessageMeta,
+  type BeforeHandlerMeta,
 } from './collector.js';
 
 export {

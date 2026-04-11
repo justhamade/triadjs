@@ -201,6 +201,84 @@ describe('runChannelBehaviors — failure reporting', () => {
 // Teardown
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Fallback `when` parsing preserves rejection outcomes (Phase 10.5 — Fix 1)
+// ---------------------------------------------------------------------------
+
+describe('runChannelBehaviors — fallback when parser preserves rejection', () => {
+  it('rejection assertion still sees the client when when-description does not match a known pattern', async () => {
+    // A locked-door channel: onConnect always rejects.
+    const ch = channel({
+      name: 'locked',
+      path: '/ws/locked',
+      summary: 'Always rejects',
+      clientMessages: {
+        ping: { schema: t.model('Ping', { n: t.string() }), description: 'p' },
+      },
+      serverMessages: {
+        pong: { schema: t.model('Pong', { n: t.string() }), description: 'p' },
+      },
+      onConnect: (ctx) => {
+        ctx.reject(401, 'no token');
+      },
+      handlers: {
+        ping: () => {
+          /* unreachable */
+        },
+      },
+      behaviors: [
+        // NOTE: 'the user tries to join' is NOT one of the recognized
+        // `when` shapes (connects / sends / disconnects). It falls
+        // through to the fallback branch. Before the fix, the fallback
+        // returned `harness.getClient(DEFAULT_CLIENT)` which is
+        // `undefined` for rejected clients — the assertion would then
+        // fail with "requires a client from the when step" instead of
+        // verifying the rejection code.
+        scenario('Unauthenticated user is kicked out')
+          .given('no token')
+          .when('the user tries to join')
+          .then('connection is rejected with code 401'),
+      ],
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ch);
+    const summary = await runChannelBehaviors(router);
+    expect(summary.failed).toBe(0);
+    expect(summary.errored).toBe(0);
+    expect(summary.passed).toBe(1);
+  });
+
+  it('fallback branch does not throw "no client" when body is undefined and connection was rejected', async () => {
+    const ch = channel({
+      name: 'locked',
+      path: '/ws/locked',
+      summary: 'Always rejects',
+      connection: { headers: { authorization: t.string() } },
+      clientMessages: {
+        ping: { schema: t.model('Ping', { n: t.string() }), description: 'p' },
+      },
+      serverMessages: {
+        pong: { schema: t.model('Pong', { n: t.string() }), description: 'p' },
+      },
+      handlers: {
+        ping: () => undefined,
+      },
+      behaviors: [
+        // Missing authorization header → validation rejects at 4400.
+        scenario('Missing header kicks out')
+          .given('no auth')
+          .when('user attempts handshake')
+          .then('connection is rejected with code 4400'),
+      ],
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ch);
+    const summary = await runChannelBehaviors(router);
+    expect(summary.passed).toBe(1);
+    expect(summary.failed).toBe(0);
+  });
+});
+
 describe('runChannelBehaviors — teardown', () => {
   it('calls teardown for every scenario even on failure', async () => {
     const teardown = vi.fn();
