@@ -3,10 +3,13 @@
  *
  * Every protected handler uses the `requireAuth` beforeHandler to
  * authenticate, then verifies the parent project belongs to the
- * authenticated user, and only then operates on the child task. The
+ * authenticated user via the shared `loadOwnedProject` helper in
+ * `../access.ts`, and only then operates on the child task. The
  * authentication step is declarative (one line: `beforeHandler:
  * requireAuth`); the project-ownership check is still a runtime helper
- * because it's data-dependent on the `:projectId` path param.
+ * because it's data-dependent on the `:projectId` path param, but it
+ * now lives in one place — `../access.ts` — and composes Triad's
+ * generic `checkOwnership` helper under the hood.
  *
  * The list endpoint demonstrates keyset pagination. The cursor is a
  * base64-encoded copy of the last item's `createdAt` timestamp:
@@ -24,14 +27,10 @@
  */
 
 import { endpoint, scenario, t } from '@triad/core';
-import type { Infer } from '@triad/core';
 import { CreateTask, Task, TaskPage, UpdateTask } from '../schemas/task.js';
-import { Project } from '../schemas/project.js';
 import { ApiError } from '../schemas/common.js';
 import { requireAuth } from '../auth.js';
-
-type ProjectValue = Infer<typeof Project>;
-type ErrorBody = { code: string; message: string };
+import { loadOwnedProject } from '../access.js';
 
 // ---------------------------------------------------------------------------
 // Cursor helpers
@@ -57,38 +56,6 @@ function decodeCursor(cursor: string): string | null {
   } catch {
     return null;
   }
-}
-
-// ---------------------------------------------------------------------------
-// Ownership helper (duplicates `loadOwnedProject` in projects.ts on purpose
-// — cross-file imports for a 15-line helper obscure the flow more than a
-// small amount of duplication does. The friction report flags this.)
-// ---------------------------------------------------------------------------
-
-async function loadOwnedProject(
-  services: { projectRepo: { findById(id: string): Promise<ProjectValue | null> } },
-  projectId: string,
-  userId: string,
-): Promise<
-  | { ok: true; project: ProjectValue }
-  | { ok: false; status: 404 | 403; error: ErrorBody }
-> {
-  const project = await services.projectRepo.findById(projectId);
-  if (!project) {
-    return {
-      ok: false,
-      status: 404,
-      error: { code: 'NOT_FOUND', message: `No project with id ${projectId}.` },
-    };
-  }
-  if (project.ownerId !== userId) {
-    return {
-      ok: false,
-      status: 403,
-      error: { code: 'FORBIDDEN', message: 'You do not own this project.' },
-    };
-  }
-  return { ok: true, project };
 }
 
 // ---------------------------------------------------------------------------

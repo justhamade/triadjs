@@ -8,54 +8,20 @@
  * `requireAuth` short-circuit is type-checked against the endpoint's
  * declared 401 response schema.
  *
- * Ownership enforcement is factored into a tiny `loadOwnedProject`
- * helper so get/delete/task-endpoints don't duplicate the 404 vs 403
- * branching. We deliberately make the distinction: 404 when the
- * project id is unknown globally, 403 when it exists but belongs to
- * another user. Returning 404 in both cases would be safer from an
- * enumeration standpoint but less honest about the error the client
- * actually hit.
+ * Ownership enforcement is factored into the shared `loadOwnedProject`
+ * helper in `../access.ts`, which composes Triad's generic
+ * `checkOwnership` with tasktracker's repository shape. Both this
+ * file and `endpoints/tasks.ts` import it so the 404 vs 403
+ * branching stays identical across contexts — the distinction is
+ * intentional: 404 when the project id is unknown globally, 403
+ * when it exists but belongs to another user.
  */
 
 import { endpoint, scenario, t } from '@triad/core';
-import type { Infer } from '@triad/core';
 import { CreateProject, Project } from '../schemas/project.js';
 import { ApiError } from '../schemas/common.js';
 import { requireAuth } from '../auth.js';
-
-type ProjectValue = Infer<typeof Project>;
-type ErrorBody = { code: string; message: string };
-
-/**
- * Shared helper: load a project by id and enforce ownership. Returns
- * either the loaded project or a `{ status, error }` tuple the caller
- * passes to the right `ctx.respond[...]` slot.
- */
-async function loadOwnedProject(
-  services: { projectRepo: { findById(id: string): Promise<ProjectValue | null> } },
-  projectId: string,
-  userId: string,
-): Promise<
-  | { ok: true; project: ProjectValue }
-  | { ok: false; status: 404 | 403; error: ErrorBody }
-> {
-  const project = await services.projectRepo.findById(projectId);
-  if (!project) {
-    return {
-      ok: false,
-      status: 404,
-      error: { code: 'NOT_FOUND', message: `No project with id ${projectId}.` },
-    };
-  }
-  if (project.ownerId !== userId) {
-    return {
-      ok: false,
-      status: 403,
-      error: { code: 'FORBIDDEN', message: 'You do not own this project.' },
-    };
-  }
-  return { ok: true, project };
-}
+import { loadOwnedProject } from '../access.js';
 
 // ---------------------------------------------------------------------------
 // POST /projects

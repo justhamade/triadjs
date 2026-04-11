@@ -94,6 +94,13 @@ export {
   type BeforeHandlerShortCircuit,
 } from './before-handler.js';
 
+// --- Ownership helper ------------------------------------------------------
+
+export {
+  checkOwnership,
+  type OwnershipResult,
+} from './ownership.js';
+
 // --- Router ----------------------------------------------------------------
 
 export {

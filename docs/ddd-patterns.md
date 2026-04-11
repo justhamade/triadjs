@@ -353,3 +353,78 @@ behaviors: [
 - **`ctx.services` is the injection point** — Triad doesn't prescribe how you wire dependencies. Use constructor injection, a DI container, or simple factory functions.
 - **Triad schemas and domain entities may differ** — `Pet` (API model) and `PetEntity` (domain object) can have different shapes. The mapping happens in the handler, in a `.toResponse()` method, or in the repository.
 - **Behaviors test the API contract, not domain internals** — Unit test your aggregates, repositories, and services separately. Triad behaviors are integration tests of the full API surface.
+
+---
+
+## 7. Ownership and Access Control
+
+Most apps that have authenticated users eventually need ownership checks — "you can read your own projects but not mine". Triad gives you two building blocks and leaves the rest to you, because the right branching (404 vs 403, collapse or distinguish, silent vs explicit) is a product decision, not a framework one.
+
+### The two building blocks
+
+**1. `beforeHandler` for authentication** (who are you?)
+The `requireAuth` pattern from Phase 10.3 — a single typed hook that reads the bearer token, resolves the user, and either short-circuits with 401 or attaches `{ user }` to `ctx.state`. Every protected endpoint declares `beforeHandler: requireAuth` and reads `ctx.state.user` in the main handler. See `examples/tasktracker/src/auth.ts` for the reference implementation.
+
+**2. `checkOwnership` for authorization** (are you allowed to touch this?)
+A tiny pure helper exported from `@triad/core`:
+
+```ts
+import { checkOwnership } from '@triad/core';
+
+const result = checkOwnership(
+  await ctx.services.projectRepo.findById(ctx.params.projectId),
+  ctx.state.user.id,
+  (project) => project.ownerId,
+);
+
+if (!result.ok) {
+  return result.reason === 'not_found'
+    ? ctx.respond[404]({ code: 'NOT_FOUND', message: 'No such project' })
+    : ctx.respond[403]({ code: 'FORBIDDEN', message: 'Not your project' });
+}
+
+const project = result.entity; // typed, non-null
+```
+
+`checkOwnership` is deliberately tiny. It does NOT fetch — that's the repository's job. It only takes the fetched entity (nullable) and decides which branch the caller should render. That separation lets the same helper work against any repository shape (sync, async, cached, multi-tenant).
+
+### Why the split?
+
+Because the 404 vs 403 choice is a product decision:
+
+- **Distinguish them** (tasktracker's choice) — honest about the error but leaks the existence of foreign resources. Fine for internal tools and friendly APIs.
+- **Collapse to 404** — safer from an enumeration standpoint. Preferred for public APIs where you don't want attackers probing for valid ids.
+- **Return 403 unconditionally** — useful when the mere existence of a resource is public but ownership is not.
+
+Triad's helper gives you the raw discriminant (`'not_found' | 'forbidden'`). You pick how to render it. No framework magic, no hidden behavior.
+
+### Composing with your repository
+
+For the common case — "fetch by id and enforce ownership on the result" — wrap the helper in a context-specific function that your endpoints import:
+
+```ts
+// src/access.ts
+import { checkOwnership } from '@triad/core';
+
+export async function loadOwnedProject(
+  services: Pick<AppServices, 'projectRepo'>,
+  projectId: string,
+  userId: string,
+) {
+  const project = await services.projectRepo.findById(projectId);
+  const result = checkOwnership(project, userId, (p) => p.ownerId);
+  if (result.ok) return { ok: true as const, project: result.entity };
+  if (result.reason === 'not_found') {
+    return { ok: false as const, status: 404, error: { code: 'NOT_FOUND', message: `No project ${projectId}` } };
+  }
+  return { ok: false as const, status: 403, error: { code: 'FORBIDDEN', message: 'Not your project' } };
+}
+```
+
+Now every endpoint that needs project ownership calls `loadOwnedProject(ctx.services, ctx.params.projectId, ctx.state.user.id)` and branches on `loaded.status`. This is the pattern tasktracker uses — see `examples/tasktracker/src/access.ts`.
+
+### What NOT to build
+
+- **Router-level "require auth" middleware** — Triad doesn't have middleware, and that's intentional. Put `beforeHandler: requireAuth` on the endpoints that need it. Explicit is cheap; magic is expensive.
+- **Policy DSLs / rule engines** — these hide the decision. A four-line handler branch is clearer than a `@Policy('project.read')` decorator.
+- **Automatic 403 from `repo.findForOwner(id, ownerId)`** — it bundles two concerns (fetch + authz) and makes error disambiguation harder. Keep them separate.

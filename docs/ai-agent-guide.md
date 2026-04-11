@@ -1125,6 +1125,8 @@ Triad is intentionally DDD-flavored. The key mappings:
 | **Bounded context** | `router.context(...)` — groups endpoints + channels and enforces model boundaries |
 | **Domain service** | Plain class in `src/services/` injected through `createServices()` |
 | **Domain event** | User-defined; publish from repository/service using an injected event bus |
+| **Authentication** | `beforeHandler: requireAuth` (see §6) — typed `ctx.state.user` |
+| **Authorization / ownership** | `checkOwnership(entity, ownerId, getOwnerId)` from `@triad/core` — returns `{ ok, reason }` for the handler to render |
 
 Handlers stay **thin** — they parse `ctx.params`/`ctx.query`/`ctx.body`, call a repository or service, and map the result to `ctx.respond[...]`. Business logic lives in aggregates and services, not in endpoint handlers.
 
@@ -1144,7 +1146,7 @@ These are the mistakes most likely to trip up an AI coding assistant writing Tri
 
 4. **Using single quotes inside assertion literals.** Only `"double quotes"` are recognized for string values.
 
-5. **Asserting against `null`.** Not supported by the parser. Let the schema (`.nullable()`) and the response validator enforce the nullable invariant, or add a `customMatchers` entry.
+5. **Conflating 404 and 403 on ownership checks.** Triad ships `checkOwnership` (from `@triad/core`) which returns a discriminated `{ ok: false, reason: 'not_found' | 'forbidden' }`. Use it and pick the rendering that fits your product — distinguish them (honest), collapse both to 404 (anti-enumeration), or return 403 always (public existence, private ownership). Don't silently pick one in a helper; make the handler decide. See `docs/ddd-patterns.md §7` and `examples/tasktracker/src/access.ts` for the pattern.
 
 6. **Declaring the `authorization` header on the endpoint's `request.headers`** — don't. Use `beforeHandler: requireAuth` (see §6). The beforeHandler reads `ctx.rawHeaders['authorization']` before validation runs, so the header does not belong in the declared request shape at all. The old "declare it `.optional()` so missing-auth reaches the handler" workaround is obsolete.
 
