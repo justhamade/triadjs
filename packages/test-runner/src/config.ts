@@ -55,8 +55,15 @@ export interface TriadConfig {
 }
 
 export interface FrontendConfig {
-  /** Codegen target. Currently only `'tanstack-query'` is supported. */
-  target?: 'tanstack-query';
+  /**
+   * Codegen target. One of:
+   *   - `'tanstack-query'`  — typed React Query hooks
+   *   - `'channel-client'`  — typed vanilla WebSocket clients
+   *
+   * May be a single target or a comma-separated string / array for
+   * running multiple generators against the same router.
+   */
+  target?: 'tanstack-query' | 'channel-client';
   /** Output directory (relative to the config file). */
   output?: string;
   /** Base URL embedded in the generated runtime client (default: `/api`). */

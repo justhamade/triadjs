@@ -1,13 +1,10 @@
 {
-  "name": "@triad/cli",
+  "name": "@triad/channel-client",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "bin": {
-    "triad": "./dist/index.js"
-  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -24,16 +21,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@triad/asyncapi": "*",
-    "@triad/channel-client": "*",
     "@triad/core": "*",
-    "@triad/gherkin": "*",
-    "@triad/openapi": "*",
-    "@triad/tanstack-query": "*",
-    "@triad/test-runner": "*",
-    "commander": "^12.1.0",
-    "jiti": "^2.4.0",
-    "picocolors": "^1.1.0"
+    "@triad/tanstack-query": "*"
   },
   "devDependencies": {
     "tsup": "^8.3.0",

@@ -410,7 +410,16 @@ export function createChannelHandler(
       hub,
       record,
     );
-    const connectCtx = {
+    const buildConnectCtx = (authPayload?: unknown): {
+      params: Record<string, unknown>;
+      query: Record<string, unknown>;
+      headers: Record<string, unknown>;
+      services: ServiceContainer;
+      state: Record<string, unknown>;
+      reject: (code: number, message: string) => void;
+      broadcast: Record<string, (data: unknown) => void>;
+      authPayload?: unknown;
+    } => ({
       params,
       query,
       headers,
@@ -426,11 +435,22 @@ export function createChannelHandler(
         socket.close(4000 + code, message);
       },
       broadcast: connectBroadcast,
-    };
+      authPayload,
+    });
 
-    if (channel.onConnect) {
+    // ---- 4a. First-message auth: defer onConnect ------------------------
+    // When the channel opts into first-message auth, we install a
+    // temporary `message` listener that awaits exactly one frame of
+    // the declared auth type. If it arrives in time and validates,
+    // we run `onConnect` with the parsed payload in `ctx.authPayload`
+    // and hand off to the normal message loop. Anything else closes
+    // the socket with 4401.
+    const runOnConnect = async (authPayload?: unknown): Promise<boolean> => {
+      if (!channel.onConnect) return true;
+      const ctx = buildConnectCtx(authPayload);
       try {
-        await channel.onConnect(connectCtx);
+        await channel.onConnect(ctx);
+        return true;
       } catch (err) {
         if (err instanceof ValidationException) {
           logError(err, request);
@@ -446,19 +466,22 @@ export function createChannelHandler(
           });
         }
         socket.close(4500, 'internal error');
-        return;
+        return false;
       }
-    }
+    };
 
-    if (record.rejected) {
-      // `ctx.reject` already sent the envelope and closed the socket.
-      return;
-    }
-
-    // ---- 5. Register and wire message loop -------------------------------
-    hub.register(record);
-
-    const messageCtxBase = {
+    // Build the message-context base factory — used by both the
+    // normal flow and the first-message auth flow once onConnect
+    // completes. It references `record` which is stable for the life
+    // of the connection.
+    const buildMessageCtxBase = (): {
+      params: Record<string, unknown>;
+      services: ServiceContainer;
+      state: Record<string, unknown>;
+      broadcast: Record<string, (data: unknown) => void>;
+      broadcastOthers: Record<string, (data: unknown) => void>;
+      send: Record<string, (data: unknown) => void>;
+    } => ({
       params,
       services,
       state: record.state,
@@ -470,9 +493,77 @@ export function createChannelHandler(
         record,
       ),
       send: buildOutgoingMap(channel, 'send', hub, record),
-    };
+    });
 
-    socket.on('message', async (rawMessage: unknown) => {
+    if (channel.auth.strategy === 'first-message') {
+      await runFirstMessageAuthFlow({
+        channel,
+        socket,
+        request,
+        record,
+        hub,
+        runOnConnect,
+        buildMessageCtxBase,
+        logError,
+      });
+      return;
+    }
+
+    // ---- 4b. Header / none strategy: run onConnect now ------------------
+    if (channel.onConnect) {
+      const ok = await runOnConnect(undefined);
+      if (!ok) return;
+    }
+
+    if (record.rejected) {
+      // `ctx.reject` already sent the envelope and closed the socket.
+      return;
+    }
+
+    // ---- 5. Register and wire message loop -------------------------------
+    hub.register(record);
+
+    const messageCtxBase = buildMessageCtxBase();
+
+    installMessageLoop({
+      channel,
+      socket,
+      request,
+      hub,
+      record,
+      messageCtxBase,
+      logError,
+    });
+    return;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Message loop installation (shared by header-auth and first-message flows)
+// ---------------------------------------------------------------------------
+
+interface InstallMessageLoopArgs {
+  channel: Channel;
+  socket: WebSocket;
+  request: FastifyRequest;
+  hub: ChannelHub;
+  record: ChannelConnection;
+  messageCtxBase: {
+    params: Record<string, unknown>;
+    services: ServiceContainer;
+    state: Record<string, unknown>;
+    broadcast: Record<string, (data: unknown) => void>;
+    broadcastOthers: Record<string, (data: unknown) => void>;
+    send: Record<string, (data: unknown) => void>;
+  };
+  logError: (err: unknown, request: FastifyRequest) => void;
+}
+
+function installMessageLoop(args: InstallMessageLoopArgs): void {
+  const { channel, socket, request, hub, record, messageCtxBase, logError } =
+    args;
+
+  const onMessage = async (rawMessage: unknown): Promise<void> => {
       // `ws` hands us Buffers by default — coerce to string for JSON
       // parsing. We tolerate pre-stringified input too in case a
       // caller configured the socket differently.
@@ -561,26 +652,200 @@ export function createChannelHandler(
           message: 'Message handler failed.',
         });
       }
-    });
+    };
 
-    socket.on('error', (err: unknown) => {
-      logError(err, request);
-    });
+  socket.on('message', (raw: unknown) => {
+    void onMessage(raw);
+  });
 
-    socket.on('close', () => {
-      hub.unregister(record);
-      if (channel.onDisconnect) {
-        try {
-          const maybePromise = channel.onDisconnect(connectCtx);
-          if (maybePromise && typeof (maybePromise as Promise<void>).then === 'function') {
-            (maybePromise as Promise<void>).catch((err: unknown) => {
-              logError(err, request);
-            });
-          }
-        } catch (err) {
-          logError(err, request);
+  socket.on('error', (err: unknown) => {
+    logError(err, request);
+  });
+
+  socket.on('close', () => {
+    hub.unregister(record);
+    if (channel.onDisconnect) {
+      try {
+        const disconnectCtx = {
+          params: messageCtxBase.params,
+          query: record.query,
+          headers: record.headers,
+          services: messageCtxBase.services,
+          state: record.state,
+          reject: () => {
+            /* no-op after disconnect */
+          },
+          broadcast: messageCtxBase.broadcast,
+        };
+        const maybePromise = channel.onDisconnect(disconnectCtx);
+        if (
+          maybePromise &&
+          typeof (maybePromise as Promise<void>).then === 'function'
+        ) {
+          (maybePromise as Promise<void>).catch((err: unknown) => {
+            logError(err, request);
+          });
         }
+      } catch (err) {
+        logError(err, request);
       }
-    });
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// First-message auth flow
+// ---------------------------------------------------------------------------
+
+interface FirstMessageAuthArgs {
+  channel: Channel;
+  socket: WebSocket;
+  request: FastifyRequest;
+  record: ChannelConnection;
+  hub: ChannelHub;
+  runOnConnect: (authPayload: unknown) => Promise<boolean>;
+  buildMessageCtxBase: () => {
+    params: Record<string, unknown>;
+    services: ServiceContainer;
+    state: Record<string, unknown>;
+    broadcast: Record<string, (data: unknown) => void>;
+    broadcastOthers: Record<string, (data: unknown) => void>;
+    send: Record<string, (data: unknown) => void>;
   };
+  logError: (err: unknown, request: FastifyRequest) => void;
+}
+
+/**
+ * Run the first-message auth dance: wait for exactly one message of
+ * the declared `auth.firstMessageType`, validate it against the
+ * corresponding `clientMessages[type]` schema, then run `onConnect`
+ * with the parsed payload in `ctx.authPayload`. Any other first
+ * message, or a timeout, closes the socket with code 4401.
+ */
+async function runFirstMessageAuthFlow(
+  args: FirstMessageAuthArgs,
+): Promise<void> {
+  const {
+    channel,
+    socket,
+    request,
+    record,
+    hub,
+    runOnConnect,
+    buildMessageCtxBase,
+    logError,
+  } = args;
+  const authType = channel.auth.firstMessageType;
+  const timeoutMs = channel.auth.timeoutMs;
+
+  let settled = false;
+
+  const timer = setTimeout(() => {
+    if (settled) return;
+    settled = true;
+    socket.off('message', firstMessageHandler);
+    sendAdapterError(socket, {
+      code: 'AUTH_TIMEOUT',
+      message: 'Auth timeout',
+    });
+    socket.close(4401, 'Auth timeout');
+  }, timeoutMs);
+
+  function firstMessageHandler(rawMessage: unknown): void {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timer);
+    socket.off('message', firstMessageHandler);
+
+    const text =
+      typeof rawMessage === 'string'
+        ? rawMessage
+        : Buffer.isBuffer(rawMessage)
+          ? rawMessage.toString('utf8')
+          : String(rawMessage);
+
+    let envelope: unknown;
+    try {
+      envelope = JSON.parse(text);
+    } catch {
+      sendAdapterError(socket, {
+        code: 'INVALID_JSON',
+        message: 'Auth message was not valid JSON.',
+      });
+      socket.close(4401, 'Expected auth message');
+      return;
+    }
+
+    if (
+      typeof envelope !== 'object' ||
+      envelope === null ||
+      typeof (envelope as { type?: unknown }).type !== 'string'
+    ) {
+      sendAdapterError(socket, {
+        code: 'INVALID_ENVELOPE',
+        message: 'Auth message must be an object with a string `type` field.',
+      });
+      socket.close(4401, 'Expected auth message');
+      return;
+    }
+
+    const { type, data } = envelope as { type: string; data: unknown };
+    if (type !== authType) {
+      sendAdapterError(socket, {
+        code: 'EXPECTED_AUTH_MESSAGE',
+        message: `Expected auth message of type "${authType}" but received "${type}".`,
+      });
+      socket.close(4401, 'Expected auth message');
+      return;
+    }
+
+    const messageConfig = channel.clientMessages[authType];
+    if (!messageConfig) {
+      sendAdapterError(socket, {
+        code: 'AUTH_NOT_DECLARED',
+        message: `Auth message type "${authType}" is not declared in clientMessages.`,
+      });
+      socket.close(4500, 'internal error');
+      return;
+    }
+
+    const result = messageConfig.schema.validate(data);
+    if (!result.success) {
+      sendAdapterError(socket, {
+        code: 'VALIDATION_ERROR',
+        message: `Invalid payload for auth message "${authType}".`,
+        details: result.errors,
+      });
+      socket.close(4401, 'Invalid auth payload');
+      return;
+    }
+
+    // Run onConnect with the parsed payload. We do this in a
+    // microtask so the synchronous path returns first.
+    void (async () => {
+      const ok = await runOnConnect(result.data);
+      if (!ok) return;
+      if (record.rejected) return;
+
+      hub.register(record);
+      const messageCtxBase = buildMessageCtxBase();
+      installMessageLoop({
+        channel,
+        socket,
+        request,
+        hub,
+        record,
+        messageCtxBase,
+        logError,
+      });
+    })();
+  }
+
+  socket.on('message', firstMessageHandler);
+  socket.on('close', () => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timer);
+    socket.off('message', firstMessageHandler);
+  });
 }

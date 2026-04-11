@@ -145,6 +145,17 @@ export interface ChannelConnectContext<
    * Includes the connection this handler is running on.
    */
   broadcast: BroadcastMap<TServerMessages>;
+  /**
+   * When the channel uses `auth.strategy: 'first-message'`, this is
+   * the parsed and schema-validated payload of the first client
+   * message. For other strategies this is `undefined`.
+   *
+   * The payload is typed as `unknown` in v1 — cast to the declared
+   * payload type of the auth message inside `onConnect`. A future
+   * enhancement can narrow the type automatically via conditional
+   * types on `auth.firstMessageType`.
+   */
+  authPayload?: unknown;
 }
 
 // ---------------------------------------------------------------------------

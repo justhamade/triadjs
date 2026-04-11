@@ -55,6 +55,46 @@ export interface ChannelConnectionConfig<TParams, TQuery, THeaders> {
   headers?: THeaders;
 }
 
+/**
+ * Authentication strategy for a channel.
+ *
+ * Channels support three authentication flows:
+ *
+ *   - `'header'` (default) — credentials are passed on the handshake
+ *     as HTTP headers. Works for Node.js WebSocket clients that can
+ *     set arbitrary headers. Browsers cannot set custom headers on a
+ *     `new WebSocket()` call, so this strategy is not browser-friendly.
+ *
+ *   - `'first-message'` — the connection is accepted immediately, but
+ *     `onConnect` is deferred until the client sends a specific
+ *     "auth" message as its first frame. The adapter parses and
+ *     validates that message against the declared `clientMessages`
+ *     entry and exposes the parsed payload as `ctx.authPayload` in
+ *     `onConnect`. If the client sends any other message type, or no
+ *     message at all before the timeout, the socket is closed with
+ *     code 4401. This is the browser-compatible flow.
+ *
+ *   - `'none'` — no built-in auth; `onConnect` runs immediately with
+ *     whatever handshake data is available. Use this when the
+ *     channel is public or when a framework-level auth layer
+ *     handles credentials outside of Triad.
+ */
+export interface ChannelAuthConfig {
+  strategy: 'header' | 'first-message' | 'none';
+  /**
+   * Only meaningful for `strategy: 'first-message'`. The name of the
+   * client message that carries the auth payload. Must match a key
+   * declared on `clientMessages`. Defaults to `'__auth'`.
+   */
+  firstMessageType?: string;
+  /**
+   * Only meaningful for `strategy: 'first-message'`. Maximum time in
+   * milliseconds to wait for the auth message before closing the
+   * socket with code 4401. Defaults to 5000.
+   */
+  timeoutMs?: number;
+}
+
 type InferSchema<T> = T extends SchemaNode<infer U> ? U : never;
 
 /**
@@ -115,6 +155,14 @@ export interface ChannelConfig<
   state?: TState;
   /** Handshake parameters: path params, query, headers. */
   connection?: ChannelConnectionConfig<TParams, TQuery, THeaders>;
+  /**
+   * Authentication strategy for this channel. Defaults to `'header'`
+   * (read credentials from handshake headers, the Node-client-friendly
+   * flow). Use `'first-message'` to defer `onConnect` until the client
+   * sends an auth message as its first frame — the browser-friendly
+   * flow. See `ChannelAuthConfig` for details.
+   */
+  auth?: ChannelAuthConfig;
   /** Messages the client may send to the server. */
   clientMessages: TClientMessages;
   /** Messages the server may push to the client. */
@@ -202,6 +250,17 @@ export interface Channel {
 
   clientMessages: Record<string, { schema: SchemaNode; description: string }>;
   serverMessages: Record<string, { schema: SchemaNode; description: string }>;
+
+  /**
+   * Normalized authentication config. `strategy` is always present
+   * (defaults to `'header'`); `firstMessageType` defaults to
+   * `'__auth'` and `timeoutMs` to 5000.
+   */
+  auth: {
+    strategy: 'header' | 'first-message' | 'none';
+    firstMessageType: string;
+    timeoutMs: number;
+  };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onConnect?: (ctx: any) => Promise<void> | void;
@@ -311,6 +370,11 @@ export function channel<
     connection: normalized,
     clientMessages: normalizeMessageMap(config.clientMessages),
     serverMessages: normalizeMessageMap(config.serverMessages),
+    auth: {
+      strategy: config.auth?.strategy ?? 'header',
+      firstMessageType: config.auth?.firstMessageType ?? '__auth',
+      timeoutMs: config.auth?.timeoutMs ?? 5000,
+    },
     handlers: config.handlers as Record<
       string,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

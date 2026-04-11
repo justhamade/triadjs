@@ -18,6 +18,12 @@ const FIXTURE_DIR = fileURLToPath(
 );
 const CONFIG_PATH = path.join(FIXTURE_DIR, 'triad.config.ts');
 
+// Bookshelf has both HTTP endpoints AND a WebSocket channel, so it's
+// the fixture of choice for the channel-client target test.
+const BOOKSHELF_CONFIG = fileURLToPath(
+  new URL('../../../examples/bookshelf/triad.config.ts', import.meta.url),
+);
+
 let tmpDirs: string[] = [];
 
 afterEach(() => {
@@ -95,6 +101,45 @@ describe('runFrontendGenerate', () => {
         output: makeTmp(),
       }),
     ).rejects.toBeInstanceOf(CliError);
+  });
+
+  it('writes a channel client into a channels/ subdirectory for the channel-client target', async () => {
+    const out = makeTmp();
+    const { stdout } = await captureStdout(async () =>
+      runFrontendGenerate({
+        config: BOOKSHELF_CONFIG,
+        target: 'channel-client',
+        output: out,
+      }),
+    );
+    expect(stdout).toContain('Channel client written');
+    const channelsDir = path.join(out, 'channels');
+    expect(fs.existsSync(channelsDir)).toBe(true);
+    for (const name of ['client.ts', 'types.ts', 'index.ts', 'book-reviews.ts']) {
+      expect(fs.existsSync(path.join(channelsDir, name))).toBe(true);
+    }
+    const channelSrc = fs.readFileSync(
+      path.join(channelsDir, 'book-reviews.ts'),
+      'utf8',
+    );
+    expect(channelSrc).toContain('export function createBookReviewsClient');
+  });
+
+  it('runs both targets when comma-separated', async () => {
+    const out = makeTmp();
+    await captureStdout(async () =>
+      runFrontendGenerate({
+        config: BOOKSHELF_CONFIG,
+        target: 'tanstack-query,channel-client',
+        output: out,
+      }),
+    );
+    // HTTP hooks land at the top level
+    expect(fs.existsSync(path.join(out, 'types.ts'))).toBe(true);
+    expect(fs.existsSync(path.join(out, 'client.ts'))).toBe(true);
+    // Channel client lands in channels/
+    expect(fs.existsSync(path.join(out, 'channels', 'book-reviews.ts'))).toBe(true);
+    expect(fs.existsSync(path.join(out, 'channels', 'client.ts'))).toBe(true);
   });
 
   it('honors --base-url when writing the runtime client', async () => {

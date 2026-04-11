@@ -481,6 +481,155 @@ describe('channel adapter — send scope', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// First-message auth fixture
+// ---------------------------------------------------------------------------
+
+interface AuthedRoomState {
+  userId: string;
+}
+
+const authedRoom = channel({
+  name: 'authedRoom',
+  path: '/ws/authed/:roomId',
+  summary: 'Authed room that expects first-message auth',
+  state: {} as AuthedRoomState,
+  auth: {
+    strategy: 'first-message',
+    firstMessageType: '__auth',
+    timeoutMs: 200,
+  },
+  connection: {
+    params: {
+      roomId: t.string(),
+    },
+  },
+  clientMessages: {
+    __auth: {
+      schema: t.model('AuthPayload', { token: t.string().minLength(1) }),
+      description: 'Auth payload',
+    },
+    sendMessage: {
+      schema: t.model('AuthedSendMessage', {
+        text: t.string().minLength(1),
+      }),
+      description: 'Send a message',
+    },
+  },
+  serverMessages: {
+    message: {
+      schema: t.model('AuthedMessage', {
+        userId: t.string(),
+        text: t.string(),
+      }),
+      description: 'New message',
+    },
+  },
+  onConnect: (ctx) => {
+    const payload = ctx.authPayload as { token: string } | undefined;
+    if (!payload || payload.token !== 'valid-token') {
+      ctx.reject(401, 'Invalid token');
+      return;
+    }
+    ctx.state.userId = `user-for-${payload.token}`;
+  },
+  handlers: {
+    __auth: () => {
+      // no-op — consumed by the auth flow, never runs as a normal message
+    },
+    sendMessage: (ctx, data) => {
+      ctx.broadcast.message({
+        userId: ctx.state.userId,
+        text: data.text,
+      });
+    },
+  },
+});
+
+async function startAuthedServer(): Promise<RunningServer> {
+  const app = Fastify({ logger: false });
+  const router = createRouter({ title: 'AuthedTest', version: '1.0.0' });
+  router.add(authedRoom);
+  await app.register(triadPlugin, { router });
+  await app.listen({ port: 0, host: '127.0.0.1' });
+  const address = app.server.address();
+  if (!address || typeof address === 'string') {
+    throw new Error('Fastify did not bind to a TCP port');
+  }
+  return { app, port: address.port, sockets: [] };
+}
+
+describe('channel adapter — first-message auth', () => {
+  it('runs onConnect with ctx.authPayload once the auth message arrives', async () => {
+    server = await startAuthedServer();
+    const socket = new WebSocket(
+      `ws://127.0.0.1:${server.port}/ws/authed/abc`,
+    );
+    server.sockets.push(socket);
+    await new Promise<void>((resolve, reject) => {
+      socket.once('open', () => resolve());
+      socket.once('error', reject);
+    });
+    socket.send(
+      JSON.stringify({ type: '__auth', data: { token: 'valid-token' } }),
+    );
+    // Give onConnect a moment to run before sending another message.
+    await new Promise((r) => setTimeout(r, 50));
+    socket.send(JSON.stringify({ type: 'sendMessage', data: { text: 'hi' } }));
+    const envelope = await waitForType(socket, 'message');
+    expect(envelope).toEqual({
+      type: 'message',
+      data: { userId: 'user-for-valid-token', text: 'hi' },
+    });
+  });
+
+  it('closes with 4401 when the auth payload fails ctx.reject', async () => {
+    server = await startAuthedServer();
+    const socket = new WebSocket(
+      `ws://127.0.0.1:${server.port}/ws/authed/abc`,
+    );
+    server.sockets.push(socket);
+    await new Promise<void>((resolve, reject) => {
+      socket.once('open', () => resolve());
+      socket.once('error', reject);
+    });
+    socket.send(
+      JSON.stringify({ type: '__auth', data: { token: 'bogus' } }),
+    );
+    const close = await waitForClose(socket);
+    expect(close.code).toBe(4401);
+  });
+
+  it('closes with 4401 if no message arrives before the timeout', async () => {
+    server = await startAuthedServer();
+    const socket = new WebSocket(
+      `ws://127.0.0.1:${server.port}/ws/authed/abc`,
+    );
+    server.sockets.push(socket);
+    await new Promise<void>((resolve, reject) => {
+      socket.once('open', () => resolve());
+      socket.once('error', reject);
+    });
+    const close = await waitForClose(socket);
+    expect(close.code).toBe(4401);
+  });
+
+  it('closes with 4401 if the first message is not the auth type', async () => {
+    server = await startAuthedServer();
+    const socket = new WebSocket(
+      `ws://127.0.0.1:${server.port}/ws/authed/abc`,
+    );
+    server.sockets.push(socket);
+    await new Promise<void>((resolve, reject) => {
+      socket.once('open', () => resolve());
+      socket.once('error', reject);
+    });
+    socket.send(JSON.stringify({ type: 'sendMessage', data: { text: 'hi' } }));
+    const close = await waitForClose(socket);
+    expect(close.code).toBe(4401);
+  });
+});
+
 describe('channel adapter — HTTP-only backward compat', () => {
   it('does not require @fastify/websocket when the router has no channels', async () => {
     // A pure HTTP router should work without loading @fastify/websocket
