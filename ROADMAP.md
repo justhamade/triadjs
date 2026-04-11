@@ -255,9 +255,9 @@ End-to-end verified with a live two-client WebSocket smoke test:
 
 ---
 
-## Phase 11 — Frontend codegen (planned)
+## Phase 11 — Frontend codegen ✅
 
-**Status:** Not started. High priority because the "one source of truth" story is incomplete until the frontend can consume Triad schemas as cleanly as the backend produces them.
+**Status:** Shipped. `@triad/tanstack-query` walks a Triad router and emits fully-typed TanStack Query hooks, closing the single-source-of-truth loop from backend to frontend.
 
 The goal is to close the loop: a Triad router on the backend should generate ready-to-use TypeScript code on the frontend with zero manual API client work. Every schema, endpoint, and response type flows through — change a field on the server, the frontend compile errors point exactly where.
 
@@ -310,9 +310,9 @@ Reference implementation: likely a new package `@triad/tanstack-query` with a ge
 
 ---
 
-## Phase 12 — Supabase + Deno integration (planned)
+## Phase 12 — Supabase + Deno integration ✅
 
-**Status:** Not started. Supabase is the most popular "Firebase-alternative" stack among indie and small-team TypeScript developers, and its Edge Functions run on Deno. Triad should have first-class docs and an example for this combination.
+**Status:** Shipped. `examples/supabase-edge` is a full reference app deployed as a Supabase Edge Function on Deno, with a companion guide at `docs/guides/supabase.md`.
 
 Goals:
 
