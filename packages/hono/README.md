@@ -134,6 +134,43 @@ responses: {
 
 And respond with `ctx.respond[204](undefined)`.
 
+## File uploads
+
+Endpoints whose request body contains at least one `t.file()` field are
+automatically routed through Hono's built-in
+`c.req.parseBody({ all: true })` and normalized into `TriadFile` instances
+before handing the body to your handler. No extra dependencies are needed —
+file uploads work out of the box on every Hono-supported runtime (Node,
+Bun, Deno, Cloudflare Workers).
+
+```ts
+import { t, endpoint, type TriadFile } from '@triad/core';
+
+const AvatarUpload = t.model('AvatarUpload', {
+  name: t.string(),
+  avatar: t.file().maxSize(5_000_000).mimeTypes('image/png', 'image/jpeg'),
+});
+
+export const uploadAvatar = endpoint({
+  name: 'uploadAvatar',
+  method: 'POST',
+  path: '/avatars',
+  summary: 'Upload an avatar',
+  request: { body: AvatarUpload },
+  responses: {
+    201: { schema: t.model('Ok', { url: t.string() }), description: 'Uploaded' },
+  },
+  handler: async (ctx) => {
+    const file: TriadFile = ctx.body.avatar;
+    return ctx.respond[201]({ url: `/u/${file.name}` });
+  },
+});
+```
+
+Schema-level `maxSize` / `mimeTypes` / `minSize` violations produce the
+standard `VALIDATION_ERROR` envelope, byte-for-byte identical across the
+Fastify, Express, and Hono adapters.
+
 ## Runtime notes
 
 - **Cloudflare Workers**: `console.error` works out of the box. `process.env` does not — pass services via `env` by constructing them inside a per-request factory that closes over the worker's `env` binding.

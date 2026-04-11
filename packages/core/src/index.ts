@@ -7,7 +7,14 @@
 
 // --- Schema DSL ------------------------------------------------------------
 
-export { t, isEmptySchema } from './schema/index.js';
+export {
+  t,
+  isEmptySchema,
+  isFileSchema,
+  hasFileFields,
+  type TriadFile,
+  type FileConstraints,
+} from './schema/index.js';
 export {
   StringSchema,
   NumberSchema,
@@ -17,6 +24,7 @@ export {
   LiteralSchema,
   UnknownSchema,
   EmptySchema,
+  FileSchema,
   ArraySchema,
   RecordSchema,
   TupleSchema,

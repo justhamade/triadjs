@@ -561,3 +561,159 @@ describe('beforeHandler', () => {
     expect(body.userId).toBe('carol-7');
   });
 });
+
+// ---------------------------------------------------------------------------
+// File upload tests
+// ---------------------------------------------------------------------------
+
+const AvatarUpload = t.model('AvatarUpload', {
+  name: t.string().minLength(1),
+  avatar: t.file().maxSize(1024).mimeTypes('image/png', 'image/jpeg'),
+});
+
+const uploadAvatar = endpoint({
+  name: 'uploadAvatar',
+  method: 'POST',
+  path: '/avatars',
+  summary: 'Upload an avatar',
+  request: { body: AvatarUpload },
+  responses: {
+    201: {
+      schema: t.model('AvatarOk', {
+        name: t.string(),
+        size: t.int32(),
+        mimeType: t.string(),
+      }),
+      description: 'ok',
+    },
+  },
+  handler: async (ctx) =>
+    ctx.respond[201]({
+      name: ctx.body.name,
+      size: ctx.body.avatar.size,
+      mimeType: ctx.body.avatar.mimeType,
+    }),
+});
+
+function buildFileApp(): Hono {
+  const router = createRouter({ title: 'Uploads', version: '1.0.0' });
+  router.add(uploadAvatar);
+  return createTriadApp(router);
+}
+
+function uploadFormData(
+  fields: Record<string, string>,
+  files: Array<{
+    fieldname: string;
+    filename: string;
+    contentType: string;
+    content: Uint8Array;
+  }>,
+): FormData {
+  const fd = new FormData();
+  for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+  for (const f of files) {
+    fd.append(
+      f.fieldname,
+      new File([f.content], f.filename, { type: f.contentType }),
+    );
+  }
+  return fd;
+}
+
+describe('createTriadApp — file uploads', () => {
+  it('accepts a multipart body and passes TriadFile to the handler', async () => {
+    const app = buildFileApp();
+    const fd = uploadFormData({ name: 'alice' }, [
+      {
+        fieldname: 'avatar',
+        filename: 'a.png',
+        contentType: 'image/png',
+        content: new Uint8Array([1, 2, 3, 4, 5]),
+      },
+    ]);
+    const res = await app.fetch(
+      new Request('http://localhost/avatars', { method: 'POST', body: fd }),
+    );
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as {
+      name: string;
+      size: number;
+      mimeType: string;
+    };
+    expect(body).toEqual({ name: 'alice', size: 5, mimeType: 'image/png' });
+  });
+
+  it('rejects a file exceeding maxSize with a 400 envelope', async () => {
+    const app = buildFileApp();
+    const fd = uploadFormData({ name: 'alice' }, [
+      {
+        fieldname: 'avatar',
+        filename: 'big.png',
+        contentType: 'image/png',
+        content: new Uint8Array(2048),
+      },
+    ]);
+    const res = await app.fetch(
+      new Request('http://localhost/avatars', { method: 'POST', body: fd }),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as {
+      code: string;
+      errors: Array<{ code: string }>;
+    };
+    expect(body.code).toBe('VALIDATION_ERROR');
+    expect(body.errors.some((e) => e.code === 'file_too_large')).toBe(true);
+  });
+
+  it('rejects a file with a disallowed mime type', async () => {
+    const app = buildFileApp();
+    const fd = uploadFormData({ name: 'alice' }, [
+      {
+        fieldname: 'avatar',
+        filename: 'a.gif',
+        contentType: 'image/gif',
+        content: new Uint8Array([1, 2]),
+      },
+    ]);
+    const res = await app.fetch(
+      new Request('http://localhost/avatars', { method: 'POST', body: fd }),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as {
+      code: string;
+      errors: Array<{ code: string }>;
+    };
+    expect(body.code).toBe('VALIDATION_ERROR');
+    expect(body.errors.some((e) => e.code === 'invalid_mime_type')).toBe(true);
+  });
+
+  it('rejects a multipart request missing the required file field', async () => {
+    const app = buildFileApp();
+    const fd = uploadFormData({ name: 'alice' }, []);
+    const res = await app.fetch(
+      new Request('http://localhost/avatars', { method: 'POST', body: fd }),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as {
+      code: string;
+      errors: Array<{ path: string }>;
+    };
+    expect(body.code).toBe('VALIDATION_ERROR');
+    expect(body.errors.some((e) => e.path === 'avatar')).toBe(true);
+  });
+
+  it('rejects a JSON body on a file-bearing endpoint', async () => {
+    const app = buildFileApp();
+    const res = await app.fetch(
+      new Request('http://localhost/avatars', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'alice' }),
+      }),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe('VALIDATION_ERROR');
+  });
+});

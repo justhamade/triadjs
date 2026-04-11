@@ -415,3 +415,87 @@ describe('generateOpenAPI — t.empty() responses', () => {
     expect(op?.responses['201']?.content).toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// File upload / multipart support
+// ---------------------------------------------------------------------------
+
+describe('file upload / multipart', () => {
+  const Upload = t.model('AvatarUpload', {
+    name: t.string().doc('Display name'),
+    avatar: t.file().maxSize(5_000_000).mimeTypes('image/png', 'image/jpeg'),
+  });
+
+  const uploadAvatar = endpoint({
+    name: 'uploadAvatar',
+    method: 'POST',
+    path: '/avatars',
+    summary: 'Upload an avatar image',
+    request: { body: Upload },
+    responses: {
+      201: {
+        schema: t.model('AvatarOk', { url: t.string() }),
+        description: 'Uploaded',
+      },
+    },
+    handler: async (ctx) => ctx.respond[201]({ url: `/a/${ctx.body.name}` }),
+  });
+
+  function buildDoc() {
+    const router = createRouter({ title: 'Uploads', version: '1.0.0' });
+    router.add(uploadAvatar);
+    return generateOpenAPI(router);
+  }
+
+  it('emits multipart/form-data content type for file-bearing bodies', () => {
+    const doc = buildDoc();
+    const op = doc.paths['/avatars']?.post;
+    expect(op?.requestBody).toBeDefined();
+    expect(op?.requestBody?.content['multipart/form-data']).toBeDefined();
+    expect(op?.requestBody?.content['application/json']).toBeUndefined();
+  });
+
+  it('emits string/binary for file fields in the component schema', () => {
+    const doc = buildDoc();
+    const component = doc.components.schemas['AvatarUpload'];
+    expect(component?.properties?.['avatar']).toMatchObject({
+      type: 'string',
+      format: 'binary',
+    });
+  });
+
+  it('strips the internal __file marker from the final output', () => {
+    const doc = buildDoc();
+    const json = JSON.stringify(doc);
+    expect(json).not.toContain('__file');
+  });
+
+  it('non-file bodies still emit application/json', () => {
+    const plain = t.model('Plain', { name: t.string() });
+    const ep = endpoint({
+      name: 'postPlain',
+      method: 'POST',
+      path: '/plain',
+      summary: 'Plain POST',
+      request: { body: plain },
+      responses: {
+        200: { schema: t.model('Ok', { ok: t.boolean() }), description: 'ok' },
+      },
+      handler: async (ctx) => ctx.respond[200]({ ok: !!ctx.body.name }),
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ep);
+    const doc = generateOpenAPI(router);
+    const op = doc.paths['/plain']?.post;
+    expect(op?.requestBody?.content['application/json']).toBeDefined();
+    expect(op?.requestBody?.content['multipart/form-data']).toBeUndefined();
+  });
+
+  it('mixed multipart bodies preserve non-file fields alongside files', () => {
+    const doc = buildDoc();
+    const component = doc.components.schemas['AvatarUpload'];
+    expect(component?.properties?.['name']?.type).toBe('string');
+    expect(component?.properties?.['avatar']?.format).toBe('binary');
+    expect(component?.required).toContain('avatar');
+  });
+});

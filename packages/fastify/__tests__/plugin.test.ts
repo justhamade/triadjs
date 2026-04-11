@@ -474,6 +474,219 @@ describe('triadPlugin — Fastify native prefix', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// File upload tests
+// ---------------------------------------------------------------------------
+
+const AvatarUpload = t.model('AvatarUpload', {
+  name: t.string().minLength(1),
+  avatar: t.file().maxSize(1024).mimeTypes('image/png', 'image/jpeg'),
+});
+
+const uploadAvatar = endpoint({
+  name: 'uploadAvatar',
+  method: 'POST',
+  path: '/avatars',
+  summary: 'Upload an avatar',
+  request: { body: AvatarUpload },
+  responses: {
+    201: {
+      schema: t.model('AvatarOk', {
+        name: t.string(),
+        size: t.int32(),
+        mimeType: t.string(),
+      }),
+      description: 'ok',
+    },
+  },
+  handler: async (ctx) =>
+    ctx.respond[201]({
+      name: ctx.body.name,
+      size: ctx.body.avatar.size,
+      mimeType: ctx.body.avatar.mimeType,
+    }),
+});
+
+function buildFileRouter() {
+  const r = createRouter({ title: 'Uploads', version: '1.0.0' });
+  r.add(uploadAvatar);
+  return r;
+}
+
+function makeMultipartBody(
+  fields: Record<string, string>,
+  files: Array<{
+    fieldname: string;
+    filename: string;
+    contentType: string;
+    content: Buffer;
+  }>,
+): { payload: Buffer; headers: Record<string, string> } {
+  const boundary = '----TriadFastifyTestBoundary' + Date.now();
+  const chunks: Buffer[] = [];
+  for (const [name, value] of Object.entries(fields)) {
+    chunks.push(Buffer.from(`--${boundary}\r\n`));
+    chunks.push(
+      Buffer.from(`Content-Disposition: form-data; name="${name}"\r\n\r\n`),
+    );
+    chunks.push(Buffer.from(`${value}\r\n`));
+  }
+  for (const f of files) {
+    chunks.push(Buffer.from(`--${boundary}\r\n`));
+    chunks.push(
+      Buffer.from(
+        `Content-Disposition: form-data; name="${f.fieldname}"; filename="${f.filename}"\r\n`,
+      ),
+    );
+    chunks.push(Buffer.from(`Content-Type: ${f.contentType}\r\n\r\n`));
+    chunks.push(f.content);
+    chunks.push(Buffer.from('\r\n'));
+  }
+  chunks.push(Buffer.from(`--${boundary}--\r\n`));
+  const payload = Buffer.concat(chunks);
+  return {
+    payload,
+    headers: {
+      'content-type': `multipart/form-data; boundary=${boundary}`,
+      'content-length': String(payload.length),
+    },
+  };
+}
+
+describe('triadPlugin — file uploads', () => {
+  it('accepts a multipart body and passes TriadFile to the handler', async () => {
+    const repo = new InMemoryPetRepo();
+    const app = Fastify({ logger: false });
+    await app.register(triadPlugin, {
+      router: buildFileRouter(),
+      services: { petRepo: repo },
+    });
+    await app.ready();
+
+    const { payload, headers } = makeMultipartBody(
+      { name: 'alice' },
+      [
+        {
+          fieldname: 'avatar',
+          filename: 'a.png',
+          contentType: 'image/png',
+          content: Buffer.from('hello'),
+        },
+      ],
+    );
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/avatars',
+      payload,
+      headers,
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toEqual({ name: 'alice', size: 5, mimeType: 'image/png' });
+    await app.close();
+  });
+
+  it('rejects a file exceeding maxSize with a 400 envelope', async () => {
+    const app = Fastify({ logger: false });
+    await app.register(triadPlugin, { router: buildFileRouter() });
+    await app.ready();
+
+    const { payload, headers } = makeMultipartBody(
+      { name: 'alice' },
+      [
+        {
+          fieldname: 'avatar',
+          filename: 'big.png',
+          contentType: 'image/png',
+          content: Buffer.alloc(2048, 1),
+        },
+      ],
+    );
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/avatars',
+      payload,
+      headers,
+    });
+    expect(res.statusCode).toBe(400);
+    const body = res.json();
+    expect(body.code).toBe('VALIDATION_ERROR');
+    expect(
+      body.errors.some((e: { code: string }) => e.code === 'file_too_large'),
+    ).toBe(true);
+    await app.close();
+  });
+
+  it('rejects a file with a disallowed mime type with a 400 envelope', async () => {
+    const app = Fastify({ logger: false });
+    await app.register(triadPlugin, { router: buildFileRouter() });
+    await app.ready();
+
+    const { payload, headers } = makeMultipartBody(
+      { name: 'alice' },
+      [
+        {
+          fieldname: 'avatar',
+          filename: 'a.gif',
+          contentType: 'image/gif',
+          content: Buffer.from('hi'),
+        },
+      ],
+    );
+    const res = await app.inject({
+      method: 'POST',
+      url: '/avatars',
+      payload,
+      headers,
+    });
+    expect(res.statusCode).toBe(400);
+    const body = res.json();
+    expect(body.code).toBe('VALIDATION_ERROR');
+    expect(
+      body.errors.some((e: { code: string }) => e.code === 'invalid_mime_type'),
+    ).toBe(true);
+    await app.close();
+  });
+
+  it('rejects a multipart request missing the required file field', async () => {
+    const app = Fastify({ logger: false });
+    await app.register(triadPlugin, { router: buildFileRouter() });
+    await app.ready();
+
+    const { payload, headers } = makeMultipartBody({ name: 'alice' }, []);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/avatars',
+      payload,
+      headers,
+    });
+    expect(res.statusCode).toBe(400);
+    const body = res.json();
+    expect(body.code).toBe('VALIDATION_ERROR');
+    expect(
+      body.errors.some((e: { code: string; path: string }) => e.path === 'avatar'),
+    ).toBe(true);
+    await app.close();
+  });
+
+  it('rejects a JSON body on a file-bearing endpoint with a 400 envelope', async () => {
+    const app = Fastify({ logger: false });
+    await app.register(triadPlugin, { router: buildFileRouter() });
+    await app.ready();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/avatars',
+      payload: { name: 'alice' },
+    });
+    expect(res.statusCode).toBe(400);
+    const body = res.json();
+    expect(body.code).toBe('VALIDATION_ERROR');
+    await app.close();
+  });
+});
+
 describe('beforeHandler', () => {
   it('short-circuits with a 401 without invoking the main handler', async () => {
     let handlerCalled = false;

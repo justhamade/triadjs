@@ -47,10 +47,12 @@ import {
   buildRespondMap,
   isEmptySchema,
   invokeBeforeHandler,
+  hasFileFields,
 } from '@triad/core';
 
 import { RequestValidationError, type RequestPart } from './errors.js';
 import { coerceByShape } from './coerce.js';
+import { parseFastifyMultipart } from './multipart.js';
 
 // ---------------------------------------------------------------------------
 // Services resolver
@@ -152,6 +154,9 @@ export function createRouteHandler(
     ((err, request) =>
       fastify.log.error({ err, url: request.url }, 'Triad handler error'));
 
+  const bodyIsMultipart =
+    endpoint.request.body !== undefined && hasFileFields(endpoint.request.body);
+
   return async function triadRouteHandler(
     request: FastifyRequest,
     reply: FastifyReply,
@@ -207,7 +212,20 @@ export function createRouteHandler(
         string,
         unknown
       >;
-      const body = validatePart(endpoint, 'body', request.body);
+      let rawBody: unknown = request.body;
+      if (bodyIsMultipart) {
+        if (!request.isMultipart || !request.isMultipart()) {
+          throw new RequestValidationError('body', [
+            {
+              path: '',
+              code: 'expected_multipart',
+              message: 'Expected multipart/form-data request',
+            },
+          ]);
+        }
+        rawBody = await parseFastifyMultipart(request);
+      }
+      const body = validatePart(endpoint, 'body', rawBody);
 
       // 4: build context. The handler's declared generic parameters are
       // only known at endpoint definition time — at runtime we treat the

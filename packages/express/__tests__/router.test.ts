@@ -551,3 +551,112 @@ describe('beforeHandler', () => {
     expect(res.body).toEqual({ userId: 'bob-9' });
   });
 });
+
+// ---------------------------------------------------------------------------
+// File upload tests
+// ---------------------------------------------------------------------------
+
+const AvatarUpload = t.model('AvatarUpload', {
+  name: t.string().minLength(1),
+  avatar: t.file().maxSize(1024).mimeTypes('image/png', 'image/jpeg'),
+});
+
+const uploadAvatar = endpoint({
+  name: 'uploadAvatar',
+  method: 'POST',
+  path: '/avatars',
+  summary: 'Upload an avatar',
+  request: { body: AvatarUpload },
+  responses: {
+    201: {
+      schema: t.model('AvatarOk', {
+        name: t.string(),
+        size: t.int32(),
+        mimeType: t.string(),
+      }),
+      description: 'ok',
+    },
+  },
+  handler: async (ctx) =>
+    ctx.respond[201]({
+      name: ctx.body.name,
+      size: ctx.body.avatar.size,
+      mimeType: ctx.body.avatar.mimeType,
+    }),
+});
+
+function buildFileApp(): Express {
+  const router = createRouter({ title: 'Uploads', version: '1.0.0' });
+  router.add(uploadAvatar);
+  const app = express();
+  app.use(express.json());
+  app.use(createTriadRouter(router));
+  app.use(triadErrorHandler());
+  return app;
+}
+
+describe('createTriadRouter — file uploads', () => {
+  it('accepts a multipart body and passes TriadFile to the handler', async () => {
+    const app = buildFileApp();
+    const res = await request(app)
+      .post('/avatars')
+      .field('name', 'alice')
+      .attach('avatar', Buffer.from('hello'), {
+        filename: 'a.png',
+        contentType: 'image/png',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual({ name: 'alice', size: 5, mimeType: 'image/png' });
+  });
+
+  it('rejects a file exceeding maxSize with a 400 envelope', async () => {
+    const app = buildFileApp();
+    const res = await request(app)
+      .post('/avatars')
+      .field('name', 'alice')
+      .attach('avatar', Buffer.alloc(2048, 1), {
+        filename: 'big.png',
+        contentType: 'image/png',
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('VALIDATION_ERROR');
+    expect(
+      res.body.errors.some((e: { code: string }) => e.code === 'file_too_large'),
+    ).toBe(true);
+  });
+
+  it('rejects a file with a disallowed mime type', async () => {
+    const app = buildFileApp();
+    const res = await request(app)
+      .post('/avatars')
+      .field('name', 'alice')
+      .attach('avatar', Buffer.from('hi'), {
+        filename: 'a.gif',
+        contentType: 'image/gif',
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('VALIDATION_ERROR');
+    expect(
+      res.body.errors.some((e: { code: string }) => e.code === 'invalid_mime_type'),
+    ).toBe(true);
+  });
+
+  it('rejects a multipart request missing the required file field', async () => {
+    const app = buildFileApp();
+    const res = await request(app).post('/avatars').field('name', 'alice');
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('VALIDATION_ERROR');
+    expect(
+      res.body.errors.some(
+        (e: { code: string; path: string }) => e.path === 'avatar',
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects a JSON body on a file-bearing endpoint', async () => {
+    const app = buildFileApp();
+    const res = await request(app).post('/avatars').send({ name: 'alice' });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('VALIDATION_ERROR');
+  });
+});

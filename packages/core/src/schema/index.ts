@@ -22,6 +22,7 @@ import { EnumSchema } from './enum.js';
 import { LiteralSchema, type LiteralBase } from './literal.js';
 import { UnknownSchema } from './unknown.js';
 import { EmptySchema } from './empty.js';
+import { FileSchema } from './file.js';
 import { ArraySchema } from './array.js';
 import { RecordSchema } from './record.js';
 import { TupleSchema } from './tuple.js';
@@ -41,6 +42,7 @@ export const t = {
   datetime: () => new DateTimeSchema(),
   unknown: () => new UnknownSchema(),
   empty: () => new EmptySchema(),
+  file: () => new FileSchema(),
 
   enum: <const V extends readonly [string, ...string[]]>(...values: V) =>
     new EnumSchema<V>(values),
@@ -87,6 +89,7 @@ export {
   LiteralSchema,
   UnknownSchema,
   EmptySchema,
+  FileSchema,
   ArraySchema,
   RecordSchema,
   TupleSchema,
@@ -96,3 +99,4 @@ export {
 };
 
 export { isEmptySchema } from './empty.js';
+export { isFileSchema, hasFileFields, type TriadFile, type FileConstraints } from './file.js';

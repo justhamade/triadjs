@@ -156,6 +156,47 @@ const details = t.record(t.string(), t.unknown()).optional();
 
 Accepts any value at runtime. Use sparingly.
 
+#### `t.file()`
+
+Represents an uploaded file field inside a `multipart/form-data` request body.
+The validated value is a `TriadFile` object carrying client-reported metadata
+plus the file contents as a Node `Buffer`.
+
+```ts
+import { t, type TriadFile } from '@triad/core';
+
+const AvatarUpload = t.model('AvatarUpload', {
+  name: t.string().minLength(1),
+  avatar: t
+    .file()
+    .maxSize(5 * 1024 * 1024) // 5 MB
+    .mimeTypes('image/png', 'image/jpeg'),
+});
+```
+
+**Constraints:** `.minSize(bytes)`, `.maxSize(bytes)`, `.mimeTypes(...types)`.
+
+Any endpoint whose `request.body` contains at least one `t.file()` field is
+automatically routed through multipart parsing by every HTTP adapter (Fastify,
+Express, Hono) and automatically emits `multipart/form-data` content in the
+generated OpenAPI spec. Handlers see `ctx.body.<field>` as a typed `TriadFile`:
+
+```ts
+handler: async (ctx) => {
+  const file: TriadFile = ctx.body.avatar;
+  // file.name, file.mimeType, file.size, file.buffer
+  return ctx.respond[201]({ url: `/u/${file.name}` });
+};
+```
+
+> GOTCHA: `TriadFile.mimeType` is whatever the client declared in the
+> multipart part — never trust it for security-sensitive decisions. Sniff
+> `file.buffer` yourself if the decision matters.
+
+> GOTCHA: The default adapter-level file cap is 100 MB as a last-resort
+> safeguard. Use `.maxSize(bytes)` on the schema to enforce your real limit
+> with a clean `VALIDATION_ERROR` envelope.
+
 ### 2.2 Collections
 
 #### `t.array(item)`
@@ -467,6 +508,51 @@ const protectedEndpoint = <P, Q, B, H, R, S>(cfg: EndpointConfig<P, Q, B, H, R, 
   endpoint({ ...cfg, beforeHandler: requireAuth });
 ```
 
+#### File uploads (multipart/form-data)
+
+Declare a body model with at least one `t.file()` field and the adapter will
+switch to multipart parsing, the OpenAPI generator will emit
+`multipart/form-data`, and handlers will receive typed `TriadFile` values.
+
+```ts
+import { t, endpoint, type TriadFile } from '@triad/core';
+
+const AvatarUpload = t.model('AvatarUpload', {
+  name: t.string().minLength(1),
+  avatar: t
+    .file()
+    .maxSize(5 * 1024 * 1024)
+    .mimeTypes('image/png', 'image/jpeg')
+    .doc('The user\'s avatar image'),
+});
+
+export const uploadAvatar = endpoint({
+  name: 'uploadAvatar',
+  method: 'POST',
+  path: '/avatars',
+  summary: 'Upload a user avatar',
+  request: { body: AvatarUpload },
+  responses: {
+    201: { schema: t.model('AvatarOk', { url: t.string() }), description: 'Uploaded' },
+    400: { schema: ApiError, description: 'Validation error' },
+  },
+  handler: async (ctx) => {
+    const file: TriadFile = ctx.body.avatar;
+    const url = await ctx.services.storage.put(file.buffer, {
+      filename: file.name,
+      contentType: file.mimeType,
+    });
+    return ctx.respond[201]({ url });
+  },
+});
+```
+
+Size- and mime-type violations produce the standard `VALIDATION_ERROR`
+envelope with error codes `file_too_large`, `file_too_small`,
+`invalid_mime_type`. A JSON body on a file-bearing endpoint returns 400 with
+`code: 'expected_multipart'`. The same envelope is emitted byte-for-byte by
+the Fastify, Express, and Hono adapters.
+
 #### Error envelope
 
 Use one `ApiError` model across every endpoint:
@@ -597,6 +683,7 @@ export const chatRoom = channel({
 | `ctx.state` | Mutable per-connection bag (type from phantom `state` witness) |
 | `ctx.reject(code, message)` | Refuse the handshake (HTTP-style status) |
 | `ctx.broadcast.*` | Send to every connected client including the current one |
+| `ctx.authPayload` | Parsed first-message auth payload when `auth.strategy: 'first-message'` — `unknown`, cast inside the handler |
 
 ### 4.3 Per-message handler context
 
@@ -629,7 +716,51 @@ channel({
 
 Without a state witness, `ctx.state` is `Record<string, any>`.
 
-### 4.5 Channel behaviors
+### 4.5 First-message auth (browser-friendly)
+
+Browsers cannot set custom headers on `new WebSocket()`, so the
+default `header`-based handshake auth doesn't work from a browser.
+Set `auth.strategy: 'first-message'` on the channel to defer
+`onConnect` until the client sends an auth message as its first
+frame:
+
+```ts
+channel({
+  name: 'chatRoom',
+  // ...
+  auth: {
+    strategy: 'first-message',
+    firstMessageType: '__auth', // default
+    timeoutMs: 5000,             // default
+  },
+  clientMessages: {
+    __auth: {
+      schema: t.model('AuthPayload', { token: t.string() }),
+      description: 'First-message auth payload',
+    },
+    sendMessage: { /* ... */ },
+  },
+  onConnect: (ctx) => {
+    const payload = ctx.authPayload as { token: string };
+    const user = lookup(payload.token);
+    if (!user) return ctx.reject(401, 'Invalid token');
+    ctx.state.userId = user.id;
+  },
+  // ...
+});
+```
+
+The Fastify adapter waits up to `timeoutMs` for the first
+frame. If no message arrives in time, or the first frame isn't
+of type `firstMessageType`, or the payload fails schema
+validation, the socket closes with code **4401**. Successful
+auth then proceeds to the normal message loop.
+
+`ctx.authPayload` is `unknown` in v1 — cast to the declared
+payload type inside `onConnect`. A future enhancement can
+narrow the type automatically via conditional types.
+
+### 4.6 Channel behaviors
 
 Channel scenarios use the **same** `scenario().given().when().then()` builder as HTTP, but the assertions operate on received messages rather than HTTP responses. See §5.6 for the channel assertion phrases.
 

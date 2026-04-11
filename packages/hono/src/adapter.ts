@@ -40,10 +40,12 @@ import {
   type ModelShape,
   type ValidationError,
   type BeforeHandlerContext,
+  type TriadFile,
   ValidationException,
   buildRespondMap,
   isEmptySchema,
   invokeBeforeHandler,
+  hasFileFields,
 } from '@triad/core';
 
 import { RequestValidationError, type RequestPart } from './errors.js';
@@ -206,6 +208,70 @@ async function readJsonBody(c: AnyContext): Promise<unknown> {
   }
 }
 
+async function readMultipartBody(
+  c: AnyContext,
+): Promise<Record<string, unknown>> {
+  const contentType = c.req.header('content-type') ?? '';
+  if (!contentType.toLowerCase().includes('multipart/form-data')) {
+    throw new RequestValidationError('body', [
+      {
+        path: '',
+        code: 'expected_multipart',
+        message: 'Expected multipart/form-data request',
+      },
+    ]);
+  }
+  let parsed: Record<string, string | File | (string | File)[]>;
+  try {
+    parsed = (await c.req.parseBody({ all: true })) as Record<
+      string,
+      string | File | (string | File)[]
+    >;
+  } catch {
+    throw new RequestValidationError('body', [
+      {
+        path: '',
+        code: 'invalid_multipart',
+        message: 'Request body is not a valid multipart/form-data payload',
+      },
+    ]);
+  }
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(parsed)) {
+    if (Array.isArray(value)) {
+      out[key] = await Promise.all(value.map(normalizeFormValue));
+    } else {
+      out[key] = await normalizeFormValue(value);
+    }
+  }
+  return out;
+}
+
+async function normalizeFormValue(
+  value: string | File,
+): Promise<string | TriadFile> {
+  if (typeof value === 'string') return value;
+  const arrayBuffer = await value.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const file: TriadFile = {
+    name: value.name,
+    mimeType: value.type || 'application/octet-stream',
+    size: buffer.length,
+    buffer,
+    stream: () => bufferToStream(buffer),
+  };
+  return file;
+}
+
+function bufferToStream(buffer: Buffer): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new Uint8Array(buffer));
+      controller.close();
+    },
+  });
+}
+
 const METHODS_WITH_BODY: ReadonlySet<string> = new Set([
   'POST',
   'PUT',
@@ -221,6 +287,8 @@ export function createRouteHandler(
 ): HonoHandler {
   const logError = options.logError ?? defaultLogError;
   const hasBody = METHODS_WITH_BODY.has(endpoint.method);
+  const bodyIsMultipart =
+    endpoint.request.body !== undefined && hasFileFields(endpoint.request.body);
 
   return async function triadRouteHandler(c: AnyContext): Promise<Response> {
     try {
@@ -272,7 +340,9 @@ export function createRouteHandler(
 
       let body: unknown = undefined;
       if (hasBody && endpoint.request.body) {
-        const raw = await readJsonBody(c);
+        const raw = bodyIsMultipart
+          ? await readMultipartBody(c)
+          : await readJsonBody(c);
         body = validatePart(endpoint, 'body', raw);
       }
 

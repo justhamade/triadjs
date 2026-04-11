@@ -87,6 +87,48 @@ can be swapped between adapters without noticing:
 - **No OpenAPI serving.** Neither adapter serves OpenAPI documents at
   runtime. Generate them at build time with the Triad CLI.
 
+## File uploads
+
+Endpoints whose request body contains at least one `t.file()` field are
+automatically routed through [`multer`](https://www.npmjs.com/package/multer)
+(memory storage). Install it as a peer dependency:
+
+```bash
+npm install multer
+```
+
+Declare file fields on the body schema and the adapter will normalize them
+into `TriadFile` instances before handing the body to your handler:
+
+```ts
+import { t, endpoint, type TriadFile } from '@triad/core';
+
+const AvatarUpload = t.model('AvatarUpload', {
+  name: t.string(),
+  avatar: t.file().maxSize(5_000_000).mimeTypes('image/png', 'image/jpeg'),
+});
+
+export const uploadAvatar = endpoint({
+  name: 'uploadAvatar',
+  method: 'POST',
+  path: '/avatars',
+  summary: 'Upload an avatar',
+  request: { body: AvatarUpload },
+  responses: {
+    201: { schema: t.model('Ok', { url: t.string() }), description: 'Uploaded' },
+  },
+  handler: async (ctx) => {
+    const file: TriadFile = ctx.body.avatar;
+    return ctx.respond[201]({ url: `/u/${file.name}` });
+  },
+});
+```
+
+Schema-level `maxSize` / `mimeTypes` / `minSize` violations produce the
+standard `VALIDATION_ERROR` envelope with error codes `file_too_large`,
+`invalid_mime_type`, etc. Sending `application/json` to a file-bearing
+endpoint returns 400 with `code: 'expected_multipart'`.
+
 ## Express-specific quirks
 
 - You must register a JSON body parser (`express.json()`) before the

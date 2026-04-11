@@ -26,6 +26,7 @@ import {
   type SchemaNode,
   createOpenAPIContext,
   isEmptySchema,
+  hasFileFields,
 } from '@triad/core';
 
 // ---------------------------------------------------------------------------
@@ -293,14 +294,60 @@ function buildRequestBody(
   schema: SchemaNode,
   ctx: OpenAPIContext,
 ): RequestBody {
+  // Any body containing one or more `t.file()` fields forces the
+  // request body's content-type to `multipart/form-data`. The OpenAPI
+  // spec allows no other representation for binary file uploads.
+  const contentType = hasFileFields(schema)
+    ? 'multipart/form-data'
+    : 'application/json';
+  const emitted = schema.toOpenAPI(ctx);
+  // After emission, walk components and the returned schema to strip
+  // the internal `__file` marker we use to track file fields in-memory.
+  stripFileMarkers(emitted);
+  for (const component of ctx.components.values()) {
+    stripFileMarkers(component);
+  }
   return {
     required: true,
     content: {
-      'application/json': {
-        schema: schema.toOpenAPI(ctx),
+      [contentType]: {
+        schema: emitted,
       },
     },
   };
+}
+
+/** Recursively remove the internal `__file` marker from an emitted OpenAPI schema. */
+function stripFileMarkers(schema: OpenAPISchema | undefined): void {
+  if (!schema || typeof schema !== 'object') return;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const any = schema as any;
+  if ('__file' in any) {
+    delete any.__file;
+  }
+  if (any.properties) {
+    for (const child of Object.values(any.properties)) {
+      stripFileMarkers(child as OpenAPISchema);
+    }
+  }
+  if (any.items) {
+    stripFileMarkers(any.items as OpenAPISchema);
+  }
+  if (Array.isArray(any.prefixItems)) {
+    for (const child of any.prefixItems) stripFileMarkers(child as OpenAPISchema);
+  }
+  if (Array.isArray(any.oneOf)) {
+    for (const child of any.oneOf) stripFileMarkers(child as OpenAPISchema);
+  }
+  if (Array.isArray(any.anyOf)) {
+    for (const child of any.anyOf) stripFileMarkers(child as OpenAPISchema);
+  }
+  if (Array.isArray(any.allOf)) {
+    for (const child of any.allOf) stripFileMarkers(child as OpenAPISchema);
+  }
+  if (any.additionalProperties && typeof any.additionalProperties === 'object') {
+    stripFileMarkers(any.additionalProperties as OpenAPISchema);
+  }
 }
 
 function buildResponses(

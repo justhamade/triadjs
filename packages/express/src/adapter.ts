@@ -41,10 +41,12 @@ import {
   buildRespondMap,
   isEmptySchema,
   invokeBeforeHandler,
+  hasFileFields,
 } from '@triad/core';
 
 import { RequestValidationError, type RequestPart } from './errors.js';
 import { coerceByShape } from './coerce.js';
+import { buildTriadBodyFromExpress } from './multipart.js';
 
 // ---------------------------------------------------------------------------
 // Services resolver
@@ -139,6 +141,8 @@ export function createRouteHandler(
   options: CreateHandlerOptions = {},
 ): RequestHandler {
   const logError = options.logError ?? defaultLogError;
+  const bodyIsMultipart =
+    endpoint.request.body !== undefined && hasFileFields(endpoint.request.body);
 
   return async function triadRouteHandler(
     req: Request,
@@ -194,7 +198,21 @@ export function createRouteHandler(
         string,
         unknown
       >;
-      const body = validatePart(endpoint, 'body', req.body);
+      let rawBody: unknown = req.body;
+      if (bodyIsMultipart) {
+        const contentType = req.headers['content-type'] ?? '';
+        if (!contentType.toLowerCase().includes('multipart/form-data')) {
+          throw new RequestValidationError('body', [
+            {
+              path: '',
+              code: 'expected_multipart',
+              message: 'Expected multipart/form-data request',
+            },
+          ]);
+        }
+        rawBody = buildTriadBodyFromExpress(req);
+      }
+      const body = validatePart(endpoint, 'body', rawBody);
 
       // 4: build context.
       const ctx = {

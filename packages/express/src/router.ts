@@ -35,13 +35,14 @@
  */
 
 import { Router as ExpressRouter, type Router as ExpressRouterType } from 'express';
-import { Router as TriadRouter } from '@triad/core';
+import { Router as TriadRouter, hasFileFields } from '@triad/core';
 
 import {
   createRouteHandler,
   type ServicesResolver,
   type CreateHandlerOptions,
 } from './adapter.js';
+import { createMultipartMiddleware } from './multipart.js';
 
 export interface CreateTriadRouterOptions {
   /**
@@ -81,10 +82,25 @@ export function createTriadRouter(
 
   const expressRouter = ExpressRouter();
 
+  // Lazily construct a single multer middleware instance shared by all
+  // file-bearing endpoints. Endpoints without file fields skip multer
+  // entirely and continue to rely on `express.json()` from the host app.
+  let multipart: ReturnType<typeof createMultipartMiddleware> | undefined;
+  const getMultipart = (): ReturnType<typeof createMultipartMiddleware> => {
+    if (!multipart) multipart = createMultipartMiddleware();
+    return multipart;
+  };
+
   for (const endpoint of router.allEndpoints()) {
     const method = METHOD_MAP[endpoint.method];
     const handler = createRouteHandler(endpoint, handlerOptions);
-    expressRouter[method](endpoint.path, handler);
+    const needsMultipart =
+      endpoint.request.body !== undefined && hasFileFields(endpoint.request.body);
+    if (needsMultipart) {
+      expressRouter[method](endpoint.path, getMultipart(), handler);
+    } else {
+      expressRouter[method](endpoint.path, handler);
+    }
   }
 
   return expressRouter;

@@ -33,7 +33,7 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify';
-import { Router } from '@triad/core';
+import { Router, hasFileFields } from '@triad/core';
 import {
   createRouteHandler,
   type ServicesResolver,
@@ -71,6 +71,56 @@ export const triadPlugin: FastifyPluginAsync<TriadPluginOptions> = async (
   const handlerOptions: CreateHandlerOptions = {};
   if (services !== undefined) handlerOptions.services = services;
   if (logError !== undefined) handlerOptions.logError = logError;
+
+  // If any endpoint accepts a file-bearing body, lazily register
+  // `@fastify/multipart` so the adapter's multipart parser can run.
+  // Defaults: 10MB per file, 10 files per request. Users can override
+  // by registering the plugin themselves before `triadPlugin`.
+  const needsMultipart = router
+    .allEndpoints()
+    .some((e) => e.request.body !== undefined && hasFileFields(e.request.body));
+  if (needsMultipart) {
+    let multipartPlugin: unknown;
+    try {
+      multipartPlugin = await import('@fastify/multipart');
+    } catch (err) {
+      throw new Error(
+        '@triad/fastify: the router contains endpoints with t.file() fields but `@fastify/multipart` is not installed. ' +
+          'Run `npm install @fastify/multipart` to enable file upload support.',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        { cause: err as any },
+      );
+    }
+    const mod = multipartPlugin as {
+      default?: unknown;
+      fastifyMultipart?: unknown;
+    };
+    const plugin =
+      (mod.default as unknown) ??
+      (mod.fastifyMultipart as unknown) ??
+      multipartPlugin;
+    // Skip re-registering if the consumer already did it.
+    const alreadyRegistered =
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      typeof (fastify as any).hasContentTypeParser === 'function' &&
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (fastify as any).hasContentTypeParser('multipart/form-data');
+    if (!alreadyRegistered) {
+      await fastify.register(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        plugin as any,
+        {
+          // Hard ceiling — schema-level `t.file().maxSize(...)` enforces
+          // the app-specific cap and produces a clean 400 envelope.
+          // This 100MB is a last-resort safeguard against runaway uploads.
+          limits: {
+            fileSize: 100 * 1024 * 1024,
+            files: 10,
+          },
+        },
+      );
+    }
+  }
 
   // Fastify's `register(plugin, { prefix: '/api/v1' })` automatically
   // prefixes every route registered inside the plugin scope. We do NOT
