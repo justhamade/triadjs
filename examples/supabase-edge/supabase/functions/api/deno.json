@@ -1,0 +1,8 @@
+{
+  "imports": {
+    "@triad/core": "npm:@triad/core@*",
+    "@triad/hono": "npm:@triad/hono@*",
+    "hono": "npm:hono@^4",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
+  }
+}

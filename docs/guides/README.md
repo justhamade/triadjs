@@ -7,6 +7,7 @@ Topical how-tos for picking adapters, ORMs, and working productively with AI cod
 - [**Choosing an adapter**](./choosing-an-adapter.md) — how to pick Fastify, Express, or Hono, what each one costs you, and how to migrate between them without breaking clients.
 - [**Choosing an ORM**](./choosing-an-orm.md) — how the Drizzle bridge works, when to skip it, and how to wire Prisma, Kysely, or raw SQL into a Triad project.
 - [**Working with AI assistants**](./working-with-ai.md) — practical setup and prompts for Claude Code, Cursor, Copilot, and Aider, plus a catalogue of common agent mistakes and how to catch them.
+- [**Triad on Supabase**](./supabase.md) — deploying a Triad API as a Supabase Edge Function on Deno, with Supabase Auth, per-request Supabase clients, RLS as defense in depth, and the memory-vs-Supabase repository split.
 
 ## When to read what
 
