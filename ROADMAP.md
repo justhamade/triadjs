@@ -338,7 +338,7 @@ Why Deno specifically: Supabase Edge Functions run on Deno, and the `@triad/hono
 
 ## Phase 13 — Client-side channels ✅
 
-**Status:** Phases 13.0 and 13.1 shipped. First-message auth lives in `packages/fastify/src/channel-adapter.ts` and is wired through the `channel()` config. `@triad/channel-client` walks `router.allChannels()` and emits typed vanilla TypeScript clients with reconnect + auth strategies. Phases 13.2 (React hook), 13.3 (Solid/Vue/Svelte variants), and 13.4 (shared connections + offline queueing) remain on the backlog.
+**Status:** All sub-phases shipped. `@triad/channel-client` walks `router.allChannels()` and emits typed clients for vanilla TypeScript, React, Solid, Vue, and Svelte. The Fastify channel adapter supports first-message auth for browser clients that can't set custom WebSocket headers. The runtime supports shared connections (multiple subscribers to the same channel share one underlying WebSocket) and offline send queueing (buffered FIFO flush on reconnect).
 
 ### Phase 13.0 — Server-side first-message auth
 
@@ -419,9 +419,9 @@ Built on `useSyncExternalStore` for clean React 18+ integration. Auto-disconnect
 
 ---
 
-## Phase 14 — Observability ✅ (partial)
+## Phase 14 — Observability ✅
 
-**Status:** Phase 14.1 shipped. `@triad/otel` ships as an opt-in `withOtelInstrumentation(router)` wrapper that tags spans with structured metadata from the router's own declaration (endpoint name, bounded context, status code, user id). Works uniformly across all HTTP adapters because it mutates the router before the adapter sees it. `docs/guides/observability.md` is the companion cookbook covering six backend integrations. Phases 14.2 (`@triad/metrics` Prometheus endpoint) and 14.3 (structured logging helpers) remain on the backlog.
+**Status:** Phases 14.1, 14.2, and 14.3 shipped. `@triad/otel` provides the OpenTelemetry tracing wrapper. `@triad/metrics` adds a zero-dependency Prometheus collector with automatic histograms per declared endpoint and cardinality protection. `@triad/logging` ships structured logging with AsyncLocalStorage-backed `getLogger()` and adapters for pino, winston, and a built-in JSON console logger. All three packages follow the same opt-in router-wrapper pattern and work uniformly across every HTTP adapter without adapter modifications. `docs/guides/observability.md` is the consolidated cookbook. Phase 14.4 (integration cookbook) lives inside that guide.
 
 ### Phase 14.1 — `@triad/otel` — OpenTelemetry integration
 
