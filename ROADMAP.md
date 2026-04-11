@@ -336,6 +336,359 @@ Why Deno specifically: Supabase Edge Functions run on Deno, and the `@triad/hono
 
 ---
 
+## Phase 13 — Client-side channels (planned)
+
+**Status:** Not started. Highest priority. The Phase 9 server-side channel work is a big investment that doesn't pay off until clients can consume channels as cleanly as `@triad/tanstack-query` consumes HTTP endpoints. Today, wiring up a browser client to a Triad channel means hand-writing the WebSocket URL, the message envelope, the payload types, and the reconnect logic — all of which is derivable from the `channel()` declaration.
+
+### Phase 13.0 — Server-side first-message auth
+
+**Prerequisite.** Browsers cannot set custom headers on `new WebSocket()`. The three workarounds are subprotocol, query param, and "first-message auth" (connect, then send `{ type: '__auth', token }` as the first message). The Fastify channel adapter currently only reads auth from handshake headers. Add support for first-message auth so browser clients have a clean path.
+
+Scope:
+- New `auth.strategy: 'header' | 'first-message'` option on `channel()`
+- Adapter reads the first message before running `onConnect` when `first-message` is selected
+- Timeout on unauthenticated connections (reject after N seconds if no auth message)
+- Documentation update in `docs/guides/choosing-an-adapter.md` and the AI agent guide
+
+### Phase 13.1 — `@triad/channel-client` — vanilla TypeScript client generator
+
+New package. `triad frontend generate --target channel-client --output ./client` walks every `channel()` in the router and emits one file per channel plus a shared types file:
+
+```ts
+import { createBookReviewsClient } from './client/book-reviews.js';
+
+const client = createBookReviewsClient({
+  url: 'wss://api.example.com',
+  params: { bookId: 'abc' },                  // typed from connection.params
+  headers: { authorization: 'Bearer xyz' },   // typed from connection.headers
+  auth: 'subprotocol',                        // | 'query' | 'first-message'
+  reconnect: { backoff: 'exponential', maxAttempts: 10 },
+});
+
+client.on('review', (payload) => { /* typed Review */ });
+client.on('error', (payload) => { /* typed ChannelError */ });
+client.on('stateChange', (state) => { /* 'connecting' | 'open' | ... */ });
+
+client.send.submitReview({ rating: 5, comment: '!' });  // typed send
+await client.close();
+```
+
+The generator reuses the `schema-to-ts.ts` emitter from `@triad/tanstack-query` (extract into a shared codegen module or duplicate — decide during implementation). No React dependency; this is pure TypeScript.
+
+Scope:
+- Path param interpolation (`/ws/books/:bookId/reviews` → URL construction)
+- Typed `.send.<messageType>()` surface derived from `clientMessages`
+- Typed event callbacks derived from `serverMessages`
+- Reconnect with exponential backoff + jitter (configurable, opt-in)
+- Message envelope format locked in and covered by a conformance test against a real Triad + Fastify server
+- Integration test: spin up a real server, connect with the generated client, round-trip messages
+
+### Phase 13.2 — React hook emit target
+
+`triad frontend generate --target channel-client-react` emits a React hook per channel:
+
+```tsx
+function ReviewFeed({ bookId, token }: Props) {
+  const { state, send, lastMessage } = useBookReviewsChannel({
+    params: { bookId },
+    headers: { authorization: `Bearer ${token}` },
+    enabled: !!token,
+    onReview: (review) => { /* typed */ },
+    onError: (err) => { /* typed */ },
+  });
+
+  return (
+    <button disabled={state !== 'open'} onClick={() => send.submitReview({ rating: 5, comment: '!' })}>
+      Submit
+    </button>
+  );
+}
+```
+
+Built on `useSyncExternalStore` for clean React 18+ integration. Auto-disconnects on unmount. Depends on Phase 13.1.
+
+### Phase 13.3 — Additional framework variants
+
+`@triad/channel-client-solid`, `@triad/channel-client-vue`, `@triad/channel-client-svelte`. Each one is ~200 lines wrapping the vanilla client from 13.1 in the framework's primitive (signal / ref / store).
+
+### Phase 13.4 — Shared connections and offline queueing (v-later)
+
+- Multiple calls to `useBookReviewsChannel({ params: { bookId: 'abc' } })` share one underlying WebSocket, keyed by `(channelName, params)`. Same pattern React Query uses for query deduplication.
+- Buffer sends while disconnected; flush on reconnect. Configurable max-queue-size with drop-oldest semantics.
+- Both are v-later because they add real complexity and most apps can ship without them.
+
+---
+
+## Phase 14 — Observability (planned)
+
+**Status:** Not started. Currently Triad has zero story for traces, metrics, or structured logging beyond "wire up pino yourself." For a framework pitched at production, this is the biggest remaining gap after Phase 13.
+
+### Phase 14.1 — `@triad/otel` — OpenTelemetry integration
+
+New package. Automatic OpenTelemetry spans per endpoint and per channel message, tagged with structured metadata the router already has:
+
+- `triad.endpoint.name`, `triad.endpoint.method`, `triad.endpoint.path`
+- `triad.context` (bounded context name)
+- `triad.user.id` from `ctx.state.user.id` when available
+- `triad.status_code` for the resolved response
+- Spans around `ctx.services.*` method calls (automatic instrumentation via a Proxy on the services container)
+
+Unique angle: because Triad knows the declared response statuses, error rates can be tagged correctly by category (expected 4xx vs unexpected 5xx). Generic HTTP instrumentation can't do this without guesswork.
+
+### Phase 14.2 — `@triad/metrics` — Prometheus endpoint
+
+Emit a `/metrics` endpoint returning p50/p95/p99 latency per declared endpoint plus request counts bucketed by declared response status. The Triad router already knows every declared status, so the histogram buckets are fully automatic.
+
+Ships with opt-in middleware for each adapter (fastify, express, hono) that hooks the request lifecycle and feeds the histogram.
+
+### Phase 14.3 — Structured logging helpers
+
+A small wrapper that auto-decorates every log line with `{ endpoint, requestId, userId, context }` derived from the current request. Works with pino, winston, or bring-your-own. Probably ships inside the adapter packages rather than as a standalone package.
+
+### Phase 14.4 — Integration cookbook
+
+`docs/guides/observability.md` covering Sentry, Honeycomb, Datadog, Grafana. Docs only, no packages. Each integration is ~30 lines of wiring.
+
+---
+
+## Phase 15 — AWS Lambda adapter (planned)
+
+**Status:** Not started. Unlocks a huge chunk of enterprise deployment that currently has no Triad story.
+
+### `@triad/lambda`
+
+New package. Takes a Triad router and emits an AWS Lambda handler that accepts API Gateway v1/v2 events and ALB target events, normalizes them into the internal context shape, and runs the same validation/handler/respond pipeline as the other adapters.
+
+Scope:
+- API Gateway v1 (REST) and v2 (HTTP) event support
+- ALB target event support
+- Lambda Function URL support (same as API Gateway v2)
+- Cold-start benchmarking — Triad's in-process runner is fast, but validate it
+- Sample SAM template / CDK construct in the README
+- No channel support (Lambda is request/response only)
+
+Deployment targets this unlocks:
+- Lambda + API Gateway (classic serverless)
+- Lambda + CloudFront (edge-ish, globally distributed)
+- Lambda behind ALB (VPC-attached compute)
+- Lambda via SST, Serverless Framework, AWS CDK, SAM
+
+Reference implementation mirrors `@triad/express` and `@triad/hono`. ~300 lines. Adapter error envelope stays byte-identical.
+
+### Deployment cookbook
+
+`docs/guides/deploying-to-aws.md`:
+- Lambda (via `@triad/lambda`)
+- ECS Fargate (container, any HTTP adapter)
+- App Runner (container, any HTTP adapter)
+- Elastic Beanstalk (container, any HTTP adapter)
+- EC2 (any HTTP adapter)
+- Terraform / CDK / SAM snippets for each
+
+---
+
+## Phase 16 — File uploads (planned)
+
+**Status:** Not started. Every real API eventually needs file uploads. Triad has no documented pattern.
+
+### `t.file()` primitive
+
+New schema primitive that validates file metadata and typed access in handlers:
+
+```ts
+const UploadAvatar = t.model('UploadAvatar', {
+  file: t.file().maxSize(5 * 1024 * 1024).mimeTypes('image/png', 'image/jpeg'),
+});
+
+const uploadAvatar = endpoint({
+  method: 'POST',
+  path: '/users/:id/avatar',
+  request: { body: UploadAvatar },  // multipart/form-data automatically
+  // handler sees ctx.body.file as a typed { name, mimeType, size, stream(): ReadableStream, arrayBuffer(): Promise<ArrayBuffer> }
+});
+```
+
+### Adapter wiring
+
+Each HTTP adapter (fastify, express, hono) gains multipart parsing:
+- Fastify: `@fastify/multipart`
+- Express: `multer` or `express-fileupload`
+- Hono: built-in `c.req.parseBody()`
+
+Triad detects multipart from the body schema containing any `t.file()` field and routes the request through the multipart parser before building `ctx.body`.
+
+### OpenAPI
+
+`t.file()` emits as `{ type: 'string', format: 'binary' }` inside a `multipart/form-data` request body. Handles the Swagger UI "try it out" file picker correctly.
+
+### Limits
+
+Ship sensible defaults (10MB max file, 10 files max) and let users override per endpoint. Guard against zip bombs, memory DoS, etc.
+
+---
+
+## Phase 17 — Developer tooling sprint (planned)
+
+**Status:** Not started. Three small CLI additions that together dramatically improve the day-to-day experience. Small individually, high cumulative value.
+
+### Phase 17.1 — `triad new` scaffolding
+
+```bash
+npx triad new my-api --template fastify-drizzle
+npx triad new my-api --template hono-supabase
+npx triad new my-api --template lambda
+```
+
+Instantiates a fresh project from one of the `examples/` directories with the current package versions. Prompts for project name, adapter choice, ORM choice. Outputs a ready-to-run repo with a `README.md`, `package.json`, and a working hello-world endpoint. ~200 lines plus the template copying logic. Low complexity, huge onboarding impact.
+
+### Phase 17.2 — `triad mock` — mock server from router
+
+```bash
+triad mock --port 3000
+```
+
+Starts an HTTP server that returns schema-generated fake data for every endpoint in the router. Uses a faker library seeded from each response schema. Critical for frontend teams developing against an unfinished backend — they get a fully-typed mock API the moment the backend team declares an endpoint, before any handler is written.
+
+Scope:
+- Faker-style synthesis for every `SchemaNode` kind
+- Honors response schema constraints (string format, number ranges, enum values)
+- Configurable latency simulation (`--latency 200` adds 200ms artificial delay)
+- Configurable error injection (`--error-rate 0.05` returns random 5xx on 5% of requests)
+- Deterministic seed mode for reproducible tests (`--seed 42`)
+
+### Phase 17.3 — `triad docs check` — breaking-change detection
+
+```bash
+triad docs check --against main
+```
+
+Regenerates the OpenAPI from the current branch, fetches the baseline from a git ref, and classifies changes:
+
+- **Safe**: new endpoint, new optional field, new response status, new enum value at the end
+- **Risky**: removed optional field, enum value reordered, response schema widened
+- **Breaking**: removed endpoint, required field added, response schema narrowed, status removed
+
+Exits non-zero on breaking changes unless `--allow-breaking` is passed. In CI, this catches API contract regressions in PRs automatically. This is a Triad-unique capability because the router is a typed source — nothing else in the ecosystem does this as cleanly.
+
+---
+
+## Phase 18 — Auth cookbook (planned)
+
+**Status:** Not started. `beforeHandler` is the mechanism; users need concrete integrations for the common identity providers.
+
+### Phase 18.1 — `@triad/jwt`
+
+Tiny package wrapping `jose` or `jsonwebtoken` with a `requireJWT` BeforeHandler factory:
+
+```ts
+import { requireJWT } from '@triad/jwt';
+
+const auth = requireJWT({
+  issuer: 'https://my-auth.example.com',
+  audience: 'my-api',
+  jwksUri: 'https://my-auth.example.com/.well-known/jwks.json',
+});
+
+const createBook = endpoint({
+  beforeHandler: auth,
+  handler: async (ctx) => {
+    ctx.state.user; // typed, JWT claims
+  },
+});
+```
+
+Scope:
+- Verify, sign, key rotation via JWKS
+- Claim extraction with configurable user shape
+- HS256, RS256, ES256 support
+- Clock skew tolerance
+- Works with any JWT issuer (Auth0, Clerk, Supabase Auth, Firebase Auth, self-signed)
+
+### Phase 18.2 — Auth integration cookbook
+
+`docs/guides/auth.md` — the consolidated auth playbook:
+
+- `@triad/jwt` basic usage
+- Auth0 integration (JWT + JWKS)
+- Clerk integration
+- WorkOS integration
+- Supabase Auth (already covered in the Supabase guide; cross-link)
+- NextAuth.js session validation from a Triad backend
+- Session cookie pattern (for browser apps that don't want bearer tokens)
+- API key pattern (for server-to-server)
+- Multi-tenancy via tenant-id header
+- RBAC / permissions patterns layered on `beforeHandler`
+
+Docs only, no additional packages. Each integration is 30-50 lines of wiring.
+
+---
+
+## Phase 19 — Additional frontend targets (planned)
+
+**Status:** Not started. Extends Phase 11 beyond React.
+
+### Phase 19.1 — `@triad/solid-query`
+
+Solid Query variant of Phase 11. Shares the schema-to-ts emitter. Emits `createQuery` / `createMutation` calls matching Solid Query's API. ~400 lines.
+
+### Phase 19.2 — `@triad/vue-query`
+
+Same story for Vue Query. ~400 lines.
+
+### Phase 19.3 — `@triad/svelte-query`
+
+Same story for Svelte Query. ~400 lines.
+
+### Phase 19.4 — `@triad/forms` — form resolvers
+
+Generate `react-hook-form` or `@tanstack/form` resolvers from Triad request body schemas. The schemas already have min/max/pattern/required/enum — this is a direct text emit. Ships one package with multiple emit targets behind flags.
+
+### Phase 19.5 — Plain typed fetch client
+
+For users who don't want a query library at all — just typed fetch wrappers with no runtime dependency beyond `fetch`. `triad frontend generate --target typed-fetch`.
+
+---
+
+## Phase 20 — Security helpers (planned)
+
+**Status:** Not started. Mostly docs with a tiny shared package for cross-adapter helpers.
+
+### `@triad/security-headers`
+
+A small package that emits Content-Security-Policy, Strict-Transport-Security, X-Frame-Options, X-Content-Type-Options, and Permissions-Policy headers with sensible defaults. Works as middleware for fastify/express/hono. ~100 lines.
+
+### Security cookbook
+
+`docs/guides/security.md`:
+- Rate limiting per adapter (`@fastify/rate-limit`, `express-rate-limit`, `hono/rate-limiter`)
+- CORS configuration per adapter
+- CSRF protection for cookie-based auth
+- Input sanitization beyond schema validation
+- Secrets management (env vars, AWS Secrets Manager, Vault)
+- Dependency scanning in CI (`npm audit`, `snyk`, `socket.dev`)
+- OWASP Top 10 coverage audit for Triad apps
+
+Docs only plus one tiny package.
+
+---
+
+## Under consideration (not committed)
+
+Items that have been mentioned or requested but are NOT on the committed roadmap. Each is listed with the reason it's deprioritized. These may or may not ever ship — listing them here so the decision is explicit rather than forgotten.
+
+- **GraphQL bridge (`@triad/graphql`)** — Lowest priority. Would walk a Triad router and emit a GraphQL schema (queries from GETs, mutations from POST/PATCH/DELETE). Real complexity in the schema mapping, GraphQL adoption has softened in the ecosystem, and teams that want GraphQL can hand-maintain it or use existing REST-to-GraphQL tools. **May not be built at all.**
+- **VS Code extension** — Hover docs for assertion phrases, autocomplete for schema fields, inline OpenAPI preview. Valuable but a huge maintenance burden for uncertain payoff. Wait for concrete user demand.
+- **IntelliJ plugin** — Same reasoning as VS Code.
+- **Browser playground / REPL** — Run Triad in a browser sandbox for marketing. Cool but not engineering-critical.
+- **Prisma first-party bridge** — `docs/guides/choosing-an-orm.md` already covers the integration pattern. A first-party package would duplicate what Prisma already provides for type safety.
+- **MongoDB / Mongoose first-party support** — Repositories are user code; the BYO-ORM guide covers the pattern. No first-party investment.
+- **Queue integrations (BullMQ, Inngest, pg-boss, Trigger.dev)** — All are external concerns. Cookbook entries possible, packages unlikely.
+- **Redis caching helpers** — Adapter plugins handle this fine; no Triad-specific angle.
+- **Built-in i18n / localization** — Out of scope; users layer this in at the handler level.
+- **Multi-tenancy primitives** — Covered by the `ctx.state` + per-request services pattern. No framework-level concept.
+
+---
+
 ## Documentation
 
 Start at [`docs/README.md`](docs/README.md) — the index that organizes everything below by what you're trying to do.
