@@ -18,48 +18,78 @@
  * Database: reads `DATABASE_URL` from the environment. Defaults to
  * `:memory:` so `npm start` works with zero config. Set
  * `DATABASE_URL=./tasktracker.db` to persist across restarts.
+ *
+ * ## createApp factory
+ *
+ * `createApp()` returns a ready-to-listen Express app plus the service
+ * container, without binding to a port. The e2e test harness uses it
+ * to spin up an isolated server on an ephemeral port per test.
+ * `npm start` still binds to the configured port through the
+ * module-entry guard at the bottom.
  */
 
-import express from 'express';
+import { pathToFileURL } from 'node:url';
+import express, { type Express } from 'express';
 import { createTriadRouter, triadErrorHandler } from '@triad/express';
 
 import router from './app.js';
 import { createDatabase } from './db/client.js';
-import { createServices } from './services.js';
+import { createServices, type TaskTrackerServices } from './services.js';
 
-const app = express();
+export interface CreateAppOptions {
+  /** Provide pre-built services (e.g. with an in-memory test DB). */
+  services?: TaskTrackerServices;
+}
 
-// JSON body parser — required before the Triad router. See module doc.
-app.use(express.json());
+export interface CreatedApp {
+  app: Express;
+  services: TaskTrackerServices;
+}
 
-const db = createDatabase(process.env.DATABASE_URL ?? ':memory:');
-const services = createServices({ db });
+export function createApp(options: CreateAppOptions = {}): CreatedApp {
+  const app = express();
 
-app.use(createTriadRouter(router, { services }));
+  // JSON body parser — required before the Triad router.
+  app.use(express.json());
 
-// Optional: format any stray Triad errors thrown from user middleware
-// (not from endpoint handlers — those are caught inside the adapter).
-app.use(triadErrorHandler());
+  const services =
+    options.services ??
+    createServices({ db: createDatabase(process.env['DATABASE_URL'] ?? ':memory:') });
 
-const port = Number(process.env.PORT ?? 3100);
-const host = process.env.HOST ?? '0.0.0.0';
+  app.use(createTriadRouter(router, { services }));
 
-const server = app.listen(port, host, () => {
-  // eslint-disable-next-line no-console
-  console.log(
-    `[tasktracker] listening on http://${host}:${port} ` +
-      `(database: ${process.env.DATABASE_URL ?? ':memory:'})`,
-  );
-});
+  // Optional: format any stray Triad errors thrown from user middleware
+  // (not from endpoint handlers — those are caught inside the adapter).
+  app.use(triadErrorHandler());
 
-// Graceful shutdown — stop accepting new connections, then close the DB.
-for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-  process.on(signal, () => {
+  return { app, services };
+}
+
+const isMainEntry =
+  typeof process.argv[1] === 'string' &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isMainEntry) {
+  const { app, services } = createApp();
+  const port = Number(process.env['PORT'] ?? 3100);
+  const host = process.env['HOST'] ?? '0.0.0.0';
+
+  const server = app.listen(port, host, () => {
     // eslint-disable-next-line no-console
-    console.log(`[tasktracker] received ${signal}, shutting down`);
-    server.close(() => {
-      db.$raw.close();
-      process.exit(0);
-    });
+    console.log(
+      `[tasktracker] listening on http://${host}:${port} ` +
+        `(database: ${process.env['DATABASE_URL'] ?? ':memory:'})`,
+    );
   });
+
+  for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+    process.on(signal, () => {
+      // eslint-disable-next-line no-console
+      console.log(`[tasktracker] received ${signal}, shutting down`);
+      server.close(() => {
+        services.db.$raw.close();
+        process.exit(0);
+      });
+    });
+  }
 }

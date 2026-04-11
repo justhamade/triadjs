@@ -26,32 +26,64 @@
  * graceful shutdown wiring, no structured logging. Everything you'd
  * want for a production Node deployment belongs in a wrapper around
  * `@triad/hono`, not here.
+ *
+ * ## createApp factory
+ *
+ * `createApp()` returns a ready-to-serve Hono app and its service
+ * container without calling `serve()`. The e2e test harness wires up
+ * its own `serve({ fetch, port: 0 })` so each test gets an ephemeral
+ * port. `npm run dev` still starts a server via the module-entry
+ * guard below.
  */
 
+import { pathToFileURL } from 'node:url';
 import { serve } from '@hono/node-server';
 import { createTriadApp } from '@triad/hono';
 
 import router from './app.js';
-import { createServices } from './services.js';
+import { createServices, type SupabaseEdgeServices } from './services.js';
 import { MemoryAuthVerifier } from './auth-verifier.js';
 
-const authVerifier = new MemoryAuthVerifier();
-const services = createServices({ mode: 'memory', authVerifier });
+export interface CreateAppOptions {
+  /** Provide pre-built services (e.g. with a pre-seeded memory verifier). */
+  services?: SupabaseEdgeServices;
+}
 
-// Seed a single dev user so `npm run dev` is immediately useful.
-const devToken = authVerifier.register({
-  id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-  email: 'dev@example.com',
-  name: 'Dev User',
-});
+export interface CreatedApp {
+  app: ReturnType<typeof createTriadApp>;
+  services: SupabaseEdgeServices;
+}
 
-const app = createTriadApp(router, { services });
+export function createApp(options: CreateAppOptions = {}): CreatedApp {
+  const services =
+    options.services ??
+    createServices({ mode: 'memory', authVerifier: new MemoryAuthVerifier() });
+  const app = createTriadApp(router, { services });
+  return { app, services };
+}
 
-const port = Number(process.env['PORT'] ?? 3300);
-serve({ fetch: app.fetch, port });
+const isMainEntry =
+  typeof process.argv[1] === 'string' &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
 
-// eslint-disable-next-line no-console
-console.log(
-  `[supabase-edge] dev server listening on http://localhost:${port}\n` +
-    `[supabase-edge] try: curl -H "Authorization: Bearer ${devToken}" http://localhost:${port}/me`,
-);
+if (isMainEntry) {
+  const authVerifier = new MemoryAuthVerifier();
+  const services = createServices({ mode: 'memory', authVerifier });
+
+  // Seed a single dev user so `npm run dev` is immediately useful.
+  const devToken = authVerifier.register({
+    id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    email: 'dev@example.com',
+    name: 'Dev User',
+  });
+
+  const { app } = createApp({ services });
+  const port = Number(process.env['PORT'] ?? 3300);
+  serve({ fetch: app.fetch, port });
+
+  // eslint-disable-next-line no-console
+  console.log(
+    `[supabase-edge] dev server listening on http://localhost:${port}\n` +
+      `[supabase-edge] try: curl -H "Authorization: Bearer ${devToken}" http://localhost:${port}/me`,
+  );
+}

@@ -10,6 +10,7 @@
     "docs": "triad docs",
     "gherkin": "triad gherkin",
     "test": "triad test",
+    "test:e2e": "vitest run --config ./vitest.e2e.config.ts",
     "validate": "triad validate",
     "typecheck": "tsc --noEmit"
   },
@@ -24,6 +25,7 @@
     "@triad/cli": "*",
     "@triad/test-runner": "*",
     "tsx": "^4.19.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
   }
 }

@@ -7,9 +7,8 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src",
     "noEmit": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "e2e/**/*", "vitest.e2e.config.ts"],
   "exclude": ["supabase/**/*", "generated/**/*", "dist/**/*"]
 }
