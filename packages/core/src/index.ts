@@ -83,6 +83,17 @@ export {
   type HttpMethod,
 } from './endpoint.js';
 
+// --- BeforeHandler ---------------------------------------------------------
+
+export {
+  invokeBeforeHandler,
+  type BeforeHandler,
+  type BeforeHandlerContext,
+  type BeforeHandlerResult,
+  type BeforeHandlerSuccess,
+  type BeforeHandlerShortCircuit,
+} from './before-handler.js';
+
 // --- Router ----------------------------------------------------------------
 
 export {

@@ -283,14 +283,19 @@ export const createPet = endpoint({
     body: CreatePet,            // SchemaNode
     params: { id: t.string() }, // inline shape OR a named ModelSchema
     query: { limit: t.int32().default(20) },
-    headers: AuthHeaders,        // inline object of SchemaNodes
+    // headers: { xRequestId: t.string().optional() },  // only for business headers
   },
+  beforeHandler: requireAuth,   // optional hook — see §6. For auth, tenant, etc.
   responses: {
     201: { schema: Pet,      description: 'Created' },
+    401: { schema: ApiError, description: 'Missing or invalid token' },
     409: { schema: ApiError, description: 'Duplicate' },
   },
   handler: async (ctx) => {
-    const pet = await ctx.services.petRepo.create(ctx.body);
+    const pet = await ctx.services.petRepo.create({
+      ownerId: ctx.state.user.id,  // typed state from beforeHandler
+      ...ctx.body,
+    });
     return ctx.respond[201](pet);
   },
   behaviors: [ /* ... scenarios ... */ ],
@@ -310,6 +315,7 @@ Everything on `ctx` is inferred from the `request` and `responses` declarations:
 | `ctx.body` | Inferred from `request.body` (or `undefined`) |
 | `ctx.headers` | Inferred from `request.headers` |
 | `ctx.services` | `ServiceContainer` (module-augmented by you) |
+| `ctx.state` | `Readonly<TBeforeState>` — state produced by the endpoint's `beforeHandler`. `{}` when no hook is declared. |
 | `ctx.respond` | `{ [status]: (data) => HandlerResponse }` — only declared statuses are present |
 
 `ctx.respond[201](body)` validates `body` against the schema declared for status 201 and wraps it as `{ status: 201, body }`. Calling `ctx.respond[500](...)` when 500 is not declared is a **compile error**.
@@ -403,31 +409,63 @@ handler: async (ctx) => {
 },
 ```
 
-#### Bearer auth (from `examples/tasktracker`)
+#### Bearer auth (from `examples/tasktracker`) — `beforeHandler`
 
-Triad has **no middleware**. Every protected handler calls a shared helper:
+Triad ships a single **`beforeHandler`** extension point on `endpoint()` (Phase 10.3). It is the declarative hook for authentication, tenant resolution, feature flags, and any other cross-cutting concern that needs to inspect the raw request before schema validation runs.
+
+Key properties:
+
+- **Singular, not an array.** One endpoint, one `beforeHandler`. Compose multiple concerns with plain function calls inside your own hook — middleware stacks hide the request lifecycle that makes Triad readable.
+- **Runs BEFORE request schema validation.** Auth can reject missing/malformed headers as 401 without the validator 400-ing first. You therefore do NOT need to declare the `authorization` header on the endpoint's `request.headers` at all.
+- **Returns either `{ ok: true, state }` or `{ ok: false, response }`.** On success, `state` is threaded into `ctx.state` (readonly) on the main handler, with its type inferred from the return. On short-circuit, the main handler is NEVER called.
+- **Type-safe short-circuits.** The `ctx.respond[...]` map inside `beforeHandler` is keyed on the same `responses` config as the main handler, so a 401 short-circuit only compiles when 401 is in the endpoint's declared responses.
 
 ```ts
-// auth.ts
-export async function requireAuth(ctx: { headers: { authorization?: string }, services: ... }) {
-  const token = parseBearer(ctx.headers['authorization']);
-  if (!token) return { ok: false, error: { code: 'UNAUTHENTICATED', message: '...' } };
-  const userId = ctx.services.tokens.lookup(token);
-  if (!userId) return { ok: false, error: { code: 'UNAUTHENTICATED', message: '...' } };
-  const user = await ctx.services.userRepo.findById(userId);
-  if (!user) return { ok: false, error: { code: 'UNAUTHENTICATED', message: '...' } };
-  return { ok: true, user };
-}
+// auth.ts — a reusable hook
+import type { BeforeHandler } from '@triad/core';
 
-// endpoint
-handler: async (ctx) => {
-  const auth = await requireAuth(ctx);
-  if (!auth.ok) return ctx.respond[401](auth.error);
-  // ... use auth.user
-},
+export type AuthState = { user: User };
+
+export const requireAuth: BeforeHandler<AuthState, { 401: { schema: typeof ApiError; description: string } }> = async (ctx) => {
+  const token = parseBearer(ctx.rawHeaders['authorization']);
+  if (!token) {
+    return {
+      ok: false,
+      response: ctx.respond[401]({ code: 'UNAUTHENTICATED', message: 'Missing bearer token' }),
+    };
+  }
+  const userId = ctx.services.tokens.lookup(token);
+  if (!userId) return { ok: false, response: ctx.respond[401]({ code: 'UNAUTHENTICATED', message: 'Invalid token' }) };
+  const user = await ctx.services.userRepo.findById(userId);
+  if (!user) return { ok: false, response: ctx.respond[401]({ code: 'UNAUTHENTICATED', message: 'User not found' }) };
+  return { ok: true, state: { user } };
+};
+
+// endpoint — no three-line preamble, no authorization header in request.headers
+export const createProject = endpoint({
+  // ...
+  beforeHandler: requireAuth,
+  request: { body: CreateProject },
+  responses: {
+    201: { schema: Project, description: 'Created' },
+    401: { schema: ApiError, description: 'Missing or invalid token' },
+  },
+  handler: async (ctx) => {
+    const project = await ctx.services.projectRepo.create({
+      ownerId: ctx.state.user.id,  // typed; no .ok check, no unpack
+      name: ctx.body.name,
+    });
+    return ctx.respond[201](project);
+  },
+});
 ```
 
-**The `authorization` header schema is declared `.optional()`**, not required. If you make it required, missing-auth scenarios fail with a 400 schema error instead of a clean 401. See §12.
+**Composing multiple beforeHandlers:** call them as plain functions inside one hook. There is no `beforeHandler: [a, b]` form and there is no router-level hook. Users who want "every endpoint in this context uses auth" write a thin wrapper:
+
+```ts
+const protectedEndpoint = <P, Q, B, H, R, S>(cfg: EndpointConfig<P, Q, B, H, R, S>) =>
+  endpoint({ ...cfg, beforeHandler: requireAuth });
+```
 
 #### Error envelope
 
@@ -1108,7 +1146,7 @@ These are the mistakes most likely to trip up an AI coding assistant writing Tri
 
 5. **Asserting against `null`.** Not supported by the parser. Let the schema (`.nullable()`) and the response validator enforce the nullable invariant, or add a `customMatchers` entry.
 
-6. **Headers declared `.optional()` vs required** — for auth headers, keep them optional on the schema and enforce presence inside `requireAuth()`. If you make them required, missing-auth scenarios fail with a 400 from the validator before they ever reach the 401 branch in your handler.
+6. **Declaring the `authorization` header on the endpoint's `request.headers`** — don't. Use `beforeHandler: requireAuth` (see §6). The beforeHandler reads `ctx.rawHeaders['authorization']` before validation runs, so the header does not belong in the declared request shape at all. The old "declare it `.optional()` so missing-auth reaches the handler" workaround is obsolete.
 
 7. **Forgetting to return from `ctx.respond`.** Every branch of a handler must `return ctx.respond[n](...)`. Falling off the end returns `undefined`, which the test runner treats as a schema failure.
 

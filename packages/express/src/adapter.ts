@@ -36,9 +36,11 @@ import {
   type ServiceContainer,
   type ModelShape,
   type ValidationError,
+  type BeforeHandlerContext,
   ValidationException,
   buildRespondMap,
   isEmptySchema,
+  invokeBeforeHandler,
 } from '@triad/core';
 
 import { RequestValidationError, type RequestPart } from './errors.js';
@@ -144,6 +146,41 @@ export function createRouteHandler(
     next: NextFunction,
   ): Promise<void> {
     try {
+      // 0: resolve services (needed by beforeHandler and main handler).
+      const services = await resolveServices(options.services, req);
+      const respond = buildRespondMap(endpoint.responses);
+
+      // 0.5: beforeHandler — runs BEFORE request schema validation.
+      const beforeCtx: BeforeHandlerContext<ResponsesConfig> = {
+        rawHeaders: req.headers as Record<
+          string,
+          string | string[] | undefined
+        >,
+        rawQuery: req.query as Record<
+          string,
+          string | string[] | undefined
+        >,
+        rawParams: req.params as Record<string, string>,
+        rawCookies: {},
+        services,
+        respond,
+      };
+      const beforeResult = await invokeBeforeHandler(
+        endpoint.beforeHandler,
+        beforeCtx,
+      );
+      if (!beforeResult.ok) {
+        const scResponse = beforeResult.response;
+        const declared = endpoint.responses[scResponse.status];
+        if (declared && isEmptySchema(declared.schema)) {
+          res.status(scResponse.status).end();
+          return;
+        }
+        res.status(scResponse.status).json(scResponse.body);
+        return;
+      }
+      const beforeState = beforeResult.state;
+
       // 1 + 2: coerce and validate each request part.
       const params = validatePart(endpoint, 'params', req.params) as Record<
         string,
@@ -159,9 +196,6 @@ export function createRouteHandler(
       >;
       const body = validatePart(endpoint, 'body', req.body);
 
-      // 3: resolve services.
-      const services = await resolveServices(options.services, req);
-
       // 4: build context.
       const ctx = {
         params,
@@ -169,7 +203,8 @@ export function createRouteHandler(
         body,
         headers,
         services,
-        respond: buildRespondMap(endpoint.responses),
+        state: beforeState,
+        respond,
       };
 
       // 5: invoke the user handler and dispatch the response.

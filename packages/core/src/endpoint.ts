@@ -35,6 +35,7 @@ import type {
   ResponsesConfig,
 } from './context.js';
 import type { Behavior } from './behavior.js';
+import type { BeforeHandler } from './before-handler.js';
 
 // ---------------------------------------------------------------------------
 // Declarative config (author-facing)
@@ -55,6 +56,8 @@ export interface EndpointConfig<
   TBody,
   THeaders,
   TResponses extends ResponsesConfig,
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+  TBeforeState = {},
 > {
   name: string;
   method: HttpMethod;
@@ -64,8 +67,20 @@ export interface EndpointConfig<
   tags?: readonly string[];
   request?: RequestConfig<TParams, TQuery, TBody, THeaders>;
   responses: TResponses;
+  /**
+   * Optional request-lifecycle hook that runs BEFORE request schema
+   * validation. Use this for auth, tenant resolution, feature flags,
+   * and any other cross-cutting concern that should be able to reject
+   * raw requests without the validation pipeline 400-ing first. The
+   * handler receives the returned `state` as `ctx.state`.
+   *
+   * This is a SINGLE function, not an array. Compose multiple concerns
+   * with plain function composition inside your own beforeHandler.
+   * See `before-handler.ts` for the rationale.
+   */
+  beforeHandler?: BeforeHandler<TBeforeState, TResponses>;
   handler: (
-    ctx: HandlerContext<TParams, TQuery, TBody, THeaders, TResponses>,
+    ctx: HandlerContext<TParams, TQuery, TBody, THeaders, TResponses, TBeforeState>,
   ) => Promise<HandlerResponse>;
   behaviors?: readonly Behavior[];
 }
@@ -96,7 +111,13 @@ export interface Endpoint {
   request: NormalizedRequest;
   responses: ResponsesConfig;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  handler: (ctx: HandlerContext<any, any, any, any, any>) => Promise<HandlerResponse>;
+  handler: (ctx: HandlerContext<any, any, any, any, any, any>) => Promise<HandlerResponse>;
+  /**
+   * Optional request-lifecycle hook. See `EndpointConfig.beforeHandler`.
+   * Stored as-is on the runtime endpoint so adapters and the test
+   * runner can invoke it via `invokeBeforeHandler`.
+   */
+  beforeHandler?: BeforeHandler<unknown, ResponsesConfig>;
   behaviors: Behavior[];
 }
 
@@ -140,8 +161,10 @@ export function endpoint<
   TBody,
   THeaders,
   TResponses extends ResponsesConfig,
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+  TBeforeState = {},
 >(
-  config: EndpointConfig<TParams, TQuery, TBody, THeaders, TResponses>,
+  config: EndpointConfig<TParams, TQuery, TBody, THeaders, TResponses, TBeforeState>,
 ): Endpoint {
   const request = config.request ?? {};
   return {
@@ -160,6 +183,9 @@ export function endpoint<
     responses: config.responses,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     handler: config.handler as any,
+    ...(config.beforeHandler !== undefined && {
+      beforeHandler: config.beforeHandler as BeforeHandler<unknown, ResponsesConfig>,
+    }),
     behaviors: config.behaviors ? [...config.behaviors] : [],
   };
 }

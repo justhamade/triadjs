@@ -70,17 +70,41 @@ npm run typecheck  # → strict TS, no `any`, no @ts-ignore
 
 ## The interesting bits
 
-### Auth without middleware
+### Auth via `beforeHandler`
 
-Triad has no middleware primitive. Every protected handler therefore starts with the same three lines:
+As of Phase 10.3, Triad ships a first-class `beforeHandler` extension point on `endpoint()`. It is a single declarative hook that runs BEFORE request schema validation — ideal for auth because it can reject missing/malformed `Authorization` headers as 401 without the validator 400-ing them first.
 
 ```ts
-const auth = await requireAuth(ctx);
-if (!auth.ok) return ctx.respond[401](auth.error);
-const user = auth.user;
+// src/auth.ts — the reusable hook
+export const requireAuth: BeforeHandler<AuthState, ...> = async (ctx) => {
+  const token = parseBearer(ctx.rawHeaders['authorization']);
+  if (!token) return { ok: false, response: ctx.respond[401]({ code: 'UNAUTHENTICATED', message: '...' }) };
+  // ... lookup, return { ok: true, state: { user } }
+};
+
+// src/endpoints/projects.ts — every protected endpoint
+export const createProject = endpoint({
+  // ...
+  beforeHandler: requireAuth,
+  handler: async (ctx) => {
+    const project = await ctx.services.projectRepo.create({
+      ownerId: ctx.state.user.id,  // typed state, no narrowing
+      name: ctx.body.name,
+    });
+    return ctx.respond[201](project);
+  },
+});
 ```
 
-`requireAuth` is a plain async helper in [`src/auth.ts`](./src/auth.ts) that returns a discriminated union — `{ ok: true, user }` on success or `{ ok: false, error }` on any failure mode (missing header, bad token, deleted user). The explicit early-return is more verbose than a Fastify `preHandler` would be, but it keeps auth visible at every call site and requires zero framework support. **Whether that tradeoff is worth it depends on your team** — the final-report section below treats this as a real gap worth discussing.
+What disappeared compared to the pre-10.3 version of this example:
+
+- The three-line `const auth = await requireAuth(ctx); if (!auth.ok) return ctx.respond[401](auth.error); const user = auth.user;` preamble on every protected handler (~10 endpoints).
+- The `authorization` header declared on `request.headers` via the `AuthHeaders` shape. The hook reads `ctx.rawHeaders['authorization']` directly, so the header no longer belongs on the declared request shape.
+- The "schema lie" where `authorization` was `.optional()` so missing-auth scenarios could reach the handler. The `beforeHandler` runs before validation, so the issue never came up.
+
+**Known cosmetic gap:** the generated OpenAPI no longer lists the `authorization` header parameter on each protected endpoint (because it was moved out of the declared request shape). A future phase will wire `beforeHandler: requireAuth` to an OpenAPI security scheme so clients see the auth requirement at the document level. For now, document that a Bearer token is required in the endpoint's `description` if client codegen relies on it.
+
+**Design choice: singular, not an array.** Triad deliberately exposes one `beforeHandler` per endpoint — there is no middleware chain. Users who need composition call plain functions inside their own hook. Rationale: one declarative hook keeps the request lifecycle legible at a glance, and the `TBeforeState` inference only works with a single return type.
 
 ### Ownership checks
 

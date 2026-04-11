@@ -42,9 +42,11 @@ import {
   type ServiceContainer,
   type ModelShape,
   type ValidationError,
+  type BeforeHandlerContext,
   ValidationException,
   buildRespondMap,
   isEmptySchema,
+  invokeBeforeHandler,
 } from '@triad/core';
 
 import { RequestValidationError, type RequestPart } from './errors.js';
@@ -155,6 +157,43 @@ export function createRouteHandler(
     reply: FastifyReply,
   ) {
     try {
+      // 0: resolve services (needed by beforeHandler and main handler).
+      const services = await resolveServices(options.services, request);
+      const respond = buildRespondMap(endpoint.responses);
+
+      // 0.5: beforeHandler — runs BEFORE request schema validation so
+      // auth can reject missing/malformed inputs as 401/403 rather than
+      // the adapter 400-ing them during validation.
+      const beforeCtx: BeforeHandlerContext<ResponsesConfig> = {
+        rawHeaders: request.headers as Record<
+          string,
+          string | string[] | undefined
+        >,
+        rawQuery: request.query as Record<
+          string,
+          string | string[] | undefined
+        >,
+        rawParams: request.params as Record<string, string>,
+        rawCookies: {},
+        services,
+        respond,
+      };
+      const beforeResult = await invokeBeforeHandler(
+        endpoint.beforeHandler,
+        beforeCtx,
+      );
+      if (!beforeResult.ok) {
+        const scResponse = beforeResult.response;
+        const declared = endpoint.responses[scResponse.status];
+        if (declared && isEmptySchema(declared.schema)) {
+          reply.code(scResponse.status).send();
+          return;
+        }
+        reply.code(scResponse.status).send(scResponse.body);
+        return;
+      }
+      const beforeState = beforeResult.state;
+
       // 1 + 2: coerce and validate each request part.
       const params = validatePart(endpoint, 'params', request.params) as Record<
         string,
@@ -170,9 +209,6 @@ export function createRouteHandler(
       >;
       const body = validatePart(endpoint, 'body', request.body);
 
-      // 3: resolve services.
-      const services = await resolveServices(options.services, request);
-
       // 4: build context. The handler's declared generic parameters are
       // only known at endpoint definition time — at runtime we treat the
       // context as opaque and let the user handler see the validated data
@@ -183,7 +219,8 @@ export function createRouteHandler(
         body,
         headers,
         services,
-        respond: buildRespondMap(endpoint.responses),
+        state: beforeState,
+        respond,
       };
 
       // 5: invoke the user handler and dispatch the response.

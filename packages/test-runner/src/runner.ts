@@ -40,8 +40,10 @@ import {
   type ServiceContainer,
   type ResponsesConfig,
   type HandlerContext,
+  type BeforeHandlerContext,
   ValidationException,
   buildRespondMap,
+  invokeBeforeHandler,
 } from '@triad/core';
 
 import {
@@ -162,6 +164,71 @@ export async function runOneBehavior(
     const rawQuery = substitute(behavior.given.query ?? {}, fixtures);
     const rawHeaders = substitute(behavior.given.headers ?? {}, fixtures);
 
+    // Step 2.5: Run the endpoint's beforeHandler (if declared) on the
+    // RAW request. beforeHandler sees pre-validation data so auth and
+    // cross-cutting concerns can reject missing/malformed input as 401
+    // instead of 400. On short-circuit, validate the response against
+    // the declared schema and surface it to the assertions as if the
+    // handler had returned it. On success, thread `state` into ctx.
+    const beforeRespond = buildRespondMap(endpoint.responses);
+    const beforeCtx = {
+      rawHeaders: rawHeaders as Record<string, string | string[] | undefined>,
+      rawQuery: rawQuery as Record<string, string | string[] | undefined>,
+      rawParams: rawParams as Record<string, string>,
+      rawCookies: {},
+      services,
+      respond: beforeRespond,
+    } satisfies BeforeHandlerContext<ResponsesConfig>;
+
+    let beforeState: unknown = {};
+    let shortCircuit: HandlerResponse | undefined;
+    try {
+      const beforeResult = await invokeBeforeHandler(
+        endpoint.beforeHandler,
+        beforeCtx,
+      );
+      if (beforeResult.ok) {
+        beforeState = beforeResult.state;
+      } else {
+        shortCircuit = beforeResult.response;
+      }
+    } catch (err) {
+      if (err instanceof ValidationException) {
+        return {
+          ...baseResult,
+          status: 'failed',
+          failure: {
+            message: `beforeHandler produced an invalid response body for its declared schema: ${err.errors.map((e) => `${e.path || '<root>'}: ${e.message}`).join(', ')}`,
+            stack: err.stack,
+          },
+          durationMs: performance.now() - start,
+        };
+      }
+      return {
+        ...baseResult,
+        status: 'errored',
+        failure: toFailure(err, 'beforeHandler threw'),
+        durationMs: performance.now() - start,
+      };
+    }
+
+    // If the beforeHandler short-circuited, skip request-schema
+    // validation and the main handler entirely. Flow straight to
+    // response-schema validation + assertions using the short-circuit
+    // response.
+    if (shortCircuit !== undefined) {
+      return await finalizeResponse({
+        baseResult,
+        endpoint,
+        response: shortCircuit,
+        behavior,
+        models,
+        fixtures,
+        customMatchers: options.customMatchers,
+        start,
+      });
+    }
+
     // Step 3: Validate each request part against its declared schema.
     // This applies defaults (`t.int32().default(20)`) and catches behavior
     // mistakes (e.g. a scenario that sets `.params({ id: 'not-a-uuid' })`
@@ -232,6 +299,7 @@ export async function runOneBehavior(
       body,
       headers: headers as Record<string, unknown>,
       services,
+      state: beforeState,
     });
 
     // Step 4: Invoke the handler
@@ -259,70 +327,17 @@ export async function runOneBehavior(
       };
     }
 
-    // Step 5: Validate the response against its declared schema
-    // (safety net for handlers that don't go through ctx.respond).
-    const responseConfig = endpoint.responses[response.status];
-    if (!responseConfig) {
-      return {
-        ...baseResult,
-        status: 'failed',
-        failure: {
-          message: `Handler returned status ${response.status} which is not declared in this endpoint's responses (declared: ${Object.keys(endpoint.responses).join(', ')})`,
-          actualStatus: response.status,
-          actualBody: response.body,
-        },
-        durationMs: performance.now() - start,
-      };
-    }
-    const validation = responseConfig.schema.validate(response.body);
-    if (!validation.success) {
-      const first = validation.errors[0];
-      return {
-        ...baseResult,
-        status: 'failed',
-        failure: {
-          message: `Response body for status ${response.status} does not match declared schema: ${first?.path || '<root>'}: ${first?.message}`,
-          actualStatus: response.status,
-          actualBody: response.body,
-        },
-        durationMs: performance.now() - start,
-      };
-    }
-
-    // Step 6: Run the behavior's assertions
-    try {
-      await runAssertions(response, behavior.then, {
-        models,
-        fixtures,
-        ...(options.customMatchers ? { customMatchers: options.customMatchers } : {}),
-      });
-    } catch (err) {
-      if (err instanceof AssertionFailure) {
-        return {
-          ...baseResult,
-          status: 'failed',
-          failure: {
-            ...(err.assertion ? { assertion: err.assertion } : {}),
-            message: err.message,
-            actualStatus: response.status,
-            actualBody: response.body,
-          },
-          durationMs: performance.now() - start,
-        };
-      }
-      return {
-        ...baseResult,
-        status: 'errored',
-        failure: toFailure(err, 'Assertion execution errored'),
-        durationMs: performance.now() - start,
-      };
-    }
-
-    return {
-      ...baseResult,
-      status: 'passed',
-      durationMs: performance.now() - start,
-    };
+    // Step 5 + 6: validate the response and run assertions.
+    return await finalizeResponse({
+      baseResult,
+      endpoint,
+      response,
+      behavior,
+      models,
+      fixtures,
+      customMatchers: options.customMatchers,
+      start,
+    });
   } finally {
     if (options.teardown) {
       try {
@@ -345,6 +360,7 @@ interface CtxInputs {
   body: unknown;
   headers: Record<string, unknown>;
   services: ServiceContainer;
+  state: unknown;
 }
 
 function buildContext(
@@ -358,6 +374,7 @@ function buildContext(
     body: inputs.body,
     headers: inputs.headers,
     services: inputs.services,
+    state: inputs.state,
     respond: buildRespondMap(endpoint.responses),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as HandlerContext<any, any, any, any, ResponsesConfig>;
@@ -371,6 +388,94 @@ function toFailure(err: unknown, prefix: string): TestFailure {
     };
   }
   return { message: `${prefix}: ${String(err)}` };
+}
+
+interface FinalizeArgs {
+  baseResult: {
+    readonly endpointName: string;
+    readonly method: string;
+    readonly path: string;
+    readonly scenario: string;
+  };
+  endpoint: Endpoint;
+  response: HandlerResponse;
+  behavior: Behavior;
+  models: ModelRegistry;
+  fixtures: Fixtures;
+  customMatchers?: Record<string, CustomMatcher>;
+  start: number;
+}
+
+/**
+ * Validate a response against the endpoint's declared schemas and run
+ * the behavior's assertions. Used for both the normal handler return
+ * path AND the beforeHandler short-circuit path so the two observed
+ * the same safety net.
+ */
+async function finalizeResponse(args: FinalizeArgs): Promise<TestResult> {
+  const { baseResult, endpoint, response, behavior, models, fixtures, start } = args;
+
+  const responseConfig = endpoint.responses[response.status];
+  if (!responseConfig) {
+    return {
+      ...baseResult,
+      status: 'failed',
+      failure: {
+        message: `Handler returned status ${response.status} which is not declared in this endpoint's responses (declared: ${Object.keys(endpoint.responses).join(', ')})`,
+        actualStatus: response.status,
+        actualBody: response.body,
+      },
+      durationMs: performance.now() - start,
+    };
+  }
+  const validation = responseConfig.schema.validate(response.body);
+  if (!validation.success) {
+    const first = validation.errors[0];
+    return {
+      ...baseResult,
+      status: 'failed',
+      failure: {
+        message: `Response body for status ${response.status} does not match declared schema: ${first?.path || '<root>'}: ${first?.message}`,
+        actualStatus: response.status,
+        actualBody: response.body,
+      },
+      durationMs: performance.now() - start,
+    };
+  }
+
+  try {
+    await runAssertions(response, behavior.then, {
+      models,
+      fixtures,
+      ...(args.customMatchers ? { customMatchers: args.customMatchers } : {}),
+    });
+  } catch (err) {
+    if (err instanceof AssertionFailure) {
+      return {
+        ...baseResult,
+        status: 'failed',
+        failure: {
+          ...(err.assertion ? { assertion: err.assertion } : {}),
+          message: err.message,
+          actualStatus: response.status,
+          actualBody: response.body,
+        },
+        durationMs: performance.now() - start,
+      };
+    }
+    return {
+      ...baseResult,
+      status: 'errored',
+      failure: toFailure(err, 'Assertion execution errored'),
+      durationMs: performance.now() - start,
+    };
+  }
+
+  return {
+    ...baseResult,
+    status: 'passed',
+    durationMs: performance.now() - start,
+  };
 }
 
 function requestValidationFailure(

@@ -113,6 +113,8 @@ export interface HandlerContext<
   TBody,
   THeaders,
   TResponses extends ResponsesConfig,
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+  TBeforeState = {},
 > {
   params: InferRequestPart<TParams>;
   query: InferRequestPart<TQuery>;
@@ -120,6 +122,12 @@ export interface HandlerContext<
   headers: InferRequestPart<THeaders>;
   services: ServiceContainer;
   respond: RespondMap<TResponses>;
+  /**
+   * State produced by the endpoint's `beforeHandler`, if any. Readonly
+   * from the handler's perspective: the beforeHandler sets it once and
+   * the handler reads it. If no beforeHandler is declared, this is `{}`.
+   */
+  readonly state: Readonly<TBeforeState>;
 }
 
 // ---------------------------------------------------------------------------

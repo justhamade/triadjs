@@ -473,3 +473,78 @@ describe('triadPlugin — Fastify native prefix', () => {
     await app.close();
   });
 });
+
+describe('beforeHandler', () => {
+  it('short-circuits with a 401 without invoking the main handler', async () => {
+    let handlerCalled = false;
+    const protectedEndpoint = endpoint({
+      name: 'protected',
+      method: 'GET',
+      path: '/protected',
+      summary: 'x',
+      beforeHandler: async (ctx) => {
+        if (!ctx.rawHeaders['authorization']) {
+          return {
+            ok: false,
+            response: ctx.respond[401]({ code: 'UNAUTH', message: 'no token' }),
+          };
+        }
+        return { ok: true, state: { userId: 'u1' } };
+      },
+      responses: {
+        200: { schema: t.model('OkP', { userId: t.string() }), description: 'ok' },
+        401: { schema: ApiError, description: 'unauth' },
+      },
+      handler: async (ctx) => {
+        handlerCalled = true;
+        return ctx.respond[200]({ userId: ctx.state.userId });
+      },
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(protectedEndpoint);
+    const app = Fastify();
+    await app.register(triadPlugin, { router });
+    await app.ready();
+    const res = await app.inject({ method: 'GET', url: '/protected' });
+    expect(res.statusCode).toBe(401);
+    expect(res.json()).toMatchObject({ code: 'UNAUTH' });
+    expect(handlerCalled).toBe(false);
+    await app.close();
+  });
+
+  it('threads state into ctx.state on success', async () => {
+    const ep = endpoint({
+      name: 'whoami',
+      method: 'GET',
+      path: '/whoami',
+      summary: 'x',
+      beforeHandler: async (ctx) => {
+        if (!ctx.rawHeaders['authorization']) {
+          return {
+            ok: false,
+            response: ctx.respond[401]({ code: 'UNAUTH', message: 'no token' }),
+          };
+        }
+        return { ok: true, state: { userId: 'alice-42' } };
+      },
+      responses: {
+        200: { schema: t.model('OkW', { userId: t.string() }), description: 'ok' },
+        401: { schema: ApiError, description: 'unauth' },
+      },
+      handler: async (ctx) => ctx.respond[200]({ userId: ctx.state.userId }),
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ep);
+    const app = Fastify();
+    await app.register(triadPlugin, { router });
+    await app.ready();
+    const res = await app.inject({
+      method: 'GET',
+      url: '/whoami',
+      headers: { authorization: 'Bearer xyz' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ userId: 'alice-42' });
+    await app.close();
+  });
+});

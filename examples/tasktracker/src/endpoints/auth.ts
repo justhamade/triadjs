@@ -27,7 +27,7 @@ import {
   RegisterInput,
   User,
 } from '../schemas/user.js';
-import { ApiError, AuthHeaders } from '../schemas/common.js';
+import { ApiError } from '../schemas/common.js';
 import { requireAuth, verifyPassword } from '../auth.js';
 
 // ---------------------------------------------------------------------------
@@ -171,15 +171,13 @@ export const getMe = endpoint({
   path: '/me',
   summary: 'Return the authenticated user',
   tags: ['Auth'],
-  request: { headers: AuthHeaders },
+  beforeHandler: requireAuth,
   responses: {
     200: { schema: User, description: 'The authenticated user' },
     401: { schema: ApiError, description: 'Missing or invalid token' },
   },
   handler: async (ctx) => {
-    const auth = await requireAuth(ctx);
-    if (!auth.ok) return ctx.respond[401](auth.error);
-    return ctx.respond[200](auth.user);
+    return ctx.respond[200](ctx.state.user);
   },
   behaviors: [
     scenario('A valid token resolves to the authenticated user')

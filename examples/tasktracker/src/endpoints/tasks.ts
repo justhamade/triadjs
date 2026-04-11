@@ -1,11 +1,12 @@
 /**
  * Task endpoints — nested under /projects/:projectId.
  *
- * Every handler here first authenticates (requireAuth), then verifies
- * the parent project belongs to the authenticated user, and only then
- * operates on the child task. That's three branches of early-return
- * per handler, and the pattern repeats verbatim for create/list/patch/
- * delete — another datapoint in the "no middleware" friction column.
+ * Every protected handler uses the `requireAuth` beforeHandler to
+ * authenticate, then verifies the parent project belongs to the
+ * authenticated user, and only then operates on the child task. The
+ * authentication step is declarative (one line: `beforeHandler:
+ * requireAuth`); the project-ownership check is still a runtime helper
+ * because it's data-dependent on the `:projectId` path param.
  *
  * The list endpoint demonstrates keyset pagination. The cursor is a
  * base64-encoded copy of the last item's `createdAt` timestamp:
@@ -26,7 +27,7 @@ import { endpoint, scenario, t } from '@triad/core';
 import type { Infer } from '@triad/core';
 import { CreateTask, Task, TaskPage, UpdateTask } from '../schemas/task.js';
 import { Project } from '../schemas/project.js';
-import { ApiError, AuthHeaders } from '../schemas/common.js';
+import { ApiError } from '../schemas/common.js';
 import { requireAuth } from '../auth.js';
 
 type ProjectValue = Infer<typeof Project>;
@@ -100,8 +101,8 @@ export const createTask = endpoint({
   path: '/projects/:projectId/tasks',
   summary: 'Create a task inside a project the user owns',
   tags: ['Tasks'],
+  beforeHandler: requireAuth,
   request: {
-    headers: AuthHeaders,
     params: { projectId: t.string().format('uuid') },
     body: CreateTask,
   },
@@ -112,9 +113,7 @@ export const createTask = endpoint({
     404: { schema: ApiError, description: 'Project does not exist' },
   },
   handler: async (ctx) => {
-    const auth = await requireAuth(ctx);
-    if (!auth.ok) return ctx.respond[401](auth.error);
-    const loaded = await loadOwnedProject(ctx.services, ctx.params.projectId, auth.user.id);
+    const loaded = await loadOwnedProject(ctx.services, ctx.params.projectId, ctx.state.user.id);
     if (!loaded.ok) {
       if (loaded.status === 403) return ctx.respond[403](loaded.error);
       return ctx.respond[404](loaded.error);
@@ -186,8 +185,8 @@ export const listTasks = endpoint({
   description:
     'Tasks are returned in `createdAt` ASC order. Use the `nextCursor` field to fetch the next page. When `nextCursor` is `null`, there are no more pages.',
   tags: ['Tasks'],
+  beforeHandler: requireAuth,
   request: {
-    headers: AuthHeaders,
     params: { projectId: t.string().format('uuid') },
     query: {
       status: t
@@ -205,9 +204,7 @@ export const listTasks = endpoint({
     404: { schema: ApiError, description: 'Project does not exist' },
   },
   handler: async (ctx) => {
-    const auth = await requireAuth(ctx);
-    if (!auth.ok) return ctx.respond[401](auth.error);
-    const loaded = await loadOwnedProject(ctx.services, ctx.params.projectId, auth.user.id);
+    const loaded = await loadOwnedProject(ctx.services, ctx.params.projectId, ctx.state.user.id);
     if (!loaded.ok) {
       if (loaded.status === 403) return ctx.respond[403](loaded.error);
       return ctx.respond[404](loaded.error);
@@ -382,8 +379,8 @@ export const updateTask = endpoint({
   path: '/projects/:projectId/tasks/:taskId',
   summary: "Update a task's status",
   tags: ['Tasks'],
+  beforeHandler: requireAuth,
   request: {
-    headers: AuthHeaders,
     params: {
       projectId: t.string().format('uuid'),
       taskId: t.string().format('uuid'),
@@ -397,9 +394,7 @@ export const updateTask = endpoint({
     404: { schema: ApiError, description: 'Project or task not found' },
   },
   handler: async (ctx) => {
-    const auth = await requireAuth(ctx);
-    if (!auth.ok) return ctx.respond[401](auth.error);
-    const loaded = await loadOwnedProject(ctx.services, ctx.params.projectId, auth.user.id);
+    const loaded = await loadOwnedProject(ctx.services, ctx.params.projectId, ctx.state.user.id);
     if (!loaded.ok) {
       if (loaded.status === 403) return ctx.respond[403](loaded.error);
       return ctx.respond[404](loaded.error);
@@ -456,8 +451,8 @@ export const deleteTask = endpoint({
   path: '/projects/:projectId/tasks/:taskId',
   summary: 'Delete a task',
   tags: ['Tasks'],
+  beforeHandler: requireAuth,
   request: {
-    headers: AuthHeaders,
     params: {
       projectId: t.string().format('uuid'),
       taskId: t.string().format('uuid'),
@@ -470,9 +465,7 @@ export const deleteTask = endpoint({
     404: { schema: ApiError, description: 'Project or task not found' },
   },
   handler: async (ctx) => {
-    const auth = await requireAuth(ctx);
-    if (!auth.ok) return ctx.respond[401](auth.error);
-    const loaded = await loadOwnedProject(ctx.services, ctx.params.projectId, auth.user.id);
+    const loaded = await loadOwnedProject(ctx.services, ctx.params.projectId, ctx.state.user.id);
     if (!loaded.ok) {
       if (loaded.status === 403) return ctx.respond[403](loaded.error);
       return ctx.respond[404](loaded.error);

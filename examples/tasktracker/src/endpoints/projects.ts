@@ -1,20 +1,12 @@
 /**
  * Project endpoints.
  *
- * Every handler in this file begins with the same three-line auth
- * preamble:
- *
- * ```ts
- * const auth = await requireAuth(ctx);
- * if (!auth.ok) return ctx.respond[401](auth.error);
- * const user = auth.user;
- * ```
- *
- * That repetition is Triad's middleware-shaped gap in action. For this
- * example we accept the cost: three lines at the top of each handler
- * is visible and obviously correct. If the pattern were three times
- * longer (load tenant, compute scopes, enforce plan limits), we would
- * extract it to a helper returning a richer context object.
+ * As of Phase 10.3, auth is a declarative `beforeHandler` — every
+ * protected endpoint in this file sets `beforeHandler: requireAuth`
+ * and then reads `ctx.state.user` directly. No three-line preamble,
+ * no `authorization` header declared in the request shape, and the
+ * `requireAuth` short-circuit is type-checked against the endpoint's
+ * declared 401 response schema.
  *
  * Ownership enforcement is factored into a tiny `loadOwnedProject`
  * helper so get/delete/task-endpoints don't duplicate the 404 vs 403
@@ -28,7 +20,7 @@
 import { endpoint, scenario, t } from '@triad/core';
 import type { Infer } from '@triad/core';
 import { CreateProject, Project } from '../schemas/project.js';
-import { ApiError, AuthHeaders } from '../schemas/common.js';
+import { ApiError } from '../schemas/common.js';
 import { requireAuth } from '../auth.js';
 
 type ProjectValue = Infer<typeof Project>;
@@ -75,16 +67,15 @@ export const createProject = endpoint({
   path: '/projects',
   summary: 'Create a project owned by the authenticated user',
   tags: ['Projects'],
-  request: { headers: AuthHeaders, body: CreateProject },
+  beforeHandler: requireAuth,
+  request: { body: CreateProject },
   responses: {
     201: { schema: Project, description: 'Project created' },
     401: { schema: ApiError, description: 'Missing or invalid token' },
   },
   handler: async (ctx) => {
-    const auth = await requireAuth(ctx);
-    if (!auth.ok) return ctx.respond[401](auth.error);
     const project = await ctx.services.projectRepo.create({
-      ownerId: auth.user.id,
+      ownerId: ctx.state.user.id,
       name: ctx.body.name,
       ...(ctx.body.description !== undefined && { description: ctx.body.description }),
     });
@@ -130,15 +121,13 @@ export const listProjects = endpoint({
   summary: "List the authenticated user's projects",
   description: 'Projects are scoped to the authenticated user — a user never sees another user\'s projects.',
   tags: ['Projects'],
-  request: { headers: AuthHeaders },
+  beforeHandler: requireAuth,
   responses: {
     200: { schema: t.array(Project), description: 'Projects owned by the authenticated user' },
     401: { schema: ApiError, description: 'Missing or invalid token' },
   },
   handler: async (ctx) => {
-    const auth = await requireAuth(ctx);
-    if (!auth.ok) return ctx.respond[401](auth.error);
-    const projects = await ctx.services.projectRepo.listByOwner(auth.user.id);
+    const projects = await ctx.services.projectRepo.listByOwner(ctx.state.user.id);
     return ctx.respond[200](projects);
   },
   behaviors: [
@@ -184,8 +173,8 @@ export const getProject = endpoint({
   path: '/projects/:projectId',
   summary: 'Fetch a single project the user owns',
   tags: ['Projects'],
+  beforeHandler: requireAuth,
   request: {
-    headers: AuthHeaders,
     params: { projectId: t.string().format('uuid').doc('The project id') },
   },
   responses: {
@@ -195,9 +184,7 @@ export const getProject = endpoint({
     404: { schema: ApiError, description: 'No project with that id' },
   },
   handler: async (ctx) => {
-    const auth = await requireAuth(ctx);
-    if (!auth.ok) return ctx.respond[401](auth.error);
-    const loaded = await loadOwnedProject(ctx.services, ctx.params.projectId, auth.user.id);
+    const loaded = await loadOwnedProject(ctx.services, ctx.params.projectId, ctx.state.user.id);
     if (!loaded.ok) {
       if (loaded.status === 403) return ctx.respond[403](loaded.error);
       return ctx.respond[404](loaded.error);
@@ -284,8 +271,8 @@ export const deleteProject = endpoint({
   description:
     'Deletes the project and, via ON DELETE CASCADE on the storage schema, every task that belonged to it.',
   tags: ['Projects'],
+  beforeHandler: requireAuth,
   request: {
-    headers: AuthHeaders,
     params: { projectId: t.string().format('uuid').doc('The project id') },
   },
   responses: {
@@ -295,9 +282,7 @@ export const deleteProject = endpoint({
     404: { schema: ApiError, description: 'No project with that id' },
   },
   handler: async (ctx) => {
-    const auth = await requireAuth(ctx);
-    if (!auth.ok) return ctx.respond[401](auth.error);
-    const loaded = await loadOwnedProject(ctx.services, ctx.params.projectId, auth.user.id);
+    const loaded = await loadOwnedProject(ctx.services, ctx.params.projectId, ctx.state.user.id);
     if (!loaded.ok) {
       if (loaded.status === 403) return ctx.respond[403](loaded.error);
       return ctx.respond[404](loaded.error);

@@ -2,9 +2,14 @@ import { describe, expect, it, expectTypeOf } from 'vitest';
 import { t } from '../src/schema/index.js';
 import { endpoint } from '../src/endpoint.js';
 import { scenario } from '../src/behavior.js';
-import { buildRespondMap } from '../src/context.js';
+import { buildRespondMap, type ResponsesConfig } from '../src/context.js';
 import { ValidationException } from '../src/schema/types.js';
 import { ModelSchema } from '../src/schema/model.js';
+import {
+  invokeBeforeHandler,
+  type BeforeHandler,
+  type BeforeHandlerContext,
+} from '../src/before-handler.js';
 
 const Pet = t.model('Pet', {
   id: t.string().format('uuid').identity(),
@@ -317,6 +322,68 @@ describe('endpoint() — type inference for ctx', () => {
     expect(result.body).toBeUndefined();
   });
 
+  it('ctx.state defaults to {} when no beforeHandler is declared', () => {
+    endpoint({
+      name: 'noBeforeHandler',
+      method: 'GET',
+      path: '/t',
+      summary: 't',
+      responses: { 200: { schema: Pet, description: 'ok' } },
+      handler: async (ctx) => {
+        // ctx.state is the default empty-object type
+        expectTypeOf(ctx.state).toEqualTypeOf<Readonly<{}>>();
+        // @ts-expect-error — state has no declared properties
+        ctx.state.user;
+        return ctx.respond[200]({
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          name: 'x',
+          species: 'dog',
+          age: 1,
+        });
+      },
+    });
+  });
+
+  it('ctx.state is typed from the beforeHandler return type', () => {
+    endpoint({
+      name: 'withBeforeHandler',
+      method: 'GET',
+      path: '/t',
+      summary: 't',
+      responses: {
+        200: { schema: Pet, description: 'ok' },
+        401: { schema: ApiError, description: 'unauth' },
+      },
+      beforeHandler: async (ctx) => {
+        if (!ctx.rawHeaders['authorization']) {
+          return {
+            ok: false,
+            response: ctx.respond[401]({
+              code: 'UNAUTHENTICATED',
+              message: 'x',
+            }),
+          };
+        }
+        return {
+          ok: true,
+          state: { user: { id: 'u1', email: 'a@b.c' } },
+        };
+      },
+      handler: async (ctx) => {
+        expectTypeOf(ctx.state.user).toEqualTypeOf<{
+          id: string;
+          email: string;
+        }>();
+        return ctx.respond[200]({
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          name: ctx.state.user.email,
+          species: 'dog',
+          age: 1,
+        });
+      },
+    });
+  });
+
   it('ctx.respond only exposes declared status codes', () => {
     endpoint({
       name: 'typecheck3',
@@ -335,5 +402,98 @@ describe('endpoint() — type inference for ctx', () => {
         return ctx.respond[404]({ code: 'NOT_FOUND', message: 'missing' });
       },
     });
+  });
+});
+
+describe('endpoint() — beforeHandler runtime', () => {
+  const makeBeforeCtx = (
+    overrides: Partial<BeforeHandlerContext<typeof responses>> = {},
+  ): BeforeHandlerContext<typeof responses> => ({
+    rawHeaders: {},
+    rawQuery: {},
+    rawParams: {},
+    rawCookies: {},
+    services: {},
+    respond: buildRespondMap(responses) as never,
+    ...overrides,
+  });
+
+  const responses = {
+    200: { schema: Pet, description: 'ok' },
+    401: { schema: ApiError, description: 'unauth' },
+  } as const;
+
+  it('stores the beforeHandler on the runtime endpoint', () => {
+    const before: BeforeHandler<{ userId: string }, typeof responses> = async () => ({
+      ok: true,
+      state: { userId: 'u1' },
+    });
+    const ep = endpoint({
+      name: 'withBefore',
+      method: 'GET',
+      path: '/t',
+      summary: 't',
+      beforeHandler: before,
+      responses,
+      handler: async (ctx) =>
+        ctx.respond[200]({
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          name: ctx.state.userId,
+          species: 'dog',
+          age: 1,
+        }),
+    });
+    expect(ep.beforeHandler).toBeDefined();
+  });
+
+  it('endpoint without beforeHandler has no beforeHandler field', () => {
+    const ep = endpoint({
+      name: 'noBefore',
+      method: 'GET',
+      path: '/t',
+      summary: 't',
+      responses,
+      handler: async (ctx) =>
+        ctx.respond[200]({
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          name: 'x',
+          species: 'dog',
+          age: 1,
+        }),
+    });
+    expect(ep.beforeHandler).toBeUndefined();
+  });
+
+  it('invokeBeforeHandler returns empty success when no hook is present', async () => {
+    const result = await invokeBeforeHandler(undefined, makeBeforeCtx());
+    expect(result).toEqual({ ok: true, state: {} });
+  });
+
+  it('invokeBeforeHandler forwards the hook result on success', async () => {
+    const before: BeforeHandler<{ u: number }, typeof responses> = async () => ({
+      ok: true,
+      state: { u: 42 },
+    });
+    const result = await invokeBeforeHandler(
+      before as unknown as BeforeHandler<unknown, ResponsesConfig>,
+      makeBeforeCtx() as unknown as BeforeHandlerContext<ResponsesConfig>,
+    );
+    expect(result).toEqual({ ok: true, state: { u: 42 } });
+  });
+
+  it('invokeBeforeHandler forwards a short-circuit result unchanged', async () => {
+    const before: BeforeHandler<{ u: number }, typeof responses> = async (ctx) => ({
+      ok: false,
+      response: ctx.respond[401]({ code: 'UNAUTHENTICATED', message: 'no' }),
+    });
+    const result = await invokeBeforeHandler(
+      before as unknown as BeforeHandler<unknown, ResponsesConfig>,
+      makeBeforeCtx() as unknown as BeforeHandlerContext<ResponsesConfig>,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(401);
+      expect(result.response.body).toMatchObject({ code: 'UNAUTHENTICATED' });
+    }
   });
 });

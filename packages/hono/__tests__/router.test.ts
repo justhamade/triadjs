@@ -500,3 +500,64 @@ describe('createTriadApp — mount prefix', () => {
     expect(notFound.status).toBe(404);
   });
 });
+
+describe('beforeHandler', () => {
+  it('short-circuits with a 401 without invoking the main handler', async () => {
+    let handlerCalled = false;
+    const ep = endpoint({
+      name: 'protected',
+      method: 'GET',
+      path: '/protected',
+      summary: 'x',
+      beforeHandler: async (ctx) => {
+        if (!ctx.rawHeaders['authorization']) {
+          return {
+            ok: false,
+            response: ctx.respond[401]({ code: 'UNAUTH', message: 'no' }),
+          };
+        }
+        return { ok: true, state: { userId: 'u1' } };
+      },
+      responses: {
+        200: { schema: t.model('OkPx', { userId: t.string() }), description: 'ok' },
+        401: { schema: ApiError, description: 'unauth' },
+      },
+      handler: async (ctx) => {
+        handlerCalled = true;
+        return ctx.respond[200]({ userId: ctx.state.userId });
+      },
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ep);
+    const app = createTriadApp(router);
+    const res = await app.fetch(new Request('http://localhost/protected'));
+    expect(res.status).toBe(401);
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe('UNAUTH');
+    expect(handlerCalled).toBe(false);
+  });
+
+  it('threads state into ctx.state on success', async () => {
+    const ep = endpoint({
+      name: 'whoami',
+      method: 'GET',
+      path: '/whoami',
+      summary: 'x',
+      beforeHandler: async () => ({
+        ok: true,
+        state: { userId: 'carol-7' },
+      }),
+      responses: {
+        200: { schema: t.model('WamiH', { userId: t.string() }), description: 'ok' },
+      },
+      handler: async (ctx) => ctx.respond[200]({ userId: ctx.state.userId }),
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ep);
+    const app = createTriadApp(router);
+    const res = await app.fetch(new Request('http://localhost/whoami'));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { userId: string };
+    expect(body.userId).toBe('carol-7');
+  });
+});

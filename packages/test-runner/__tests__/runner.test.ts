@@ -460,3 +460,106 @@ describe('runBehaviors — response schema safety net', () => {
     expect(summary.results[0]?.failure?.message).toContain('does not match declared schema');
   });
 });
+
+describe('beforeHandler integration', () => {
+  it('a short-circuit response is dispatched without invoking the handler', async () => {
+    const handlerSpy = vi.fn();
+    const ep = endpoint({
+      name: 'protected',
+      method: 'GET',
+      path: '/protected',
+      summary: 'x',
+      beforeHandler: async (ctx) => {
+        if (!ctx.rawHeaders['authorization']) {
+          return {
+            ok: false,
+            response: ctx.respond[401]({
+              code: 'UNAUTHENTICATED',
+              message: 'no token',
+            }),
+          };
+        }
+        return { ok: true, state: { userId: 'u1' } };
+      },
+      responses: {
+        200: { schema: t.model('OkResult', { userId: t.string() }), description: 'ok' },
+        401: { schema: ApiError, description: 'unauth' },
+      },
+      handler: async (ctx) => {
+        handlerSpy();
+        return ctx.respond[200]({ userId: ctx.state.userId });
+      },
+      behaviors: [
+        scenario('missing auth returns 401')
+          .given('no credentials')
+          .when('GET /protected')
+          .then('response status is 401')
+          .and('response body has code "UNAUTHENTICATED"'),
+      ],
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ep);
+    const summary = await runBehaviors(router);
+    expect(summary.failed).toBe(0);
+    expect(summary.passed).toBe(1);
+    expect(handlerSpy).not.toHaveBeenCalled();
+  });
+
+  it('beforeHandler state is threaded into ctx.state for the handler', async () => {
+    const ep = endpoint({
+      name: 'whoami',
+      method: 'GET',
+      path: '/whoami',
+      summary: 'x',
+      beforeHandler: async () => ({
+        ok: true,
+        state: { userId: 'alice-123' },
+      }),
+      responses: {
+        200: { schema: t.model('Whoami', { userId: t.string() }), description: 'ok' },
+      },
+      handler: async (ctx) => ctx.respond[200]({ userId: ctx.state.userId }),
+      behaviors: [
+        scenario('state is readable from the handler')
+          .given('a beforeHandler that sets userId')
+          .when('GET /whoami')
+          .then('response status is 200')
+          .and('response body has userId "alice-123"'),
+      ],
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ep);
+    const summary = await runBehaviors(router);
+    expect(summary.failed).toBe(0);
+    expect(summary.passed).toBe(1);
+  });
+
+  it('ctx.state defaults to {} when no beforeHandler is declared', async () => {
+    let observed: unknown;
+    const ep = endpoint({
+      name: 'noHook',
+      method: 'GET',
+      path: '/no-hook',
+      summary: 'x',
+      responses: {
+        200: { schema: t.model('OkX', { ok: t.boolean() }), description: 'ok' },
+      },
+      handler: async (ctx) => {
+        observed = ctx.state;
+        return ctx.respond[200]({ ok: true });
+      },
+      behaviors: [
+        scenario('default empty state')
+          .given('no hook')
+          .when('GET /no-hook')
+          .then('response status is 200'),
+      ],
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ep);
+    const summary = await runBehaviors(router);
+    expect(summary.passed).toBe(1);
+    expect(observed).toEqual({});
+  });
+});
+
