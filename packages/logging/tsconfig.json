@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "@triad/core": ["../core/src/index.ts"]
+    },
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*", "__tests__/**/*"]
+}
