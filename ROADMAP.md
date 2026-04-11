@@ -336,9 +336,9 @@ Why Deno specifically: Supabase Edge Functions run on Deno, and the `@triad/hono
 
 ---
 
-## Phase 13 — Client-side channels (planned)
+## Phase 13 — Client-side channels ✅
 
-**Status:** Not started. Highest priority. The Phase 9 server-side channel work is a big investment that doesn't pay off until clients can consume channels as cleanly as `@triad/tanstack-query` consumes HTTP endpoints. Today, wiring up a browser client to a Triad channel means hand-writing the WebSocket URL, the message envelope, the payload types, and the reconnect logic — all of which is derivable from the `channel()` declaration.
+**Status:** Phases 13.0 and 13.1 shipped. First-message auth lives in `packages/fastify/src/channel-adapter.ts` and is wired through the `channel()` config. `@triad/channel-client` walks `router.allChannels()` and emits typed vanilla TypeScript clients with reconnect + auth strategies. Phases 13.2 (React hook), 13.3 (Solid/Vue/Svelte variants), and 13.4 (shared connections + offline queueing) remain on the backlog.
 
 ### Phase 13.0 — Server-side first-message auth
 
@@ -419,9 +419,9 @@ Built on `useSyncExternalStore` for clean React 18+ integration. Auto-disconnect
 
 ---
 
-## Phase 14 — Observability (planned)
+## Phase 14 — Observability ✅ (partial)
 
-**Status:** Not started. Currently Triad has zero story for traces, metrics, or structured logging beyond "wire up pino yourself." For a framework pitched at production, this is the biggest remaining gap after Phase 13.
+**Status:** Phase 14.1 shipped. `@triad/otel` ships as an opt-in `withOtelInstrumentation(router)` wrapper that tags spans with structured metadata from the router's own declaration (endpoint name, bounded context, status code, user id). Works uniformly across all HTTP adapters because it mutates the router before the adapter sees it. `docs/guides/observability.md` is the companion cookbook covering six backend integrations. Phases 14.2 (`@triad/metrics` Prometheus endpoint) and 14.3 (structured logging helpers) remain on the backlog.
 
 ### Phase 14.1 — `@triad/otel` — OpenTelemetry integration
 
@@ -451,9 +451,9 @@ A small wrapper that auto-decorates every log line with `{ endpoint, requestId, 
 
 ---
 
-## Phase 15 — AWS Lambda adapter (planned)
+## Phase 15 — AWS Lambda adapter ✅
 
-**Status:** Not started. Unlocks a huge chunk of enterprise deployment that currently has no Triad story.
+**Status:** Shipped. `@triad/lambda` runs a Triad router as an AWS Lambda handler — supports API Gateway v1 (REST), v2 (HTTP), Function URLs, and ALB events, all detected automatically from the event shape. Zero runtime dependencies beyond `@triad/core`, ~10.5 KB bundle, estimated ~180-250 ms cold start on ARM64 + 512 MB. Error envelope is byte-identical to the other adapters. `docs/guides/deploying-to-aws.md` is the full deployment cookbook covering Lambda, Fargate, App Runner, Beanstalk, and EC2 with SAM + CDK snippets.
 
 ### `@triad/lambda`
 
@@ -487,9 +487,9 @@ Reference implementation mirrors `@triad/express` and `@triad/hono`. ~300 lines.
 
 ---
 
-## Phase 16 — File uploads (planned)
+## Phase 16 — File uploads ✅
 
-**Status:** Not started. Every real API eventually needs file uploads. Triad has no documented pattern.
+**Status:** Shipped. `t.file()` is a first-class schema primitive with `.maxSize()`, `.minSize()`, `.mimeTypes()` constraints. All three HTTP adapters auto-detect file fields and route the request through multipart parsing: Fastify uses `@fastify/multipart`, Express uses `multer`, Hono uses the built-in `c.req.parseBody({ all: true })`. The OpenAPI generator emits `multipart/form-data` content type with `format: binary` for file fields. Error envelopes for file-related failures (too large, wrong mime type, missing required file, expected multipart) are byte-identical across all three adapters.
 
 ### `t.file()` primitive
 

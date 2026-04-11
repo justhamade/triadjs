@@ -8,6 +8,8 @@ Topical how-tos for picking adapters, ORMs, and working productively with AI cod
 - [**Choosing an ORM**](./choosing-an-orm.md) — how the Drizzle bridge works, when to skip it, and how to wire Prisma, Kysely, or raw SQL into a Triad project.
 - [**Working with AI assistants**](./working-with-ai.md) — practical setup and prompts for Claude Code, Cursor, Copilot, and Aider, plus a catalogue of common agent mistakes and how to catch them.
 - [**Triad on Supabase**](./supabase.md) — deploying a Triad API as a Supabase Edge Function on Deno, with Supabase Auth, per-request Supabase clients, RLS as defense in depth, and the memory-vs-Supabase repository split.
+- [**Deploying to AWS**](./deploying-to-aws.md) — Lambda via `@triad/lambda`, ECS Fargate, App Runner, Beanstalk, EC2. Decision matrix, SAM/CDK snippets, cold-start tuning, CI/CD patterns, and cost math for realistic workloads.
+- [**Observability**](./observability.md) — OpenTelemetry via `@triad/otel`, six backend integrations (Honeycomb, Datadog, Grafana Tempo, Jaeger, Sentry, AWS X-Ray), span reference, debugging missing spans, and what the package does NOT do.
 
 ## When to read what
 
@@ -18,6 +20,8 @@ Topical how-tos for picking adapters, ORMs, and working productively with AI cod
 | Pick an HTTP framework | [Choosing an adapter](./choosing-an-adapter.md) |
 | Decide whether to use Drizzle or something else | [Choosing an ORM](./choosing-an-orm.md) |
 | Brief an AI agent so it writes idiomatic Triad code | [Working with AI](./working-with-ai.md) |
+| Deploy to AWS (Lambda, Fargate, EC2, etc.) | [Deploying to AWS](./deploying-to-aws.md) |
+| Add traces / metrics / structured logging | [Observability](./observability.md) |
 | Understand DDD patterns (aggregates, repositories, bounded contexts) | [`docs/ddd-patterns.md`](../ddd-patterns.md) |
 | See the full schema DSL reference | [`docs/schema-dsl.md`](../schema-dsl.md) |
 | Wire Triad schemas to a Drizzle-backed database | [`docs/drizzle-integration.md`](../drizzle-integration.md) |
