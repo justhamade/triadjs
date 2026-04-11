@@ -78,17 +78,11 @@ Triad is built in phases. Each phase has a single commit boundary. Phases land i
 - Works with Fastify's native `register(plugin, { prefix })` for mount prefixing
 - `Router.isRouter()` brand check means routers from jiti-loaded modules still work
 
-### Future adapters (not yet started)
+### Additional adapters
 
-- **`@triad/express`** — Express 4/5 adapter. The adapter layer in
-  `@triad/fastify/src/adapter.ts` is intentionally thin (~150 lines) and
-  framework-neutral in principle, so this should mostly mean writing a
-  new plugin binding. Request validation, coercion, ctx.respond, and
-  error mapping all translate directly; the differences are how
-  req/res are shaped and how routing is registered.
-- **`@triad/hono`** — Hono/Edge adapter. Important for Cloudflare
-  Workers / Vercel Edge / Deno Deploy users. Blocked on nothing; would
-  follow the same pattern as the Express adapter.
+- **`@triad/express`** ✅ — Shipped. Full HTTP parity with Fastify, byte-for-byte identical error envelopes. No channel support in v1.
+- **`@triad/hono`** ✅ — Shipped. Runs on Node (via `@hono/node-server`), Cloudflare Workers, Bun, Deno, and Fastly. No channel support in v1.
+- **Koa / NestJS / `node:http`** — Not planned as first-party packages. The router is data (`router.allEndpoints()`) and each adapter is ~300 lines; rolling your own is viable. See the three existing adapters as reference implementations.
 
 ## Phase 6 — CLI ✅
 
@@ -238,15 +232,123 @@ End-to-end verified with a live two-client WebSocket smoke test:
 
 ### Deferred (Phase 9 follow-ups backlog)
 
-- **Gherkin output for channels** — `@triad/gherkin` currently only processes endpoints. Channel behaviors should produce `.feature` files too (one per bounded context containing channels). Easy follow-up.
+- **Gherkin output for channels** ✅ — Shipped in Phase 10.
 - **`triad validate` channel checks** — cross-reference `clientMessages` handlers, check that `channel_receives` / `channel_message_has` assertions reference declared server message types, warn on bounded-context leakage for channels.
 - **Multi-client scenarios in a single behavior** — the test runner's heuristic `when` parser can already recognize named clients ("`alice sends typing`"), but the fluent BDD builder doesn't have a way to express "first alice connects, then bob connects, then alice sends..." as a single scenario. A future API extension could add chained `.andThen()` steps.
 - **Typed state without the phantom witness** — the `state: {} as ChatRoomState` pattern works but is a little awkward. A TypeScript improvement to partial generic inference (or a future Triad helper like `channel.withState<T>()`) could clean this up.
+- **`beforeHandler` for channels** — channels in v1 do auth inside `onConnect`. Lifting the `beforeHandler` extension point to channels would let the same `requireAuth` helper work for both HTTP and WebSocket.
+
+---
+
+## Phase 10 — Tasktracker gap fixes ✅
+
+**Status:** Shipped across four sub-phases driven by ergonomic gaps the tasktracker example surfaced.
+
+- **Phase 10.1** — `null` literal support in the behavior assertion parser
+- **Phase 10.2** — `t.empty()` first-class primitive for 204/205/304 responses. OpenAPI omits `content`, adapters omit `Content-Type`, `ctx.respond[204]()` takes zero args
+- **Phase 10.3** — `beforeHandler` extension point on `endpoint()`. Singular (not an array), runs before request validation, short-circuit or typed `ctx.state`. Tasktracker refactored to use it; ~35 lines of auth boilerplate deleted
+- **Phase 10.4** — `checkOwnership` helper in `@triad/core` with discriminated `not_found | forbidden` result. Shared ownership pattern documented in `docs/ddd-patterns.md §7`
+
+---
+
+## Phase 11 — Frontend codegen (planned)
+
+**Status:** Not started. High priority because the "one source of truth" story is incomplete until the frontend can consume Triad schemas as cleanly as the backend produces them.
+
+The goal is to close the loop: a Triad router on the backend should generate ready-to-use TypeScript code on the frontend with zero manual API client work. Every schema, endpoint, and response type flows through — change a field on the server, the frontend compile errors point exactly where.
+
+### `@triad/tanstack-query` — React Query / TanStack Query codegen
+
+Generate fully-typed TanStack Query hooks from a Triad router. For each endpoint:
+
+```ts
+// Generated from POST /books
+export function useCreateBook(
+  options?: UseMutationOptions<Book, ApiError, CreateBook>
+): UseMutationResult<Book, ApiError, CreateBook>;
+
+// Generated from GET /books
+export function useListBooks(
+  params: ListBooksParams,
+  options?: UseQueryOptions<BookPage, ApiError>
+): UseQueryResult<BookPage, ApiError>;
+
+// Generated from GET /books/:bookId
+export function useBook(
+  bookId: string,
+  options?: UseQueryOptions<Book, ApiError>
+): UseQueryResult<Book, ApiError>;
+```
+
+Scope for v1:
+- `triad frontend generate --target tanstack-query --output ./client` command
+- Walks `router.allEndpoints()` and emits one hook file per endpoint
+- Types derived from existing Triad schemas (no Zod duplication; reuse the `Infer<>` output)
+- Sensible query key strategy (`['books', bookId]` for GET `/books/:bookId`, `['books', 'list', params]` for list)
+- Automatic invalidation helpers (deleting a book invalidates the list query)
+- Works with any HTTP client; ships with a tiny default `fetch`-based one but accepts a custom client via options
+- Strict TypeScript — hooks are fully typed from the Triad schema
+
+Scope for later:
+- Vanilla TanStack Query (not React-specific)
+- Solid Query / Vue Query / Svelte Query variants
+- Suspense-mode hooks
+- Prefetch helpers for SSR / Next.js
+- Mutation optimistic update helpers
+
+Reference implementation: likely a new package `@triad/tanstack-query` with a generator module plus a small runtime, mirroring the `@triad/drizzle` bridge pattern.
+
+### Future frontend targets
+
+- **`@triad/trpc`-ish vanilla client** — just typed fetch wrappers, no framework dependency
+- **`@triad/openapi-ts`** — integration with `openapi-ts` for users who want a classical OpenAPI client instead of Triad-native
+- **GraphQL schema generator** — optional; lets Triad APIs double as GraphQL backends via schema stitching
+
+---
+
+## Phase 12 — Supabase + Deno integration (planned)
+
+**Status:** Not started. Supabase is the most popular "Firebase-alternative" stack among indie and small-team TypeScript developers, and its Edge Functions run on Deno. Triad should have first-class docs and an example for this combination.
+
+Goals:
+
+1. **Example: `examples/supabase-edge`** — a Triad API deployed as a Supabase Edge Function running on Deno Deploy. Uses the existing `@triad/hono` adapter (Hono runs on Deno natively) plus Supabase's Deno runtime.
+2. **Docs: `docs/guides/supabase.md`** — how to wire Triad into a Supabase project:
+   - Service injection receives the Supabase client (`createClient(supabaseUrl, supabaseKey)`) instead of a Drizzle connection
+   - Repositories use `supabase.from('books').select(...)` instead of `db.select().from(books)`
+   - Auth integrates with Supabase Auth — `requireAuth` beforeHandler validates the JWT in `Authorization: Bearer <supabase_jwt>` via `supabase.auth.getUser(token)`
+   - Row-Level Security (RLS) policies layered under Triad's application-level checks (belt and braces)
+   - Realtime: `supabase.channel('books').on(...)` as the broadcast layer for a Triad channel
+3. **Cookbook entries** for common Supabase patterns:
+   - Using Supabase Storage from a Triad handler
+   - Triggering database functions / RPC from endpoints
+   - Scheduling with Supabase Cron + Triad endpoints
+
+Non-goals:
+- **No `@triad/supabase` package** — Supabase isn't an ORM, and the existing repository pattern already accommodates it. Ship docs + an example, not a new package.
+- **No automatic RLS policy generation from Triad schemas** — interesting idea for a later phase, but out of scope for v1.
+
+Why Deno specifically: Supabase Edge Functions run on Deno, and the `@triad/hono` adapter already supports Deno. Triad's ESM-only output and lack of Node built-ins (except where adapters pull them in) means core + hono work on Deno unchanged. The example validates that claim.
 
 ---
 
 ## Documentation
 
-- [`docs/ddd-patterns.md`](docs/ddd-patterns.md) — How Triad integrates with DDD patterns (repositories, aggregates, domain services, factories, sagas)
-- [`docs/drizzle-integration.md`](docs/drizzle-integration.md) — Recommended data layer integration with Drizzle ORM
-- [`docs/phase-9-websockets.md`](docs/phase-9-websockets.md) — WebSocket support design spec
+Start at [`docs/README.md`](docs/README.md) — the index that organizes everything below by what you're trying to do.
+
+**Learn by building**
+- [`docs/tutorial/`](docs/tutorial/) — Progressive 7-step tutorial building the Bookshelf app from hello-world to production-ready
+
+**Pick your stack**
+- [`docs/guides/choosing-an-adapter.md`](docs/guides/choosing-an-adapter.md) — Fastify vs Express vs Hono
+- [`docs/guides/choosing-an-orm.md`](docs/guides/choosing-an-orm.md) — Drizzle (default), Prisma, Kysely, or raw SQL
+
+**Work with AI**
+- [`docs/guides/working-with-ai.md`](docs/guides/working-with-ai.md) — Prompt library + how to use the AI Agent Guide
+- [`docs/ai-agent-guide.md`](docs/ai-agent-guide.md) — Canonical source-grounded reference for Claude Code, Cursor, Copilot, Aider
+
+**Reference**
+- [`docs/schema-dsl.md`](docs/schema-dsl.md) — Schema DSL primitive reference
+- [`docs/ddd-patterns.md`](docs/ddd-patterns.md) — DDD integration (repositories, aggregates, domain services, factories, sagas, ownership)
+- [`docs/drizzle-integration.md`](docs/drizzle-integration.md) — Drizzle bridge details
+- [`docs/phase-9-websockets.md`](docs/phase-9-websockets.md) — WebSocket channel design spec
