@@ -11,7 +11,9 @@ Triad is a TypeScript-first API framework built on the idea that an API's *speci
 - **OpenAPI 3.1** documentation for HTTP endpoints
 - **AsyncAPI 3.0** documentation for WebSocket channels
 - **Executable BDD scenarios** that run as tests (`triad test`)
+- **Automatic adversarial tests** derived from your schema constraints (`scenario.auto()`)
 - **Gherkin `.feature` files** generated for non-technical stakeholders
+- **Typed frontend hooks** for React Query, Solid Query, Vue Query, Svelte Query (`triad frontend generate`)
 - **Database schemas** via a dialect-neutral Drizzle bridge (`triad db generate`)
 
 No codegen round-trips. No hand-maintained OpenAPI YAML. No duplicate Zod + OpenAPI + test-fixture schemas that fall out of sync.
@@ -51,6 +53,10 @@ const createPet = endpoint({
       .when('POST /pets', { body: { name: 'Rex', species: 'dog', age: 3 } })
       .then('status is 201')
       .and('response body matches { name: "Rex", species: "dog" }'),
+
+    // One line — the framework generates ~20 boundary/adversarial
+    // tests from the schema constraints you already declared above.
+    ...scenario.auto(),
   ],
 });
 
@@ -60,12 +66,16 @@ router.add(createPet);
 
 From this single file:
 
-- `triad test` runs the scenario as a real test against your handler
+- `triad test` runs your hand-written scenario AND the auto-generated boundary tests
+- `triad fuzz` generates adversarial tests for every endpoint without touching any file
 - `triad docs` emits `openapi.yaml`
 - `triad gherkin` emits `features/pets.feature`
+- `triad frontend generate` emits typed React/Solid/Vue/Svelte Query hooks
 - `ctx.body` is fully typed — `{ name: string; species: 'dog' | 'cat' | ... }`
 
-For WebSocket channels, `channel()` works the same way and produces AsyncAPI.
+`scenario.auto()` reads `minLength(1)`, `max(100)`, `enum('dog', 'cat')` and generates missing-field, boundary-value, invalid-enum, type-confusion, and random-fuzzing scenarios automatically. You write the business logic tests; the framework generates the boundary tests.
+
+For WebSocket channels, `channel()` works the same way and produces AsyncAPI + typed client libraries.
 
 ---
 
@@ -73,14 +83,28 @@ For WebSocket channels, `channel()` works the same way and produces AsyncAPI.
 
 | Package | Purpose |
 |---|---|
-| [`@triad/core`](packages/core) | Schema DSL, `endpoint()`, `channel()`, `scenario()`, `createRouter()` |
+| [`@triad/core`](packages/core) | Schema DSL, `endpoint()`, `channel()`, `scenario()`, `scenario.auto()`, `createRouter()` |
 | [`@triad/openapi`](packages/openapi) | Router → OpenAPI 3.1 (YAML/JSON) |
 | [`@triad/asyncapi`](packages/asyncapi) | Router → AsyncAPI 3.0 (YAML/JSON) |
 | [`@triad/gherkin`](packages/gherkin) | Behaviors → `.feature` files |
-| [`@triad/test-runner`](packages/test-runner) | In-process BDD runner for HTTP endpoints and WebSocket channels |
+| [`@triad/test-runner`](packages/test-runner) | In-process BDD runner + schema-derived auto-scenario generation |
 | [`@triad/fastify`](packages/fastify) | Fastify HTTP + WebSocket adapter |
-| [`@triad/drizzle`](packages/drizzle) | Triad schemas → Drizzle tables (SQLite + Postgres) |
-| [`@triad/cli`](packages/cli) | `triad test`, `triad docs`, `triad db generate`, `triad validate` |
+| [`@triad/express`](packages/express) | Express HTTP adapter |
+| [`@triad/hono`](packages/hono) | Hono adapter (Node, Deno, Bun, Cloudflare Workers) |
+| [`@triad/lambda`](packages/lambda) | AWS Lambda adapter (API Gateway v1/v2, ALB, Function URL) |
+| [`@triad/drizzle`](packages/drizzle) | Triad schemas → Drizzle tables + SQL migrations (SQLite, Postgres, MySQL) |
+| [`@triad/tanstack-query`](packages/tanstack-query) | Router → typed React Query hooks |
+| [`@triad/solid-query`](packages/solid-query) | Router → typed Solid Query hooks |
+| [`@triad/vue-query`](packages/vue-query) | Router → typed Vue Query composables |
+| [`@triad/svelte-query`](packages/svelte-query) | Router → typed Svelte Query store factories |
+| [`@triad/channel-client`](packages/channel-client) | Router → typed WebSocket clients (vanilla TS, React, Solid, Vue, Svelte) |
+| [`@triad/forms`](packages/forms) | Router → form validators (react-hook-form, @tanstack/form) |
+| [`@triad/jwt`](packages/jwt) | `requireJWT` BeforeHandler factory wrapping jose |
+| [`@triad/otel`](packages/otel) | OpenTelemetry tracing (opt-in router wrapper) |
+| [`@triad/metrics`](packages/metrics) | Prometheus metrics (opt-in router wrapper) |
+| [`@triad/logging`](packages/logging) | Structured logging with AsyncLocalStorage (opt-in router wrapper) |
+| [`@triad/security-headers`](packages/security-headers) | Security headers middleware (Fastify, Express, Hono) |
+| [`@triad/cli`](packages/cli) | `triad test`, `triad fuzz`, `triad docs`, `triad new`, `triad mock`, `triad db`, `triad validate`, `triad frontend` |
 
 ---
 
@@ -105,27 +129,30 @@ Start at the **[docs index](docs/README.md)** — it points at everything below 
 **Project**
 - [**Roadmap**](ROADMAP.md) · [**Contributing**](CONTRIBUTING.md) · [**Code of Conduct**](CODE_OF_CONDUCT.md) · [**License**](LICENSE)
 
-Two reference implementations live under [`examples/`](examples) — [`petstore`](examples/petstore) (Fastify + channels) and [`tasktracker`](examples/tasktracker) (Express + auth + pagination). Read their source for the most honest picture of idiomatic Triad.
+Four reference implementations live under [`examples/`](examples) — [`petstore`](examples/petstore) (Fastify + channels), [`tasktracker`](examples/tasktracker) (Express + auth + pagination), [`bookshelf`](examples/bookshelf) (all features combined — the tutorial's final state), and [`supabase-edge`](examples/supabase-edge) (Hono + Supabase + Deno edge deployment). Each has both in-process behavior tests and real HTTP/WebSocket e2e tests.
 
 ---
 
 ## Status
 
-Triad is **pre-1.0** and under active development. The core is feature-complete through Phase 9:
+Triad is **pre-1.0** and under active development. Feature-complete through Phase 26:
 
-- ✅ Schema DSL with full DDD composition
-- ✅ Endpoint + router + behavior builder
-- ✅ OpenAPI 3.1 generator
-- ✅ Gherkin generator
-- ✅ In-process BDD test runner
-- ✅ CLI (`triad test`, `triad docs`, `triad db generate`, `triad validate`)
-- ✅ Fastify HTTP adapter
-- ✅ Drizzle bridge (SQLite + Postgres dialects)
-- ✅ WebSocket channels with AsyncAPI + channel test runner
+- ✅ Schema DSL with full DDD composition (`t.model`, `t.value`, `t.file`, 14 primitive types)
+- ✅ Endpoint + router + `beforeHandler` auth extension + `checkOwnership` helper
+- ✅ `scenario.auto()` — schema-derived adversarial test generation (missing fields, boundary values, type confusion, random fuzzing)
+- ✅ OpenAPI 3.1 + AsyncAPI 3.0 generators
+- ✅ Gherkin generator (HTTP + channels)
+- ✅ In-process BDD test runner + `triad fuzz` CLI fuzzer + `triad validate --coverage` linter
+- ✅ Four HTTP adapters: Fastify (+ channels), Express, Hono (edge runtimes), Lambda (AWS)
+- ✅ Drizzle bridge with SQL migration codegen (SQLite, Postgres, MySQL)
+- ✅ Frontend codegen: TanStack Query, Solid Query, Vue Query, Svelte Query, form validators, typed WebSocket clients
+- ✅ Observability: OpenTelemetry tracing, Prometheus metrics, structured logging (all opt-in router wrappers)
+- ✅ Auth: `@triad/jwt` with JWKS/HS256 + security headers middleware
+- ✅ Developer tooling: `triad new` scaffolding, `triad mock` server, `triad docs check` breaking-change detection
 
-**459 tests passing across 8 packages.** APIs may still shift before 1.0 — pin exact versions if you adopt early.
+**21 packages, 4 reference examples, 83 behavior scenarios, 1000+ unit/integration/property tests.** APIs may still shift before 1.0 — pin exact versions if you adopt early.
 
-See [ROADMAP.md](ROADMAP.md) for phase-by-phase detail and the backlog (Express/Hono adapters, MySQL dialect, migration codegen, more).
+See [ROADMAP.md](ROADMAP.md) for phase-by-phase detail.
 
 ---
 
@@ -139,10 +166,14 @@ Most TypeScript API stacks stitch together four or five libraries to get what Tr
 | Static types | `z.infer<>` | `t.infer<>` |
 | OpenAPI | `zod-to-openapi` + hand edits | `triad docs` |
 | BDD tests | Cucumber + step defs + fixtures | `scenario().when().then()` |
+| Boundary/fuzz tests | Schemathesis (external, Python) | `scenario.auto()` (built-in, zero-config) |
+| Frontend hooks | hand-written fetch wrappers | `triad frontend generate` |
+| WebSocket clients | hand-written WS wrappers | `triad frontend generate --target channel-client-react` |
 | WebSocket docs | hand-written AsyncAPI | `triad docs` |
 | DB schema | Drizzle (separate definitions) | `triad db generate` |
+| Breaking-change detection | manual OpenAPI diff | `triad docs check` |
 
-The point isn't just fewer dependencies — it's that a change to a schema is **impossible** to forget to propagate, because there is nothing to propagate to.
+The point isn't just fewer dependencies — it's that a change to a schema is **impossible** to forget to propagate, because there is nothing to propagate to. And the boundary tests you'd never think to write? The framework writes them for you from the constraints you already declared.
 
 ---
 

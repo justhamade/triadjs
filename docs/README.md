@@ -53,6 +53,7 @@ Use this table when you're not sure which doc to read.
 |---|---|
 | Build my first Triad app | [Tutorial step 1](tutorial/01-hello-world.md) |
 | Understand the scenario DSL | [Tutorial step 3](tutorial/03-testing.md) or [AI Agent Guide §5](ai-agent-guide.md) |
+| Auto-generate boundary/fuzz tests | [AI Agent Guide §5.8](ai-agent-guide.md) — `scenario.auto()` + `triad fuzz` |
 | Add auth to an existing app | [Tutorial step 5](tutorial/05-authentication.md) |
 | Pick a server framework | [Choosing an adapter](guides/choosing-an-adapter.md) |
 | Use a database that isn't Drizzle | [Choosing an ORM](guides/choosing-an-orm.md) |
@@ -64,10 +65,12 @@ Use this table when you're not sure which doc to read.
 
 ## Reference implementations
 
-Two full example apps live under `examples/` in the repo. Read their source for the most honest picture of what idiomatic Triad looks like.
+Four example apps live under `examples/` in the repo. Read their source for the most honest picture of what idiomatic Triad looks like.
 
-- **[`examples/petstore`](../examples/petstore)** — Fastify + Drizzle + SQLite + WebSocket chat channel. Three bounded contexts, value objects, DDD repositories, and 16 scenarios. This is the first and most complete example.
-- **[`examples/tasktracker`](../examples/tasktracker)** — Express + Drizzle + bearer-token auth + cursor pagination + ownership checks. 27 scenarios. This example deliberately exercises features the petstore doesn't — use it as a reference for auth and pagination patterns.
+- **[`examples/petstore`](../examples/petstore)** — Fastify + Drizzle + SQLite + WebSocket chat channel. Three bounded contexts, value objects, DDD repositories. 16 behavior scenarios + 21 e2e tests.
+- **[`examples/tasktracker`](../examples/tasktracker)** — Express + Drizzle + bearer-token auth + cursor pagination + ownership checks. 27 scenarios + 21 e2e tests.
+- **[`examples/bookshelf`](../examples/bookshelf)** — Fastify + Drizzle + auth + channels + pagination. The tutorial's final state — all features in one app. 21 scenarios + 19 e2e tests.
+- **[`examples/supabase-edge`](../examples/supabase-edge)** — Hono + Supabase + Deno edge deployment. Supabase Auth, per-request client injection, repository split (memory for tests, Supabase for production). 19 scenarios + 13 e2e tests.
 
 ## Contributing to the docs
 

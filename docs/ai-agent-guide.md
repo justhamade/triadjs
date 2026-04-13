@@ -934,6 +934,52 @@ scenario('A subsequent page picks up where the cursor left off')
   .and('response body has items.length 5');
 ```
 
+### 5.8 `scenario.auto()` — schema-derived adversarial tests
+
+Add one line to any endpoint's behaviors array and the framework generates boundary, missing-field, invalid-enum, type-confusion, and random-fuzzing scenarios from the schema constraints you already declared:
+
+```ts
+behaviors: [
+  // Your business-logic scenarios (you know the domain rules)
+  scenario('creates a pet with valid data')
+    .body({ name: 'Rex', species: 'dog', age: 3 })
+    .when('I create a pet')
+    .then('response status is 201'),
+
+  // Framework-generated boundary scenarios (reads your schema constraints)
+  ...scenario.auto(),
+]
+```
+
+What `scenario.auto()` generates (all derived from the schema, zero manual work):
+
+| Category | What it tests | Example |
+|---|---|---|
+| `[auto:missing]` | One per required field, that field removed | `name` missing → 400 |
+| `[auto:boundary]` | ±1 at every `min`/`max`/`minLength`/`maxLength` | `age: -1` when `min(0)` → 400 |
+| `[auto:enum]` | One per enum field with an invalid value | `species: 'lizard'` → 400 |
+| `[auto:type]` | One per field with the wrong JS type | `age: "not a number"` → 400 |
+| `[auto:valid]` | N random valid inputs via fast-check | random valid body → not 500 |
+
+Auto `rejected` scenarios assert `status === 400` + `VALIDATION_ERROR` envelope.
+Auto `accepted` scenarios assert the status is one of the endpoint's declared codes (never 500).
+
+**Configuration:**
+```ts
+...scenario.auto()                          // all categories, 10 random
+...scenario.auto({ randomValid: 0 })        // deterministic only (no fast-check needed)
+...scenario.auto({ boundaries: false })      // skip boundary tests
+...scenario.auto({ seed: 42 })              // reproducible random generation
+```
+
+**CLI alternatives** (no code changes needed):
+- `triad fuzz` — generates auto scenarios for every endpoint in the router, good for CI gates
+- `triad validate --coverage` — warns about missing boundary coverage without running tests
+
+> TIP: `scenario.auto()` generates boundary tests; you write business-logic tests. The two are complementary — the framework catches what you'd never think to test (`name: ""` at `minLength(1)`), and you catch what the framework can't know (duplicate names should be rejected).
+
+> GOTCHA: `fast-check` is an optional peer dep. When not installed, the `[auto:valid]` random category is silently skipped. All deterministic categories (missing, boundary, enum, type) work without it.
+
 ---
 
 ## 6. Services + Dependency Injection
