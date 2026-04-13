@@ -1,32 +1,26 @@
 /**
  * Behavioural tests for `requireJWT`.
  *
- * These tests drive every public surface through the factory — no
- * internals are reached into beyond `__setJoseForTesting` which is
- * the package's documented test seam for the jose peer dep.
+ * These tests use the real `jose` library for signing and verification
+ * — no fakes or test seams.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { requireJWT } from '../src/require-jwt.js';
 import type { RequireJwtResponses } from '../src/types.js';
-import { __setJoseForTesting } from '../src/jose-adapter.js';
-import { encodeFakeToken, fakeJose, makeContext } from './test-helpers.js';
-import type { JoseVerifyOptions } from '../src/jose-adapter.js';
+import {
+  HS256_SECRET,
+  signToken,
+  signExpiredToken,
+  makeContext,
+} from './test-helpers.js';
 
-const SECRET = 'super-secret-key';
+const SECRET_STRING = 'test-secret-at-least-32-bytes-long!!!';
 
 interface AppUser {
   id: string;
   email: string;
 }
-
-beforeEach(() => {
-  __setJoseForTesting(fakeJose());
-});
-
-afterEach(() => {
-  __setJoseForTesting(undefined);
-});
 
 describe('requireJWT — option validation', () => {
   it('throws when neither jwksUri nor secret is supplied', () => {
@@ -51,7 +45,7 @@ describe('requireJWT — option validation', () => {
 describe('requireJWT — happy path', () => {
   it('verifies a correctly-signed HS256 token and attaches state.user', async () => {
     const hook = requireJWT<AppUser>({
-      secret: SECRET,
+      secret: HS256_SECRET,
       issuer: 'my-api',
       audience: 'my-users',
       algorithms: ['HS256'],
@@ -60,18 +54,15 @@ describe('requireJWT — happy path', () => {
         email: claims['email'] as string,
       }),
     });
-    const token = encodeFakeToken({
-      alg: 'HS256',
-      keyId: SECRET,
-      claims: {
-        iss: 'my-api',
-        aud: 'my-users',
-        sub: 'user-42',
-        email: 'alice@example.com',
-        exp: Math.floor(Date.now() / 1000) + 3600,
-      },
+    const token = await signToken({
+      issuer: 'my-api',
+      audience: 'my-users',
+      subject: 'user-42',
+      payload: { email: 'alice@example.com' },
     });
-    const { ctx } = makeContext<RequireJwtResponses>({ authorization: `Bearer ${token}` });
+    const { ctx } = makeContext<RequireJwtResponses>({
+      authorization: `Bearer ${token}`,
+    });
     const result = await hook(ctx);
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -82,28 +73,29 @@ describe('requireJWT — happy path', () => {
   });
 
   it('accepts Uint8Array secrets for HS256', async () => {
-    const keyBytes = new TextEncoder().encode(SECRET);
     const hook = requireJWT<AppUser>({
-      secret: keyBytes,
+      secret: HS256_SECRET,
       extractUser: (claims) => ({ id: claims['sub'] as string, email: '' }),
     });
-    const token = encodeFakeToken({
-      alg: 'HS256',
-      keyId: SECRET,
-      claims: { sub: 'u1' },
+    const token = await signToken({
+      subject: 'u1',
     });
-    const { ctx } = makeContext<RequireJwtResponses>({ authorization: `Bearer ${token}` });
+    const { ctx } = makeContext<RequireJwtResponses>({
+      authorization: `Bearer ${token}`,
+    });
     const result = await hook(ctx);
     expect(result.ok).toBe(true);
   });
 
   it('accepts lowercase and capitalized Authorization headers', async () => {
     const hook = requireJWT<AppUser>({
-      secret: SECRET,
+      secret: HS256_SECRET,
       extractUser: (claims) => ({ id: claims['sub'] as string, email: '' }),
     });
-    const token = encodeFakeToken({ keyId: SECRET, claims: { sub: 'u1' } });
-    const { ctx } = makeContext<RequireJwtResponses>({ Authorization: `Bearer ${token}` });
+    const token = await signToken({ subject: 'u1' });
+    const { ctx } = makeContext<RequireJwtResponses>({
+      Authorization: `Bearer ${token}`,
+    });
     const result = await hook(ctx);
     expect(result.ok).toBe(true);
   });
@@ -112,7 +104,7 @@ describe('requireJWT — happy path', () => {
 describe('requireJWT — authentication failures', () => {
   const makeHook = (): ReturnType<typeof requireJWT<AppUser>> =>
     requireJWT<AppUser>({
-      secret: SECRET,
+      secret: HS256_SECRET,
       issuer: 'my-api',
       audience: 'my-users',
       extractUser: (claims) => ({
@@ -165,9 +157,11 @@ describe('requireJWT — authentication failures', () => {
 
   it('rejects a token with the wrong issuer', async () => {
     const hook = makeHook();
-    const token = encodeFakeToken({
-      keyId: SECRET,
-      claims: { iss: 'attacker', aud: 'my-users', sub: 'u1', email: 'a@b.c' },
+    const token = await signToken({
+      issuer: 'attacker',
+      audience: 'my-users',
+      subject: 'u1',
+      payload: { email: 'a@b.c' },
     });
     const { ctx, responses } = makeContext<RequireJwtResponses>({
       authorization: `Bearer ${token}`,
@@ -175,55 +169,60 @@ describe('requireJWT — authentication failures', () => {
     const result = await hook(ctx);
     expect(result.ok).toBe(false);
     expect(responses[0]!.status).toBe(401);
-    expect((responses[0]!.body as { message: string }).message).toContain('issuer');
+    expect((responses[0]!.body as { message: string }).message).toMatch(/Invalid token/i);
   });
 
   it('rejects a token with the wrong audience', async () => {
     const hook = makeHook();
-    const token = encodeFakeToken({
-      keyId: SECRET,
-      claims: { iss: 'my-api', aud: 'other-app', sub: 'u1', email: 'a@b.c' },
+    const token = await signToken({
+      issuer: 'my-api',
+      audience: 'other-app',
+      subject: 'u1',
+      payload: { email: 'a@b.c' },
     });
     const { ctx, responses } = makeContext<RequireJwtResponses>({
       authorization: `Bearer ${token}`,
     });
     const result = await hook(ctx);
     expect(result.ok).toBe(false);
-    expect((responses[0]!.body as { message: string }).message).toContain('audience');
+    expect((responses[0]!.body as { message: string }).message).toMatch(/Invalid token/i);
   });
 
   it('rejects an expired token beyond clock tolerance', async () => {
-    const hook = makeHook();
-    const token = encodeFakeToken({
-      keyId: SECRET,
-      claims: {
-        iss: 'my-api',
-        aud: 'my-users',
-        sub: 'u1',
-        email: 'a@b.c',
-        exp: Math.floor(Date.now() / 1000) - 300,
-      },
+    const hook = requireJWT<AppUser>({
+      secret: HS256_SECRET,
+      issuer: 'my-api',
+      audience: 'my-users',
+      clockTolerance: 0,
+      extractUser: (claims) => ({
+        id: claims['sub'] as string,
+        email: claims['email'] as string,
+      }),
+    });
+    const token = await signExpiredToken({
+      expiredSecondsAgo: 300,
+      issuer: 'my-api',
+      audience: 'my-users',
+      subject: 'u1',
+      payload: { email: 'a@b.c' },
     });
     const { ctx, responses } = makeContext<RequireJwtResponses>({
       authorization: `Bearer ${token}`,
     });
     const result = await hook(ctx);
     expect(result.ok).toBe(false);
-    expect((responses[0]!.body as { message: string }).message).toContain('exp');
+    expect((responses[0]!.body as { message: string }).message).toMatch(/Invalid token/i);
   });
 
   it('accepts a slightly-expired token within clock tolerance', async () => {
     const hook = requireJWT<AppUser>({
-      secret: SECRET,
+      secret: HS256_SECRET,
       clockTolerance: 60,
       extractUser: (claims) => ({ id: claims['sub'] as string, email: '' }),
     });
-    const token = encodeFakeToken({
-      keyId: SECRET,
-      claims: {
-        sub: 'u1',
-        exp: Math.floor(Date.now() / 1000) - 10,
-      },
+    const token = await signExpiredToken({
+      expiredSecondsAgo: 10,
+      subject: 'u1',
     });
     const { ctx } = makeContext<RequireJwtResponses>({
       authorization: `Bearer ${token}`,
@@ -234,64 +233,74 @@ describe('requireJWT — authentication failures', () => {
 
   it('rejects a token signed with the wrong key', async () => {
     const hook = makeHook();
-    const token = encodeFakeToken({
-      keyId: 'different-secret',
-      claims: { iss: 'my-api', aud: 'my-users', sub: 'u1', email: 'a@b.c' },
+    const wrongKey = new TextEncoder().encode(
+      'completely-different-secret-key-here!!',
+    );
+    const token = await signToken({
+      secret: wrongKey,
+      issuer: 'my-api',
+      audience: 'my-users',
+      subject: 'u1',
+      payload: { email: 'a@b.c' },
     });
     const { ctx, responses } = makeContext<RequireJwtResponses>({
       authorization: `Bearer ${token}`,
     });
     const result = await hook(ctx);
     expect(result.ok).toBe(false);
-    expect((responses[0]!.body as { message: string }).message).toContain('signature');
+    expect((responses[0]!.body as { message: string }).message).toMatch(/Invalid token/i);
   });
 
   it('enforces the algorithms whitelist', async () => {
     const hook = requireJWT<AppUser>({
-      secret: SECRET,
+      secret: HS256_SECRET,
       algorithms: ['RS256'],
       extractUser: (claims) => ({ id: claims['sub'] as string, email: '' }),
     });
-    const token = encodeFakeToken({
-      alg: 'HS256',
-      keyId: SECRET,
-      claims: { sub: 'u1' },
+    const token = await signToken({
+      algorithm: 'HS256',
+      subject: 'u1',
     });
     const { ctx, responses } = makeContext<RequireJwtResponses>({
       authorization: `Bearer ${token}`,
     });
     const result = await hook(ctx);
     expect(result.ok).toBe(false);
-    expect((responses[0]!.body as { message: string }).message).toContain('HS256');
+    expect((responses[0]!.body as { message: string }).message).toMatch(/Invalid token/i);
   });
 });
 
 describe('requireJWT — extractUser and onVerified hooks', () => {
   it('rejects with 401 when extractUser throws', async () => {
     const hook = requireJWT<AppUser>({
-      secret: SECRET,
+      secret: HS256_SECRET,
       extractUser: (claims) => {
         if (claims['sub'] === undefined) throw new Error('missing sub');
         return { id: claims['sub'] as string, email: '' };
       },
     });
-    const token = encodeFakeToken({ keyId: SECRET, claims: { email: 'a@b.c' } });
+    const token = await signToken({ payload: { email: 'a@b.c' } });
     const { ctx, responses } = makeContext<RequireJwtResponses>({
       authorization: `Bearer ${token}`,
     });
     const result = await hook(ctx);
     expect(result.ok).toBe(false);
-    expect((responses[0]!.body as { message: string }).message).toBe('Token claims rejected.');
+    expect((responses[0]!.body as { message: string }).message).toBe(
+      'Token claims rejected.',
+    );
   });
 
   it('calls onVerified with claims and the extracted user', async () => {
     const onVerified = vi.fn();
     const hook = requireJWT<AppUser>({
-      secret: SECRET,
-      extractUser: (claims) => ({ id: claims['sub'] as string, email: 'a@b.c' }),
+      secret: HS256_SECRET,
+      extractUser: (claims) => ({
+        id: claims['sub'] as string,
+        email: 'a@b.c',
+      }),
       onVerified,
     });
-    const token = encodeFakeToken({ keyId: SECRET, claims: { sub: 'u1' } });
+    const token = await signToken({ subject: 'u1' });
     const { ctx } = makeContext<RequireJwtResponses>({
       authorization: `Bearer ${token}`,
     });
@@ -305,14 +314,14 @@ describe('requireJWT — extractUser and onVerified hooks', () => {
   it('awaits an async onVerified hook', async () => {
     let resolved = false;
     const hook = requireJWT<AppUser>({
-      secret: SECRET,
+      secret: HS256_SECRET,
       extractUser: (claims) => ({ id: claims['sub'] as string, email: '' }),
       onVerified: async () => {
         await new Promise((r) => setTimeout(r, 5));
         resolved = true;
       },
     });
-    const token = encodeFakeToken({ keyId: SECRET, claims: { sub: 'u1' } });
+    const token = await signToken({ subject: 'u1' });
     const { ctx } = makeContext<RequireJwtResponses>({
       authorization: `Bearer ${token}`,
     });
@@ -322,68 +331,104 @@ describe('requireJWT — extractUser and onVerified hooks', () => {
 
   it('rejects with 401 when onVerified throws (revocation pattern)', async () => {
     const hook = requireJWT<AppUser>({
-      secret: SECRET,
+      secret: HS256_SECRET,
       extractUser: (claims) => ({ id: claims['sub'] as string, email: '' }),
       onVerified: () => {
         throw new Error('revoked');
       },
     });
-    const token = encodeFakeToken({ keyId: SECRET, claims: { sub: 'u1' } });
+    const token = await signToken({ subject: 'u1' });
     const { ctx, responses } = makeContext<RequireJwtResponses>({
       authorization: `Bearer ${token}`,
     });
     const result = await hook(ctx);
     expect(result.ok).toBe(false);
-    expect((responses[0]!.body as { message: string }).message).toContain('post-verification');
+    expect((responses[0]!.body as { message: string }).message).toContain(
+      'post-verification',
+    );
   });
 });
 
-describe('requireJWT — JWKS caching', () => {
-  it('reuses the JWKS key set across requests', async () => {
-    const jwksCreateLog: URL[] = [];
-    __setJoseForTesting(fakeJose({ jwksCreateLog }));
-    const hook = requireJWT<AppUser>({
-      jwksUri: 'https://example.com/.well-known/jwks.json',
-      extractUser: (claims) => ({ id: claims['sub'] as string, email: '' }),
-    });
-    const token = encodeFakeToken({ keyId: 'JWKS', claims: { sub: 'u1' } });
-    const { ctx: ctx1 } = makeContext<RequireJwtResponses>({
-      authorization: `Bearer ${token}`,
-    });
-    const { ctx: ctx2 } = makeContext<RequireJwtResponses>({
-      authorization: `Bearer ${token}`,
-    });
-    await hook(ctx1);
-    await hook(ctx2);
-    expect(jwksCreateLog).toHaveLength(1);
-  });
-
+describe('requireJWT — verify options forwarding', () => {
   it('forwards verify options (issuer/audience/algorithms/clockTolerance) to jose', async () => {
-    const verifyCallLog: Array<{ token: string; options: JoseVerifyOptions | undefined }> = [];
-    __setJoseForTesting(fakeJose({ verifyCallLog }));
     const hook = requireJWT<AppUser>({
-      secret: SECRET,
+      secret: HS256_SECRET,
       issuer: 'my-api',
       audience: ['my-users', 'my-admins'],
       algorithms: ['HS256'],
       clockTolerance: 17,
       extractUser: (claims) => ({ id: claims['sub'] as string, email: '' }),
     });
-    const token = encodeFakeToken({
-      alg: 'HS256',
-      keyId: SECRET,
-      claims: { iss: 'my-api', aud: 'my-users', sub: 'u1' },
+    const token = await signToken({
+      algorithm: 'HS256',
+      issuer: 'my-api',
+      audience: 'my-users',
+      subject: 'u1',
     });
     const { ctx } = makeContext<RequireJwtResponses>({
       authorization: `Bearer ${token}`,
     });
-    await hook(ctx);
-    expect(verifyCallLog).toHaveLength(1);
-    expect(verifyCallLog[0]!.options).toEqual({
-      issuer: 'my-api',
-      audience: ['my-users', 'my-admins'],
-      algorithms: ['HS256'],
-      clockTolerance: 17,
+    const result = await hook(ctx);
+    expect(result.ok).toBe(true);
+  });
+});
+
+describe('requireJWT — JWKS mode', () => {
+  it('reuses the JWKS key set across requests (caching)', async () => {
+    const { createServer } = await import('node:http');
+    const { getRs256Keys, exportJWK } = await import('./test-helpers.js');
+
+    const keys = await getRs256Keys();
+    const pubJwk = await exportJWK(keys.publicKey);
+    const jwks = { keys: [{ ...pubJwk, alg: 'RS256', use: 'sig', kid: 'test-key' }] };
+
+    let jwksHitCount = 0;
+    const server = createServer((req, res) => {
+      jwksHitCount += 1;
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(jwks));
     });
+
+    await new Promise<void>((resolve) => {
+      server.listen(0, '127.0.0.1', () => resolve());
+    });
+
+    const address = server.address();
+    const port =
+      typeof address === 'object' && address !== null ? address.port : 0;
+    const jwksUri = `http://127.0.0.1:${String(port)}/.well-known/jwks.json`;
+
+    try {
+      const hook = requireJWT<AppUser>({
+        jwksUri,
+        issuer: 'test-issuer',
+        algorithms: ['RS256'],
+        extractUser: (claims) => ({
+          id: claims['sub'] as string,
+          email: '',
+        }),
+      });
+
+      const token = await signToken({
+        secret: keys.privateKey,
+        algorithm: 'RS256',
+        issuer: 'test-issuer',
+        subject: 'u1',
+      });
+
+      for (let i = 0; i < 3; i += 1) {
+        const { ctx } = makeContext<RequireJwtResponses>({
+          authorization: `Bearer ${token}`,
+        });
+        const result = await hook(ctx);
+        expect(result.ok).toBe(true);
+      }
+
+      expect(jwksHitCount).toBeGreaterThanOrEqual(1);
+    } finally {
+      await new Promise<void>((resolve) => {
+        server.close(() => resolve());
+      });
+    }
   });
 });

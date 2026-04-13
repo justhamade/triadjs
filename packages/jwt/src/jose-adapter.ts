@@ -1,7 +1,7 @@
 /**
  * Structural interface for the subset of the `jose` package that
- * `@triad/jwt` uses. Kept behind a narrow port so we can mock it in
- * tests and so a breaking change to `jose` is visible in one place.
+ * `@triad/jwt` uses. Kept behind a narrow port so a breaking change
+ * to `jose` is visible in one place.
  */
 export interface JoseVerifyOptions {
   issuer?: string | string[];
@@ -33,18 +33,12 @@ export interface JoseLike {
  */
 let cached: JoseLike | undefined;
 
-/** For testing: inject a fake jose implementation. */
-export function __setJoseForTesting(mock: JoseLike | undefined): void {
-  cached = mock;
-}
-
 export async function loadJose(): Promise<JoseLike> {
   if (cached) return cached;
   try {
     // Intentional dynamic import — see module docblock. `jose` is
     // an optional peer dep so TypeScript may not resolve its types
     // when the consumer has not installed it yet.
-    // @ts-expect-error — optional peer dependency
     const mod = (await import('jose')) as unknown as JoseLike;
     if (typeof mod.jwtVerify !== 'function') {
       throw new Error('jose module does not export jwtVerify');

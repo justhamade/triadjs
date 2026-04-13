@@ -1,160 +1,93 @@
 /**
  * Test helpers for `@triad/jwt`.
  *
- * These factories build the minimum viable objects to exercise a
- * `BeforeHandler` without dragging in the full router pipeline:
+ * These utilities use the real `jose` library for token signing so
+ * tests exercise genuine cryptographic verification — no fakes.
  *
- *   - `fakeJose()` — a structural mock of the jose module that does
- *     no real cryptography. Tokens are JSON-encoded claim bags with
- *     a `__sig__` marker the mock checks for equality against the
- *     key. This is enough to cover option-passing, error paths, and
- *     key resolution without linking to the real `jose` package.
- *
- *   - `makeContext()` — produces a `BeforeHandlerContext`-shaped
- *     object with a `respond[401]` that records its argument so
- *     tests can assert on the response body.
+ *   - `signToken()` / `signExpiredToken()` — produce real JWTs.
+ *   - `HS256_SECRET` — shared symmetric key for HS256 tests.
+ *   - `makeContext()` — builds a `BeforeHandlerContext`-shaped object
+ *     with a `respond[401]` that records its argument so tests can
+ *     assert on the response body.
  */
 
+import { SignJWT, generateKeyPair, exportJWK, type CryptoKey as JoseCryptoKey } from 'jose';
 import type { BeforeHandlerContext, ResponsesConfig, HandlerResponse } from '@triad/core';
-import type {
-  JoseLike,
-  JoseVerifyKey,
-  JoseVerifyOptions,
-  JoseVerifyResult,
-} from '../src/jose-adapter.js';
 
-export interface FakeToken {
-  readonly claims: Record<string, unknown>;
-  readonly alg?: string;
-  readonly keyId?: string;
+export const HS256_SECRET = new TextEncoder().encode(
+  'test-secret-at-least-32-bytes-long!!!',
+);
+
+let _rs256Keys: { publicKey: JoseCryptoKey; privateKey: JoseCryptoKey } | undefined;
+
+export async function getRs256Keys(): Promise<{
+  publicKey: JoseCryptoKey;
+  privateKey: JoseCryptoKey;
+}> {
+  if (!_rs256Keys) _rs256Keys = await generateKeyPair('RS256');
+  return _rs256Keys;
 }
 
-/**
- * Encode a fake token. Production `jose` would produce a real
- * base64-encoded signed JWT; here we just serialize the bag with a
- * sigil the fake verifier can parse.
- */
-export function encodeFakeToken(tok: FakeToken): string {
-  return `fake.${Buffer.from(JSON.stringify(tok), 'utf8').toString('base64url')}`;
+export { exportJWK };
+
+export async function signToken(options: {
+  payload?: Record<string, unknown>;
+  secret?: Uint8Array | JoseCryptoKey;
+  algorithm?: string;
+  issuer?: string;
+  audience?: string;
+  expiresIn?: string;
+  subject?: string;
+}): Promise<string> {
+  const {
+    payload = {},
+    secret = HS256_SECRET,
+    algorithm = 'HS256',
+    issuer,
+    audience,
+    expiresIn = '1h',
+    subject,
+  } = options;
+
+  let builder = new SignJWT(payload)
+    .setProtectedHeader({ alg: algorithm })
+    .setIssuedAt()
+    .setExpirationTime(expiresIn);
+
+  if (issuer) builder = builder.setIssuer(issuer);
+  if (audience) builder = builder.setAudience(audience);
+  if (subject) builder = builder.setSubject(subject);
+
+  return builder.sign(secret);
 }
 
-export interface FakeJoseOptions {
-  /**
-   * Predicate invoked with the resolved key and the token's recorded
-   * key id. Defaults to strict equality on the serialized key.
-   */
-  keyMatches?: (key: JoseVerifyKey, tokenKeyId: string | undefined) => boolean;
-  /**
-   * Override "now" for expiry tests. Seconds since epoch.
-   */
-  now?: () => number;
-  /**
-   * Spy — incremented on each `jwtVerify` call. Exposed to let tests
-   * assert on caching behaviour.
-   */
-  verifyCallLog?: Array<{ token: string; options: JoseVerifyOptions | undefined }>;
-  /**
-   * Spy — incremented on each `createRemoteJWKSet` call.
-   */
-  jwksCreateLog?: URL[];
-}
+export async function signExpiredToken(
+  options: Omit<Parameters<typeof signToken>[0], 'expiresIn'> & {
+    expiredSecondsAgo?: number;
+  } = {},
+): Promise<string> {
+  const { expiredSecondsAgo = 60, payload = {}, ...rest } = options;
+  const now = Math.floor(Date.now() / 1000);
+  const exp = now - expiredSecondsAgo;
+  const iat = exp - 60;
 
-function keysEqual(a: JoseVerifyKey, b: JoseVerifyKey): boolean {
-  if (a === b) return true;
-  if (a instanceof Uint8Array && b instanceof Uint8Array) {
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i += 1) {
-      if (a[i] !== b[i]) return false;
-    }
-    return true;
-  }
-  return false;
-}
+  const {
+    secret = HS256_SECRET,
+    algorithm = 'HS256',
+    issuer,
+    audience,
+    subject,
+  } = rest;
 
-/**
- * Build a fake `jose`-like module. It implements just enough behaviour
- * to exercise `requireJWT`:
- *   - Parses the opaque `fake.<base64>` token produced by
- *     `encodeFakeToken`.
- *   - Checks `issuer` / `audience` / `algorithms` / `clockTolerance`
- *     if supplied.
- *   - Rejects tokens whose recorded `keyId` doesn't match the resolved
- *     key (via `keyMatches`).
- */
-export function fakeJose(opts: FakeJoseOptions = {}): JoseLike {
-  const now = opts.now ?? ((): number => Math.floor(Date.now() / 1000));
-  const verifyLog = opts.verifyCallLog;
-  const jwksLog = opts.jwksCreateLog;
-  const keyMatches =
-    opts.keyMatches ??
-    ((key: JoseVerifyKey, tokenKeyId: string | undefined): boolean => {
-      if (key instanceof Uint8Array) {
-        const decoded = new TextDecoder().decode(key);
-        return decoded === tokenKeyId;
-      }
-      // JWKS "remote set" marker — we treat any JWKS-ish key as matching
-      // tokens that recorded their keyId as "JWKS".
-      if (typeof key === 'object' && key !== null && '__jwks__' in key) {
-        return tokenKeyId === 'JWKS';
-      }
-      return false;
-    });
+  let builder = new SignJWT({ ...payload, exp, iat }).setProtectedHeader({
+    alg: algorithm,
+  });
 
-  return {
-    async jwtVerify(
-      token: string,
-      key: JoseVerifyKey,
-      options?: JoseVerifyOptions,
-    ): Promise<JoseVerifyResult> {
-      verifyLog?.push({ token, options });
-      if (!token.startsWith('fake.')) {
-        throw new Error('malformed token');
-      }
-      const raw = Buffer.from(token.slice(5), 'base64url').toString('utf8');
-      let parsed: FakeToken;
-      try {
-        parsed = JSON.parse(raw) as FakeToken;
-      } catch {
-        throw new Error('malformed token');
-      }
-      if (!keyMatches(key, parsed.keyId)) {
-        throw new Error('signature verification failed');
-      }
-      if (options?.algorithms && parsed.alg !== undefined) {
-        if (!options.algorithms.includes(parsed.alg)) {
-          throw new Error(`alg ${parsed.alg} not allowed`);
-        }
-      }
-      const claims = parsed.claims;
-      if (options?.issuer !== undefined) {
-        const allowed = Array.isArray(options.issuer) ? options.issuer : [options.issuer];
-        const iss = claims['iss'];
-        if (typeof iss !== 'string' || !allowed.includes(iss)) {
-          throw new Error('issuer mismatch');
-        }
-      }
-      if (options?.audience !== undefined) {
-        const allowed = Array.isArray(options.audience) ? options.audience : [options.audience];
-        const aud = claims['aud'];
-        const audList = Array.isArray(aud) ? aud : typeof aud === 'string' ? [aud] : [];
-        if (!audList.some((a) => allowed.includes(a))) {
-          throw new Error('audience mismatch');
-        }
-      }
-      const exp = claims['exp'];
-      if (typeof exp === 'number') {
-        const tolerance = options?.clockTolerance ?? 0;
-        if (now() > exp + tolerance) {
-          throw new Error('"exp" claim timestamp check failed');
-        }
-      }
-      return { payload: claims };
-    },
-    createRemoteJWKSet(url: URL): JoseVerifyKey {
-      jwksLog?.push(url);
-      return { __jwks__: true, url: url.href };
-    },
-  };
+  if (issuer) builder = builder.setIssuer(issuer);
+  if (audience) builder = builder.setAudience(audience);
+  if (subject) builder = builder.setSubject(subject);
+
+  return builder.sign(secret);
 }
 
 // ---------------------------------------------------------------------------
