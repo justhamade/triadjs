@@ -19,8 +19,13 @@
  * the vanilla channel-generator's collision resolution.
  */
 
-import type { Channel, SchemaNode } from '@triad/core';
-import { TypeEmitter } from '@triad/tanstack-query';
+import type { Channel } from '@triad/core';
+import type { TypeEmitter } from '@triad/tanstack-query';
+import {
+  analyzeChannel,
+  messageToHandlerName,
+  type ChannelHookAnalysis,
+} from './hook-analysis.js';
 
 export interface EmittedReactHook {
   /** File path (relative to outputDir), e.g. `book-reviews-react.ts`. */
@@ -35,111 +40,12 @@ export interface EmittedReactHook {
   typeImports: string[];
 }
 
-function toPascalCase(name: string): string {
-  return name
-    .replace(/[_-]+/g, ' ')
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join('');
-}
-
-function toKebabCase(name: string): string {
-  return name
-    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-    .replace(/[_\s]+/g, '-')
-    .toLowerCase();
-}
-
-function messageToHandlerName(messageType: string): string {
-  return `on${toPascalCase(messageType)}`;
-}
-
-const TYPE_REF_RE = /\b([A-Z][A-Za-z0-9_]*)\b/g;
-const BUILTIN = new Set([
-  'Array',
-  'Record',
-  'Partial',
-  'Readonly',
-  'ReadonlyArray',
-  'Promise',
-  'Map',
-  'Set',
-  'Date',
-  'Buffer',
-  'Uint8Array',
-  'ArrayBuffer',
-]);
-
-function collectTypeRefs(type: string, out: Set<string>): void {
-  let match: RegExpExecArray | null;
-  TYPE_REF_RE.lastIndex = 0;
-  while ((match = TYPE_REF_RE.exec(type)) !== null) {
-    const ref = match[1]!;
-    if (!BUILTIN.has(ref)) out.add(ref);
-  }
-}
-
-interface ShapeField {
-  name: string;
-  type: string;
-}
-
-function walkInlineShape(
-  emitter: TypeEmitter,
-  model:
-    | {
-        readonly shape?: Record<string, SchemaNode>;
-      }
-    | undefined,
-  typeImports: Set<string>,
-): ShapeField[] {
-  if (!model || !model.shape) return [];
-  const fields: ShapeField[] = [];
-  for (const [fieldName, fieldSchema] of Object.entries(model.shape)) {
-    const typeStr = emitter.emitType(fieldSchema);
-    collectTypeRefs(typeStr, typeImports);
-    fields.push({ name: fieldName, type: typeStr });
-  }
-  return fields;
-}
-
 export function emitChannelReactHook(
   channel: Channel,
   emitter: TypeEmitter,
 ): EmittedReactHook {
-  const baseName = toPascalCase(channel.name);
-  const hookName = `use${baseName}Channel`;
-  const kebab = toKebabCase(channel.name);
-  const typeImports = new Set<string>();
-
-  // Walk the connection shapes and message schemas through the shared
-  // `TypeEmitter` so the generator main pass registers every named
-  // model in `types.ts` even when only the React target is used.
-  walkInlineShape(emitter, channel.connection.params, typeImports);
-  walkInlineShape(emitter, channel.connection.query, typeImports);
-  walkInlineShape(emitter, channel.connection.headers, typeImports);
-
-  interface MsgRef {
-    type: string;
-    tsType: string;
-  }
-  const clientMessages: MsgRef[] = [];
-  for (const [type, config] of Object.entries(channel.clientMessages)) {
-    const tsType = emitter.emitType(config.schema);
-    collectTypeRefs(tsType, typeImports);
-    clientMessages.push({ type, tsType });
-  }
-  const serverMessages: MsgRef[] = [];
-  for (const [type, config] of Object.entries(channel.serverMessages)) {
-    const tsType = emitter.emitType(config.schema);
-    collectTypeRefs(tsType, typeImports);
-    serverMessages.push({ type, tsType });
-  }
-
-  const hasClientMessages = clientMessages.length > 0;
-  const hasServerMessages = serverMessages.length > 0;
-  const hasErrorMessage = serverMessages.some((m) => m.type === 'error');
+  const a: ChannelHookAnalysis = analyzeChannel(channel, emitter);
+  const hookName = `use${a.pascal}Channel`;
 
   // ---- Emit --------------------------------------------------------------
   const lines: string[] = [];
@@ -153,22 +59,21 @@ export function emitChannelReactHook(
     "import { useTriadChannelLifecycle } from './react-runtime.js';",
   );
   const factoryImports = [
-    `create${baseName}Client`,
-    `type ${baseName}Client`,
-    `type ${baseName}ClientOptions`,
+    `create${a.pascal}Client`,
+    `type ${a.pascal}Client`,
+    `type ${a.pascal}ClientOptions`,
   ];
   lines.push(
-    `import { ${factoryImports.join(', ')} } from './${kebab}.js';`,
+    `import { ${factoryImports.join(', ')} } from './${a.kebab}.js';`,
   );
   lines.push("import type { ChannelState } from './client.js';");
-  if (typeImports.size > 0) {
-    const sorted = Array.from(typeImports).sort();
-    lines.push(`import type { ${sorted.join(', ')} } from './types.js';`);
+  if (a.typeImports.length > 0) {
+    lines.push(`import type { ${a.typeImports.join(', ')} } from './types.js';`);
   }
   lines.push('');
 
   // ---- Options interface -------------------------------------------------
-  if (hasErrorMessage) {
+  if (a.hasErrorMessage) {
     lines.push('/**');
     lines.push(
       " * This channel declares an `error` server message, so `onError` delivers the channel's `error` server message",
@@ -180,11 +85,11 @@ export function emitChannelReactHook(
     lines.push(' */');
   }
   lines.push(
-    `export interface Use${baseName}ChannelOptions extends ${baseName}ClientOptions {`,
+    `export interface Use${a.pascal}ChannelOptions extends ${a.pascal}ClientOptions {`,
   );
   lines.push('  /** When `false`, the hook does not open the channel. Default: `true`. */');
   lines.push('  enabled?: boolean;');
-  for (const m of serverMessages) {
+  for (const m of a.serverMessages) {
     const handler = messageToHandlerName(m.type);
     lines.push(
       `  ${handler}?: (payload: ${m.tsType}) => void;`,
@@ -194,14 +99,14 @@ export function emitChannelReactHook(
   lines.push('');
 
   // ---- Result interface --------------------------------------------------
-  lines.push(`export interface Use${baseName}ChannelResult {`);
+  lines.push(`export interface Use${a.pascal}ChannelResult {`);
   lines.push('  /** Current channel state. Re-renders on transition. */');
   lines.push('  state: ChannelState;');
   lines.push("  /** Convenience flag: `state === 'open'`. */");
   lines.push('  isOpen: boolean;');
-  if (hasClientMessages) {
+  if (a.hasClientMessages) {
     lines.push(`  /** Typed outbound message surface. */`);
-    lines.push(`  send: ${baseName}Client['send'];`);
+    lines.push(`  send: ${a.pascal}Client['send'];`);
   }
   lines.push('  /** Close the channel. Called automatically on unmount. */');
   lines.push('  close: () => Promise<void>;');
@@ -210,25 +115,23 @@ export function emitChannelReactHook(
 
   // ---- Hook function -----------------------------------------------------
   lines.push(
-    `export function ${hookName}(options: Use${baseName}ChannelOptions): Use${baseName}ChannelResult {`,
+    `export function ${hookName}(options: Use${a.pascal}ChannelOptions): Use${a.pascal}ChannelResult {`,
   );
-  // Destructure enabled + handlers out of options, leaving clientOptions
-  // for the factory.
   const destructured = ['enabled = true'];
-  for (const m of serverMessages) {
+  for (const m of a.serverMessages) {
     destructured.push(messageToHandlerName(m.type));
   }
   destructured.push('...clientOptions');
   lines.push(`  const { ${destructured.join(', ')} } = options;`);
   lines.push('');
   lines.push('  const { client, state, isOpen } = useTriadChannelLifecycle(');
-  lines.push('    () => createBookReviewsClient_placeholder(clientOptions),'.replace('createBookReviewsClient_placeholder', `create${baseName}Client`));
+  lines.push(`    () => create${a.pascal}Client(clientOptions),`);
   lines.push('    { enabled },');
   lines.push('  );');
   lines.push('');
 
   // Per-handler useEffect blocks.
-  for (const m of serverMessages) {
+  for (const m of a.serverMessages) {
     const handler = messageToHandlerName(m.type);
     lines.push('  useEffect(() => {');
     lines.push(`    if (!${handler}) return;`);
@@ -240,7 +143,7 @@ export function emitChannelReactHook(
   lines.push('  return {');
   lines.push('    state,');
   lines.push('    isOpen,');
-  if (hasClientMessages) {
+  if (a.hasClientMessages) {
     lines.push('    send: client.send,');
   }
   lines.push('    close: () => client.close(),');
@@ -249,13 +152,13 @@ export function emitChannelReactHook(
   lines.push('');
 
   // Suppress unused-import warning for hasServerMessages=false case.
-  void hasServerMessages;
+  void a.hasServerMessages;
 
   return {
-    path: `${kebab}-react.ts`,
+    path: `${a.kebab}-react.ts`,
     contents: lines.join('\n'),
-    baseName,
+    baseName: a.pascal,
     hookName,
-    typeImports: Array.from(typeImports),
+    typeImports: [...a.typeImports],
   };
 }

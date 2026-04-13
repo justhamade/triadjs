@@ -11,3 +11,18 @@ export type {
   GenerateChannelClientOptions,
   GeneratedFile,
 } from './types.js';
+export {
+  toPascalCase,
+  toCamelCase,
+  toKebabCase,
+  messageToHandlerName,
+  collectTypeRefs,
+  walkInlineShape,
+  analyzeChannel,
+  TYPE_REF_RE,
+  BUILTIN,
+} from './hook-analysis.js';
+export type {
+  MsgRef,
+  ChannelHookAnalysis,
+} from './hook-analysis.js';
