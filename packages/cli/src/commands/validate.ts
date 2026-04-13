@@ -29,11 +29,13 @@ import type { Endpoint, Router, SchemaNode, ModelShape } from '@triad/core';
 import { loadConfig } from '../load-config.js';
 import { loadRouter } from '../load-router.js';
 import { CliError } from '../errors.js';
+import { analyzeCoverage, type CoverageReport } from './validate-coverage.js';
 
 export interface ValidateOptions {
   config?: string;
   router?: string;
   strict?: boolean;
+  coverage?: boolean;
 }
 
 export type IssueSeverity = 'error' | 'warning';
@@ -72,6 +74,44 @@ export async function runValidate(opts: ValidateOptions): Promise<void> {
       `${pc.green('✓')} No errors — ${warnings.length} warning(s).\n`,
     );
   }
+
+  if (opts.coverage) {
+    const report = analyzeCoverage(router);
+    printCoverageReport(report);
+  }
+}
+
+function printCoverageReport(report: CoverageReport): void {
+  process.stdout.write(
+    `\nCoverage analysis for ${report.totalEndpoints} endpoints...\n\n`,
+  );
+
+  for (const ep of report.endpoints) {
+    if (ep.gaps.length === 0) {
+      process.stdout.write(
+        `${pc.green('✓')} ${ep.method} ${ep.path} — ${ep.name}\n` +
+          `    All boundary paths covered (or no constraints to test)\n\n`,
+      );
+    } else {
+      process.stdout.write(
+        `${pc.yellow('⚠')} ${ep.method} ${ep.path} — ${ep.name}\n` +
+          `    Missing coverage:\n`,
+      );
+      for (const gap of ep.gaps) {
+        process.stdout.write(`    - ${gap}\n`);
+      }
+      process.stdout.write(
+        `    Suggestion: add ...scenario.auto() to behaviors\n\n`,
+      );
+    }
+  }
+
+  process.stdout.write(
+    `Coverage: ${report.fullyCovered}/${report.totalEndpoints} endpoints fully covered` +
+      (report.totalEndpoints > report.fullyCovered
+        ? `, ${report.totalEndpoints - report.fullyCovered} have gaps\n`
+        : '\n'),
+  );
 }
 
 // ---------------------------------------------------------------------------

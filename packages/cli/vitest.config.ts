@@ -12,6 +12,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      '@triad/core/scenario-auto': fileURLToPath(new URL('core/src/scenario-auto.ts', root)),
       '@triad/core': fileURLToPath(new URL('core/src/index.ts', root)),
       '@triad/openapi': fileURLToPath(new URL('openapi/src/index.ts', root)),
       '@triad/asyncapi': fileURLToPath(new URL('asyncapi/src/index.ts', root)),

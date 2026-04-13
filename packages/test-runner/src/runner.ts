@@ -56,6 +56,7 @@ import {
 import { collectModels, type ModelRegistry } from './models.js';
 import { substitute, type Fixtures } from './substitute.js';
 import { runAssertions, type CustomMatcher } from './assertions.js';
+import { expandAutoMarker, isAutoBehavior } from './auto-expand.js';
 
 // ---------------------------------------------------------------------------
 // Options
@@ -99,11 +100,13 @@ export async function runBehaviors(
   const results: TestResult[] = [];
   const models = collectModels(router);
 
-  outer: for (const endpoint of router.allEndpoints()) {
-    if (options.filter && !options.filter(endpoint)) continue;
+  outer: for (const ep of router.allEndpoints()) {
+    if (options.filter && !options.filter(ep)) continue;
 
-    for (const behavior of endpoint.behaviors) {
-      const result = await runOneBehavior(endpoint, behavior, models, options);
+    const expanded = expandBehaviors(ep);
+
+    for (const behavior of expanded) {
+      const result = await runOneBehavior(ep, behavior, models, options);
       results.push(result);
       if (options.bail && (result.status === 'failed' || result.status === 'errored')) {
         break outer;
@@ -244,6 +247,9 @@ export async function runOneBehavior(
       ? endpoint.request.params.validate(rawParams)
       : undefined;
     if (paramsResult?.success === false) {
+      if (isAutoBehavior(behavior) && behavior.__autoOutcome === 'rejected') {
+        return { ...baseResult, status: 'passed', durationMs: performance.now() - start };
+      }
       return requestValidationFailure(
         baseResult,
         'params',
@@ -257,6 +263,9 @@ export async function runOneBehavior(
       ? endpoint.request.query.validate(rawQuery)
       : undefined;
     if (queryResult?.success === false) {
+      if (isAutoBehavior(behavior) && behavior.__autoOutcome === 'rejected') {
+        return { ...baseResult, status: 'passed', durationMs: performance.now() - start };
+      }
       return requestValidationFailure(
         baseResult,
         'query',
@@ -270,6 +279,15 @@ export async function runOneBehavior(
       ? endpoint.request.body.validate(rawBody)
       : undefined;
     if (bodyResult?.success === false) {
+      // Auto-generated 'rejected' scenarios EXPECT validation failure.
+      // A rejected validation = the endpoint correctly rejects bad input.
+      if (isAutoBehavior(behavior) && behavior.__autoOutcome === 'rejected') {
+        return {
+          ...baseResult,
+          status: 'passed',
+          durationMs: performance.now() - start,
+        };
+      }
       return requestValidationFailure(
         baseResult,
         'body',
@@ -283,6 +301,9 @@ export async function runOneBehavior(
       ? endpoint.request.headers.validate(rawHeaders)
       : undefined;
     if (headersResult?.success === false) {
+      if (isAutoBehavior(behavior) && behavior.__autoOutcome === 'rejected') {
+        return { ...baseResult, status: 'passed', durationMs: performance.now() - start };
+      }
       return requestValidationFailure(
         baseResult,
         'headers',
@@ -291,6 +312,23 @@ export async function runOneBehavior(
       );
     }
     if (headersResult?.success === true) headers = headersResult.data;
+
+    // Auto 'rejected' scenarios expected validation to fail. If all
+    // validation passed, the scenario itself is wrong (the schema doesn't
+    // actually reject this input). Report as a failed test.
+    if (isAutoBehavior(behavior) && behavior.__autoOutcome === 'rejected') {
+      return {
+        ...baseResult,
+        status: 'failed',
+        failure: {
+          message:
+            'Auto scenario expected the input to be rejected by schema validation, ' +
+            'but all request validation passed. The schema may not enforce the constraint ' +
+            'this scenario targets.',
+        },
+        durationMs: performance.now() - start,
+      };
+    }
 
     // Step 4: Build the handler context
     const ctx = buildContext(endpoint, {
@@ -476,6 +514,29 @@ async function finalizeResponse(args: FinalizeArgs): Promise<TestResult> {
     status: 'passed',
     durationMs: performance.now() - start,
   };
+}
+
+/**
+ * Expand auto-scenario markers in an endpoint's behaviors into concrete
+ * scenarios derived from the endpoint's schema constraints.
+ */
+function expandBehaviors(ep: Endpoint): Behavior[] {
+  const behaviors: Behavior[] = [];
+  for (const b of ep.behaviors) {
+    if (isAutoMarker(b)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const expanded = expandAutoMarker(ep, b as any);
+      behaviors.push(...expanded);
+    } else {
+      behaviors.push(b);
+    }
+  }
+  return behaviors;
+}
+
+/** Duck-type check for auto-scenario markers. */
+function isAutoMarker(b: Behavior): boolean {
+  return '__auto' in b && (b as Record<string, unknown>)['__auto'] === true;
 }
 
 function requestValidationFailure(

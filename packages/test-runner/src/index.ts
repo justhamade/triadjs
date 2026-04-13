@@ -86,3 +86,25 @@ export {
   type DocsConfig,
   type GherkinConfig,
 } from './config.js';
+
+export {
+  describeEndpoint,
+  describeSchema,
+  type FieldDescriptor,
+  type FieldConstraints,
+  type EndpointDescriptor,
+} from './schema-reader.js';
+
+export {
+  generateMissingFieldScenarios,
+  generateBoundaryScenarios,
+  generateInvalidEnumScenarios,
+  generateTypeConfusionScenarios,
+  generateRandomValidScenarios,
+  buildBaseline,
+  type AutoScenario,
+  type AutoCategory,
+} from './auto-generators.js';
+
+export { expandAutoMarker } from './auto-expand.js';
+export type { AutoBehavior } from './auto-expand.js';

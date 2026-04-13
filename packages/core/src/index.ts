@@ -122,6 +122,21 @@ export {
   type RoutableItem,
 } from './router.js';
 
+// --- Scenario Auto ---------------------------------------------------------
+
+export {
+  auto as scenarioAuto,
+  isAutoScenarioMarker,
+  type ScenarioAutoOptions,
+  type AutoScenarioMarker,
+} from './scenario-auto.js';
+
+// Attach `auto` as a property on the `scenario` function so users can write
+// `...scenario.auto()` without a separate import.
+import { auto as _autoFn } from './scenario-auto.js';
+import { scenario as _scenario } from './behavior.js';
+(_scenario as unknown as Record<string, unknown>)['auto'] = _autoFn;
+
 // --- Channels (WebSocket) --------------------------------------------------
 
 export {

@@ -20,6 +20,7 @@ import { runFrontendGenerate } from './commands/frontend.js';
 import { runNew } from './commands/new.js';
 import { runMock } from './commands/mock.js';
 import { runDocsCheck } from './commands/docs-check.js';
+import { runFuzzCommand } from './commands/fuzz-cli.js';
 import { CliError } from './errors.js';
 
 const VERSION = '0.1.0';
@@ -66,8 +67,26 @@ export function createProgram(): Command {
     .command('validate')
     .description('Cross-artifact consistency checks on the router')
     .option('--strict', 'treat warnings as errors')
+    .option('--coverage', 'analyze schema constraint coverage in behaviors')
     .action(async (cmdOpts) => {
       await runValidate({ ...program.opts(), ...cmdOpts });
+    });
+
+  program
+    .command('fuzz')
+    .description(
+      'Run schema-derived adversarial scenarios against every endpoint in the router',
+    )
+    .option('--filter <pattern>', 'only fuzz endpoints whose name contains <pattern>')
+    .option('--runs <n>', 'random valid inputs per endpoint (default 10)', (v) => Number(v))
+    .option('--seed <n>', 'seed the RNG for deterministic output', (v) => Number(v))
+    .option('--fail-fast', 'stop on first failure')
+    .option(
+      '--categories <list>',
+      'comma-separated: missing,boundary,enum,type,valid',
+    )
+    .action(async (cmdOpts) => {
+      await runFuzzCommand({ ...program.opts(), ...cmdOpts });
     });
 
   // `db` is a subcommand group. Today it only has `generate`; future

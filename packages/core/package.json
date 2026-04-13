@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./scenario-auto": {
+      "types": "./dist/scenario-auto.d.ts",
+      "import": "./dist/scenario-auto.js"
     }
   },
   "files": [

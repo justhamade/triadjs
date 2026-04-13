@@ -348,6 +348,18 @@ export interface ScenarioStage {
  * Begin a behavior scenario. The returned object only offers `.given(...)`
  * so the API enforces the BDD ordering.
  */
+/**
+ * Begin a behavior scenario. The returned object only offers `.given(...)`
+ * so the API enforces the BDD ordering.
+ *
+ * Also exposes `.auto()` for schema-derived adversarial test generation:
+ * ```ts
+ * behaviors: [
+ *   scenario('creates a pet').given(...).when(...).then(...),
+ *   ...scenario.auto(),
+ * ]
+ * ```
+ */
 export function scenario(name: string): ScenarioStage {
   return {
     given(description: string) {
@@ -355,6 +367,9 @@ export function scenario(name: string): ScenarioStage {
     },
   };
 }
+
+// `scenario.auto` is attached in scenario-auto.ts after import to
+// avoid circular dependencies. See the re-export in index.ts.
 
 /** Type guard for behaviors with a parsed status assertion. */
 export function hasStatusAssertion(b: Behavior): number | undefined {
