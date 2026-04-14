@@ -19,7 +19,7 @@
  * the same bounded context.
  */
 
-import { endpoint, scenario, t } from '@triad/core';
+import { endpoint, scenario, t } from '@triadjs/core';
 import { Comment, CreateComment } from '../schemas/comment.js';
 import { ApiError } from '../schemas/common.js';
 import { requireAuth } from '../supabase-auth.js';

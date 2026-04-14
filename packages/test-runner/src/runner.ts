@@ -44,7 +44,7 @@ import {
   ValidationException,
   buildRespondMap,
   invokeBeforeHandler,
-} from '@triad/core';
+} from '@triadjs/core';
 
 import {
   summarize,
@@ -547,7 +547,7 @@ function requestValidationFailure(
     scenario: string;
   },
   part: string,
-  errors: readonly import('@triad/core').ValidationError[],
+  errors: readonly import('@triadjs/core').ValidationError[],
   start: number,
 ): TestResult {
   const details = errors

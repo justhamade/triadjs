@@ -8,7 +8,7 @@
  * reactive changes trigger refetches.
  */
 
-import type { Endpoint } from '@triad/core';
+import type { Endpoint } from '@triadjs/core';
 import {
   TypeEmitter,
   collectEndpointShape,
@@ -17,7 +17,7 @@ import {
   hookNameFor,
   renderPathExpression,
   type ResourceInfo,
-} from '@triad/tanstack-query';
+} from '@triadjs/tanstack-query';
 
 export interface EndpointHook {
   name: string;

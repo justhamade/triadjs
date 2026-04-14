@@ -1,4 +1,4 @@
-# @triad/forms
+# @triadjs/forms
 
 Generate typed form validators from a Triad router. For every endpoint
 with a request body, emits a `validateXxx(input)` function that returns
@@ -7,12 +7,12 @@ Optionally emits thin adapter wrappers for [react-hook-form](https://react-hook-
 and [@tanstack/form](https://tanstack.com/form).
 
 The generated runtime is self-contained — it does NOT import
-`@triad/core` at runtime, so your frontend bundle stays small.
+`@triadjs/core` at runtime, so your frontend bundle stays small.
 
 ## Install
 
 ```bash
-npm install --save-dev @triad/forms
+npm install --save-dev @triadjs/forms
 ```
 
 If you plan to use the adapter wrappers:
@@ -31,7 +31,7 @@ triad frontend generate --target forms --output ./src/generated/forms
 Or via `triad.config.ts`:
 
 ```ts
-import { defineConfig } from '@triad/test-runner';
+import { defineConfig } from '@triadjs/test-runner';
 
 export default defineConfig({
   frontend: {
@@ -147,10 +147,10 @@ richer descriptors + richer runtime checks.
 - **Why JSON descriptors, not JSON Schema?** The descriptor is smaller,
   schema-library-agnostic, and easier to evolve. A JSON-Schema
   emitter could be added later alongside.
-- **Why embed the runtime, not import `@triad/core`?** Bundle size —
-  `@triad/core` pulls in OpenAPI machinery you don't need at form-
+- **Why embed the runtime, not import `@triadjs/core`?** Bundle size —
+  `@triadjs/core` pulls in OpenAPI machinery you don't need at form-
   validation time. The `runtime.ts` template is under 150 lines.
 - **Why one file per bounded context?** Consistency with the other
-  codegen packages (`@triad/tanstack-query`, `@triad/solid-query`,
-  `@triad/vue-query`, `@triad/svelte-query`), so the output directory
+  codegen packages (`@triadjs/tanstack-query`, `@triadjs/solid-query`,
+  `@triadjs/vue-query`, `@triadjs/svelte-query`), so the output directory
   has a predictable shape regardless of target.

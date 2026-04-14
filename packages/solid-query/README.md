@@ -1,4 +1,4 @@
-# @triad/solid-query
+# @triadjs/solid-query
 
 Generate fully-typed [Solid Query](https://tanstack.com/query/latest/docs/framework/solid/overview)
 hooks from a Triad router. A single source of truth — changing a schema
@@ -8,7 +8,7 @@ frontend.
 ## Install
 
 ```bash
-npm install --save-dev @triad/solid-query
+npm install --save-dev @triadjs/solid-query
 ```
 
 `@tanstack/solid-query` is a peer concern: the generated code imports
@@ -27,7 +27,7 @@ triad frontend generate --target solid-query --output ./src/generated/api
 Or via `triad.config.ts`:
 
 ```ts
-import { defineConfig } from '@triad/test-runner';
+import { defineConfig } from '@triadjs/test-runner';
 
 export default defineConfig({
   frontend: {
@@ -109,7 +109,7 @@ generator preserves reactivity end-to-end by:
 
 ## Invalidation
 
-The generator mirrors `@triad/tanstack-query`'s invalidation heuristic:
+The generator mirrors `@triadjs/tanstack-query`'s invalidation heuristic:
 
 - `POST /books` invalidates `bookKeys.lists()`.
 - `PATCH /books/:bookId` / `PUT` invalidate `bookKeys.detail(id)` and `bookKeys.lists()`.
@@ -123,5 +123,5 @@ You can override `onSuccess` via the `options` argument — it runs
 ## Reuse
 
 This package reuses the schema emitter, resource derivation, query-key
-factory, and fetch client template from `@triad/tanstack-query`. Only
+factory, and fetch client template from `@triadjs/tanstack-query`. Only
 the hook emitter is unique to Solid Query.

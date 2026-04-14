@@ -1,4 +1,4 @@
-# @triad/otel
+# @triadjs/otel
 
 OpenTelemetry instrumentation for Triad routers. Opt-in, router-level,
 adapter-agnostic.
@@ -6,7 +6,7 @@ adapter-agnostic.
 ## Install
 
 ```bash
-npm install @triad/otel @opentelemetry/api
+npm install @triadjs/otel @opentelemetry/api
 ```
 
 You also need an OpenTelemetry SDK and exporter of your choice — e.g.
@@ -17,9 +17,9 @@ for the end-to-end walkthrough.
 ## Usage
 
 ```ts
-import { createRouter } from '@triad/core';
-import { withOtelInstrumentation } from '@triad/otel';
-import { triadPlugin } from '@triad/fastify';
+import { createRouter } from '@triadjs/core';
+import { withOtelInstrumentation } from '@triadjs/otel';
+import { triadPlugin } from '@triadjs/fastify';
 
 const router = createRouter({ title: 'My API', version: '1.0.0' });
 router.add(createPet, getPet, listPets);
@@ -65,7 +65,7 @@ Channel spans additionally tag `triad.channel.name`,
 - Does not instrument outgoing HTTP or database calls — use
   `@opentelemetry/auto-instrumentations-node` or a driver-specific
   instrumentation package.
-- Does not produce metrics yet — Phase 14.2 will add `@triad/metrics`.
+- Does not produce metrics yet — Phase 14.2 will add `@triadjs/metrics`.
 
 See [docs/guides/observability.md](../../docs/guides/observability.md)
 for full integration recipes for Honeycomb, Datadog, Grafana Tempo,

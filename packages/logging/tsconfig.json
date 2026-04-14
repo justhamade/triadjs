@@ -4,7 +4,7 @@
     "outDir": "./dist",
     "baseUrl": ".",
     "paths": {
-      "@triad/core": ["../core/src/index.ts"]
+      "@triadjs/core": ["../core/src/index.ts"]
     },
     "noEmit": true,
     "types": ["node"]

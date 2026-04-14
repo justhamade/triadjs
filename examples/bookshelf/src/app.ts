@@ -15,7 +15,7 @@
  * endpoint and channel both walk through a `Book` ownership check.
  */
 
-import { createRouter } from '@triad/core';
+import { createRouter } from '@triadjs/core';
 
 import { getMe, login, register } from './endpoints/accounts.js';
 import {

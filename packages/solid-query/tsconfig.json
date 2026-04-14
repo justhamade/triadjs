@@ -4,8 +4,8 @@
     "outDir": "./dist",
     "baseUrl": ".",
     "paths": {
-      "@triad/core": ["../core/src/index.ts"],
-      "@triad/tanstack-query": ["../tanstack-query/src/index.ts"]
+      "@triadjs/core": ["../core/src/index.ts"],
+      "@triadjs/tanstack-query": ["../tanstack-query/src/index.ts"]
     },
     "noEmit": true
   },

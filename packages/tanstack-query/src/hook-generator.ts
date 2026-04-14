@@ -12,7 +12,7 @@ import {
   type ModelShape,
   type SchemaNode,
   type ResponsesConfig,
-} from '@triad/core';
+} from '@triadjs/core';
 import { TypeEmitter } from './schema-to-ts.js';
 import {
   extractResource,

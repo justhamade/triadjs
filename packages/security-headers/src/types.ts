@@ -1,5 +1,5 @@
 /**
- * Configuration shape for `@triad/security-headers`. Every field is
+ * Configuration shape for `@triadjs/security-headers`. Every field is
  * optional. Pass `false` to disable a header entirely; pass an object
  * to customize; omit a field to accept the default.
  */

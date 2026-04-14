@@ -18,7 +18,7 @@
  *   - `error` — the server signals problems (schema validation, etc.)
  */
 
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 // ---------------------------------------------------------------------------
 // Server messages (things the channel pushes to clients)

@@ -1,5 +1,5 @@
 /**
- * `@triad/solid-query` — generate fully-typed Solid Query hooks from a
+ * `@triadjs/solid-query` — generate fully-typed Solid Query hooks from a
  * Triad router.
  */
 

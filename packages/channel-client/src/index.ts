@@ -1,5 +1,5 @@
 /**
- * `@triad/channel-client` — generate typed vanilla TypeScript
+ * `@triadjs/channel-client` — generate typed vanilla TypeScript
  * WebSocket clients from Triad `channel()` declarations.
  */
 

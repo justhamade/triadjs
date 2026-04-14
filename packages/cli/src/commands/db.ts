@@ -2,7 +2,7 @@
  * `triad db generate` — emit Drizzle table definitions from the project
  * router by reading `.storage()` hints on each schema.
  *
- * The codegen lives in `@triad/drizzle/codegen` so it can also be used
+ * The codegen lives in `@triadjs/drizzle/codegen` so it can also be used
  * programmatically (e.g. by a migration diff tool). This command is a
  * thin wrapper: load config → load router → call `generateDrizzleSchema`
  * → write file → print summary.
@@ -15,7 +15,7 @@ import {
   generateDrizzleSchema,
   generateMigration,
   CodegenError,
-} from '@triad/drizzle';
+} from '@triadjs/drizzle';
 import { loadConfig } from '../load-config.js';
 import { loadRouter } from '../load-router.js';
 import { CliError } from '../errors.js';
@@ -103,7 +103,7 @@ const DEFAULT_MIGRATIONS_DIR = './migrations';
  * `triad db migrate` — diff the current router against the last
  * snapshot in the migrations directory and write an SQL migration
  * file capturing the changes. Codegen only: the file is not
- * executed. See `generateMigration` in `@triad/drizzle` for the
+ * executed. See `generateMigration` in `@triadjs/drizzle` for the
  * underlying pipeline.
  */
 export async function runDbMigrate(opts: DbMigrateOptions): Promise<void> {

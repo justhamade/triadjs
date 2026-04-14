@@ -8,7 +8,7 @@ The `t` namespace is Triad's schema builder. Every schema is:
 - **OpenAPI-ready** — `X.toOpenAPI(ctx)` emits a JSON Schema fragment
 
 ```typescript
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 ```
 
 ---
@@ -315,7 +315,7 @@ Validation **collects all errors** — it does not stop on the first failure —
 ## OpenAPI emission
 
 ```typescript
-import { createOpenAPIContext } from '@triad/core';
+import { createOpenAPIContext } from '@triadjs/core';
 
 const ctx = createOpenAPIContext();
 const petRef = Pet.toOpenAPI(ctx);

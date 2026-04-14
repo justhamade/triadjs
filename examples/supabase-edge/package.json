@@ -1,9 +1,9 @@
 {
-  "name": "@triad/example-supabase-edge",
+  "name": "@triadjs/example-supabase-edge",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Triad reference example — a Supabase Edge Function API deployed on Deno via @triad/hono",
+  "description": "Triad reference example — a Supabase Edge Function API deployed on Deno via @triadjs/hono",
   "scripts": {
     "start": "tsx src/server.ts",
     "dev": "tsx watch src/server.ts",
@@ -17,13 +17,13 @@
   "dependencies": {
     "@hono/node-server": "^1.13.0",
     "@supabase/supabase-js": "^2.45.0",
-    "@triad/core": "*",
-    "@triad/hono": "*",
+    "@triadjs/core": "*",
+    "@triadjs/hono": "*",
     "hono": "^4.10.0"
   },
   "devDependencies": {
-    "@triad/cli": "*",
-    "@triad/test-runner": "*",
+    "@triadjs/cli": "*",
+    "@triadjs/test-runner": "*",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"

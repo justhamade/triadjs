@@ -21,7 +21,7 @@
  * module graph.
  */
 
-import type { Router, SchemaNode } from '@triad/core';
+import type { Router, SchemaNode } from '@triadjs/core';
 import type {
   ColumnDescriptor,
   GenerateOptions,

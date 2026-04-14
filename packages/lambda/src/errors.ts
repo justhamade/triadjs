@@ -3,11 +3,11 @@
  *
  * `RequestValidationError` is thrown when an incoming request's params,
  * query, body, or headers fail schema validation. The handler catches it
- * and maps it to a 400 response matching the `@triad/express`,
- * `@triad/fastify`, and `@triad/hono` adapters byte-for-byte.
+ * and maps it to a 400 response matching the `@triadjs/express`,
+ * `@triadjs/fastify`, and `@triadjs/hono` adapters byte-for-byte.
  */
 
-import type { ValidationError } from '@triad/core';
+import type { ValidationError } from '@triadjs/core';
 
 export type RequestPart = 'params' | 'query' | 'body' | 'headers';
 

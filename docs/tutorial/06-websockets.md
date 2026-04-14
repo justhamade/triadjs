@@ -9,7 +9,7 @@ Channels are to WebSockets what endpoints are to HTTP. The same schema DSL, the 
 Create `src/schemas/review.ts`:
 
 ```ts
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 export const Review = t.model('Review', {
   id: t.string().format('uuid').identity().storage({ primaryKey: true }),
@@ -42,7 +42,7 @@ Add a `reviews` table to your Drizzle schema via `triad db generate` or by addin
 
 ```ts
 import { asc, eq } from 'drizzle-orm';
-import type { Infer } from '@triad/core';
+import type { Infer } from '@triadjs/core';
 import type { Db } from '../db/client.js';
 import { reviews } from '../db/schema.js';
 import type { Review as ReviewSchema } from '../schemas/review.js';
@@ -92,7 +92,7 @@ Wire it into `createServices` as `reviewRepo` — same pattern as `bookRepo` and
 Create `src/channels/book-reviews.ts`:
 
 ```ts
-import { channel, scenario, t } from '@triad/core';
+import { channel, scenario, t } from '@triadjs/core';
 import {
   ChannelError,
   Review,
@@ -234,7 +234,7 @@ Real-time subscribers are a bonus for clients that want them, but the canonical 
 Create `src/endpoints/reviews.ts`:
 
 ```ts
-import { checkOwnership, endpoint, scenario, t } from '@triad/core';
+import { checkOwnership, endpoint, scenario, t } from '@triadjs/core';
 import { CreateReview, Review } from '../schemas/review.js';
 import { ApiError } from '../schemas/common.js';
 import { requireAuth } from '../auth.js';

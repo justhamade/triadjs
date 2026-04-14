@@ -1,9 +1,9 @@
 {
-  "name": "@triad/example-petstore",
+  "name": "@triadjs/example-petstore",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Triad reference example — a full petstore API using @triad/core, @triad/fastify, and the triad CLI.",
+  "description": "Triad reference example — a full petstore API using @triadjs/core, @triadjs/fastify, and the triad CLI.",
   "scripts": {
     "start": "tsx src/server.ts",
     "dev": "tsx watch src/server.ts",
@@ -16,16 +16,16 @@
   },
   "dependencies": {
     "@fastify/websocket": "^11.0.0",
-    "@triad/core": "*",
-    "@triad/drizzle": "*",
-    "@triad/fastify": "*",
+    "@triadjs/core": "*",
+    "@triadjs/drizzle": "*",
+    "@triadjs/fastify": "*",
     "better-sqlite3": "^11.0.0",
     "drizzle-orm": "^0.36.0",
     "fastify": "^5.0.0"
   },
   "devDependencies": {
-    "@triad/cli": "*",
-    "@triad/test-runner": "*",
+    "@triadjs/cli": "*",
+    "@triadjs/test-runner": "*",
     "@types/better-sqlite3": "^7.6.0",
     "@types/ws": "^8.5.0",
     "tsx": "^4.19.0",

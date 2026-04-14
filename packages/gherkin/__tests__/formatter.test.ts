@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { scenario } from '@triad/core';
+import { scenario } from '@triadjs/core';
 import {
   formatScenario,
   formatDataTable,

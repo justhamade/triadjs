@@ -4,8 +4,8 @@
     "outDir": "./dist",
     "baseUrl": ".",
     "paths": {
-      "@triad/core": ["../core/src/index.ts"],
-      "@triad/core/scenario-auto": ["../core/src/scenario-auto.ts"]
+      "@triadjs/core": ["../core/src/index.ts"],
+      "@triadjs/core/scenario-auto": ["../core/src/scenario-auto.ts"]
     },
     "noEmit": true
   },

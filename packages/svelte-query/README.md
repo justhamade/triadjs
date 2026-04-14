@@ -1,4 +1,4 @@
-# @triad/svelte-query
+# @triadjs/svelte-query
 
 Generate fully-typed [Svelte Query](https://tanstack.com/query/latest/docs/framework/svelte/overview)
 store factories from a Triad router. One source of truth — changing a
@@ -8,7 +8,7 @@ the frontend.
 ## Install
 
 ```bash
-npm install --save-dev @triad/svelte-query
+npm install --save-dev @triadjs/svelte-query
 ```
 
 `@tanstack/svelte-query` is a peer concern:
@@ -26,7 +26,7 @@ triad frontend generate --target svelte-query --output ./src/generated/api
 Or via `triad.config.ts`:
 
 ```ts
-import { defineConfig } from '@triad/test-runner';
+import { defineConfig } from '@triadjs/test-runner';
 
 export default defineConfig({
   frontend: {
@@ -120,5 +120,5 @@ call produces a fresh store subscription.
 ## Reuse
 
 This package reuses the schema emitter, resource derivation, query-key
-factory, and fetch client template from `@triad/tanstack-query`. Only
+factory, and fetch client template from `@triadjs/tanstack-query`. Only
 the store-factory emitter is unique to Svelte Query.

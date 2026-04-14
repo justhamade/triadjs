@@ -8,7 +8,7 @@
  */
 
 import pc from 'picocolors';
-import type { RunSummary, TestResult } from '@triad/test-runner';
+import type { RunSummary, TestResult } from '@triadjs/test-runner';
 
 /** Subset of picocolors we use. Keeping this narrow avoids coupling to the
  *  module's exact exported type, which varies across picocolors versions. */

@@ -1,11 +1,11 @@
 /**
- * Type definitions for @triad/jwt.
+ * Type definitions for @triadjs/jwt.
  *
  * These types are pure declarations — no runtime code lives here, so
  * importing this module never triggers a `jose` lookup.
  */
 
-import type { ResponseConfig } from '@triad/core';
+import type { ResponseConfig } from '@triadjs/core';
 
 /**
  * Standard JWT claims (RFC 7519). Concrete apps extend this via the
@@ -88,7 +88,7 @@ export interface RequireJwtOptions<TUser> {
  * `requireJWT` MUST declare in its `responses` config.
  *
  * The type is a `Record<number, ResponseConfig>` so it satisfies
- * `@triad/core`'s `ResponsesConfig` constraint, with the 401 slot
+ * `@triadjs/core`'s `ResponsesConfig` constraint, with the 401 slot
  * made required via intersection. This lets `requireJWT`'s
  * `BeforeHandler<_, RequireJwtResponses>` compose cleanly with any
  * endpoint whose `responses` map includes a 401.

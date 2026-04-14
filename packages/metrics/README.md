@@ -1,14 +1,14 @@
-# @triad/metrics
+# @triadjs/metrics
 
 Zero-dependency Prometheus metrics instrumentation for Triad routers. Drop-in wrapper that records histograms and counters for every endpoint handler, then renders them in the Prometheus text exposition format.
 
 ## Install
 
 ```bash
-npm install @triad/metrics
+npm install @triadjs/metrics
 ```
 
-`@triad/metrics` has **no runtime dependencies**. The collector, router wrapper, and text renderer are hand-rolled and total under 500 lines.
+`@triadjs/metrics` has **no runtime dependencies**. The collector, router wrapper, and text renderer are hand-rolled and total under 500 lines.
 
 ## Usage
 
@@ -19,12 +19,12 @@ The package exposes three things:
 3. **`renderMetrics(collector)`** — a convenience helper that returns the Prometheus text for the collector. Equivalent to `collector.render()`.
 
 ```ts
-import { createRouter } from '@triad/core';
+import { createRouter } from '@triadjs/core';
 import {
   createMetricsCollector,
   withMetricsInstrumentation,
   renderMetrics,
-} from '@triad/metrics';
+} from '@triadjs/metrics';
 
 const router = createRouter({ title: 'My API', version: '1.0.0' });
 router.add(/* ...endpoints... */);
@@ -39,13 +39,13 @@ withMetricsInstrumentation(router, collector);
 
 ## Exposing `/metrics` — adapter wire-up
 
-**v1 limitation.** Triad endpoints respond with JSON by default, and the response schema system does not yet model arbitrary `Content-Type` headers. Prometheus scrapers expect `text/plain; version=0.0.4`, so `/metrics` cannot be expressed as a regular Triad endpoint today. Instead, wire it up directly against the underlying HTTP framework after you register the Triad plugin. A future phase may add response content-type support to `@triad/core`.
+**v1 limitation.** Triad endpoints respond with JSON by default, and the response schema system does not yet model arbitrary `Content-Type` headers. Prometheus scrapers expect `text/plain; version=0.0.4`, so `/metrics` cannot be expressed as a regular Triad endpoint today. Instead, wire it up directly against the underlying HTTP framework after you register the Triad plugin. A future phase may add response content-type support to `@triadjs/core`.
 
 ### Fastify
 
 ```ts
 import Fastify from 'fastify';
-import { triadPlugin } from '@triad/fastify';
+import { triadPlugin } from '@triadjs/fastify';
 
 const app = Fastify();
 await app.register(triadPlugin, { router });
@@ -60,7 +60,7 @@ app.get('/metrics', async (_req, reply) => {
 
 ```ts
 import express from 'express';
-import { triadMiddleware } from '@triad/express';
+import { triadMiddleware } from '@triadjs/express';
 
 const app = express();
 app.use(triadMiddleware({ router }));
@@ -74,7 +74,7 @@ app.get('/metrics', (_req, res) => {
 
 ```ts
 import { Hono } from 'hono';
-import { triadHandler } from '@triad/hono';
+import { triadHandler } from '@triadjs/hono';
 
 const app = new Hono();
 app.route('/', triadHandler({ router }));
@@ -133,5 +133,5 @@ When enabled, every per-message handler on every channel is wrapped with a timin
 
 ## Related
 
-- [`@triad/otel`](../otel/README.md) — OpenTelemetry instrumentation. Pairs well with metrics: OTel gives you traces and contextual attributes, `@triad/metrics` gives you fast scrapeable histograms.
+- [`@triadjs/otel`](../otel/README.md) — OpenTelemetry instrumentation. Pairs well with metrics: OTel gives you traces and contextual attributes, `@triadjs/metrics` gives you fast scrapeable histograms.
 - `docs/guides/observability.md` — the broader observability story for Triad.

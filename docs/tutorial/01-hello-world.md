@@ -12,8 +12,8 @@ Create a fresh directory and initialize it:
 mkdir bookshelf && cd bookshelf
 npm init -y
 npm pkg set type=module
-npm install @triad/core @triad/fastify fastify
-npm install -D @triad/cli @triad/test-runner tsx typescript @types/node
+npm install @triadjs/core @triadjs/fastify fastify
+npm install -D @triadjs/cli @triadjs/test-runner tsx typescript @types/node
 ```
 
 Triad requires **Node 20+** — `node --version` should print `v20.` or newer. The `type: "module"` setting is not optional; Triad is an ESM-only framework and the CLI loads your config via native `import()`.
@@ -44,7 +44,7 @@ Strict mode is not a style choice — `ctx.body`, `ctx.params`, and `ctx.respond
 Create `src/app.ts`:
 
 ```ts
-import { createRouter, endpoint, scenario, t } from '@triad/core';
+import { createRouter, endpoint, scenario, t } from '@triadjs/core';
 
 const HelloResponse = t.model('HelloResponse', {
   message: t.string().doc('Greeting text'),
@@ -94,7 +94,7 @@ That is the entire application. Two things are worth pausing on:
 Create `triad.config.ts` at the project root:
 
 ```ts
-import { defineConfig } from '@triad/test-runner';
+import { defineConfig } from '@triadjs/test-runner';
 
 export default defineConfig({
   router: './src/app.ts',
@@ -159,7 +159,7 @@ Create `src/server.ts`:
 
 ```ts
 import Fastify from 'fastify';
-import { triadPlugin } from '@triad/fastify';
+import { triadPlugin } from '@triadjs/fastify';
 import router from './app.js';
 
 const app = Fastify({ logger: true });

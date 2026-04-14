@@ -16,7 +16,7 @@ doesn't.
 ## Table of contents
 
 1. [Decision matrix](#1-decision-matrix)
-2. [`@triad/lambda` quickstart](#2-triadlambda-quickstart)
+2. [`@triadjs/lambda` quickstart](#2-triadlambda-quickstart)
 3. [Lambda + API Gateway v2 (HTTP API)](#3-lambda--api-gateway-v2-http-api)
 4. [Lambda + Function URL](#4-lambda--function-url)
 5. [Lambda + ALB](#5-lambda--alb)
@@ -36,11 +36,11 @@ doesn't.
 
 | Target | Adapter | Cold start | Cost shape | Channels | Setup complexity |
 |---|---|---|---|---|---|
-| **Lambda + API Gateway HTTP API** | `@triad/lambda` | 200-500 ms | Per-request (free tier generous) | No | Low |
-| **Lambda + Function URL** | `@triad/lambda` | 200-500 ms | Per-request | No | Lowest |
-| **Lambda + ALB** | `@triad/lambda` | 200-500 ms | Per-request + ALB hourly (~$18/mo) | No | Medium |
-| **Lambda@Edge / CloudFront Fns** | `@triad/lambda` | <50 ms (edge) | Per-request | No | Medium-High |
-| **ECS Fargate** | `@triad/fastify` (channels!) or any | N/A — always on | Task-hourly (~$15-30/mo for a tiny task) | **Yes** (Fastify) | Medium-High |
+| **Lambda + API Gateway HTTP API** | `@triadjs/lambda` | 200-500 ms | Per-request (free tier generous) | No | Low |
+| **Lambda + Function URL** | `@triadjs/lambda` | 200-500 ms | Per-request | No | Lowest |
+| **Lambda + ALB** | `@triadjs/lambda` | 200-500 ms | Per-request + ALB hourly (~$18/mo) | No | Medium |
+| **Lambda@Edge / CloudFront Fns** | `@triadjs/lambda` | <50 ms (edge) | Per-request | No | Medium-High |
+| **ECS Fargate** | `@triadjs/fastify` (channels!) or any | N/A — always on | Task-hourly (~$15-30/mo for a tiny task) | **Yes** (Fastify) | Medium-High |
 | **App Runner** | Any HTTP adapter | ~2 s from cold scale-to-zero | Per-request + container hourly | Yes | Low |
 | **Elastic Beanstalk** | Any HTTP adapter | N/A | EC2 hourly | Yes | Medium |
 | **EC2 (raw)** | Any HTTP adapter | N/A | EC2 hourly | Yes | Low (if you know EC2) |
@@ -57,7 +57,7 @@ doesn't.
   tail
 
 **Pick Fargate if:**
-- You need WebSocket channels → use `@triad/fastify`
+- You need WebSocket channels → use `@triadjs/fastify`
 - Traffic is steady and high enough that container-hourly beats
   per-request pricing (roughly >5M req/mo for most APIs)
 - You need to talk to a VPC RDS database over a long-lived pool
@@ -86,15 +86,15 @@ Triad's router code is the same either way.
 
 ---
 
-## 2. `@triad/lambda` quickstart
+## 2. `@triadjs/lambda` quickstart
 
 ### Install
 
 ```bash
-npm install @triad/lambda @triad/core
+npm install @triadjs/lambda @triadjs/core
 ```
 
-`@triad/lambda` has zero runtime dependencies other than `@triad/core`
+`@triadjs/lambda` has zero runtime dependencies other than `@triadjs/core`
 itself. The whole point is that your Lambda bundle stays small so cold
 starts stay fast.
 
@@ -102,7 +102,7 @@ starts stay fast.
 
 ```ts
 // src/handler.ts
-import { createLambdaHandler } from '@triad/lambda';
+import { createLambdaHandler } from '@triadjs/lambda';
 import router from './app.js';
 
 export const handler = createLambdaHandler(router, {
@@ -185,7 +185,7 @@ feature (usage plans, API keys, request/response transformations).
 ### Event flow
 
 ```
-Client → API Gateway HTTP API → Lambda → @triad/lambda → Your endpoint handler
+Client → API Gateway HTTP API → Lambda → @triadjs/lambda → Your endpoint handler
 ```
 
 ### Create the API (console)
@@ -197,7 +197,7 @@ Client → API Gateway HTTP API → Lambda → @triad/lambda → Your endpoint h
 5. Deploy → copy the invoke URL
 
 The wildcard route `ANY /{proxy+}` forwards every request to your
-Lambda; `@triad/lambda` handles all method and path matching internally.
+Lambda; `@triadjs/lambda` handles all method and path matching internally.
 
 ### CORS
 
@@ -215,7 +215,7 @@ confusing "blocked by preflight" errors.
 ### Stages and base paths
 
 If you deploy the API under a stage like `/prod`, incoming requests
-will have paths like `/prod/pets/42`. Tell `@triad/lambda` to strip the
+will have paths like `/prod/pets/42`. Tell `@triadjs/lambda` to strip the
 prefix before route matching:
 
 ```ts
@@ -364,7 +364,7 @@ Returns something like
 `https://abcdefghij.lambda-url.us-east-1.on.aws/`.
 
 Function URLs emit the same event shape as API Gateway HTTP API v2, so
-`@triad/lambda` supports them with zero extra config.
+`@triadjs/lambda` supports them with zero extra config.
 
 ### When to use
 
@@ -409,7 +409,7 @@ ALB events look like API Gateway v1 but have a few differences:
   enabled
 - `path` is the full request path, no stage prefix
 
-`@triad/lambda` handles all of this transparently — the same handler
+`@triadjs/lambda` handles all of this transparently — the same handler
 factory accepts ALB events and responds with the correct v1-ish shape.
 
 ### Setup
@@ -451,7 +451,7 @@ services. Don't add one just to front a single Lambda.
 ## 6. ECS Fargate
 
 When you need **channels, steady traffic, or long-lived connections**,
-deploy your Triad app as a Fargate task using `@triad/fastify` (the
+deploy your Triad app as a Fargate task using `@triadjs/fastify` (the
 only adapter that supports WebSocket channels in v1).
 
 ### Dockerfile
@@ -486,7 +486,7 @@ CMD ["node", "dist/server.js"]
 ```ts
 // src/server.ts
 import Fastify from 'fastify';
-import { createTriadPlugin } from '@triad/fastify';
+import { createTriadPlugin } from '@triadjs/fastify';
 import router from './app.js';
 
 const app = Fastify({ logger: true });
@@ -734,7 +734,7 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
 
-    # WebSocket support — required if you use @triad/fastify channels
+    # WebSocket support — required if you use @triadjs/fastify channels
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
     proxy_read_timeout 86400;
@@ -872,7 +872,7 @@ Node.js on Lambda, this is dominated by:
 ### Measured numbers
 
 For a small Triad app (10 endpoints, ~50 KB bundle including
-`@triad/core` and `@triad/lambda`):
+`@triadjs/core` and `@triadjs/lambda`):
 - **ARM64, 512 MB**: ~180-250 ms cold start
 - **x86_64, 512 MB**: ~220-300 ms
 - **ARM64, 1024 MB**: ~150-200 ms (more memory = more CPU, faster
@@ -961,13 +961,13 @@ downstream services:
 
 1. Enable X-Ray on the Lambda function (console or
    `--tracing-config Mode=Active` on `create-function`)
-2. Use the [`@triad/otel`](../../packages/otel/) package with the AWS
+2. Use the [`@triadjs/otel`](../../packages/otel/) package with the AWS
    X-Ray OTel exporter:
 
 ```ts
-import { createTriadObservability } from '@triad/otel';
+import { createTriadObservability } from '@triadjs/otel';
 import { AWSXRayPropagator } from '@aws/otel-aws-xray-propagator';
-// ... wire it up per the @triad/otel docs
+// ... wire it up per the @triadjs/otel docs
 ```
 
 3. Or use the AWS-managed OTel Lambda Layer
@@ -1085,7 +1085,7 @@ Calculator](https://calculator.aws/) with your actual traffic shape.
 - [Choosing an adapter](./choosing-an-adapter.md) — which Triad adapter
   to pick before you worry about where to deploy it
 - [Observability](./observability.md) — OpenTelemetry, metrics, traces
-- [`@triad/lambda` README](../../packages/lambda/README.md)
+- [`@triadjs/lambda` README](../../packages/lambda/README.md)
 - [AWS Lambda developer
   guide](https://docs.aws.amazon.com/lambda/latest/dg/welcome.html)
 - [API Gateway HTTP API developer

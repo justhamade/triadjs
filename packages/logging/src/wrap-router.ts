@@ -1,6 +1,6 @@
 /**
  * `withLoggingInstrumentation` — opt-in structured-logging wrapper for a
- * Triad router. Mirrors the shape of `@triad/otel`'s
+ * Triad router. Mirrors the shape of `@triadjs/otel`'s
  * `withOtelInstrumentation`: walks every endpoint and channel, replaces
  * the handler with one that creates a request-scoped child logger, and
  * runs the original handler inside an `AsyncLocalStorage` so
@@ -30,7 +30,7 @@ import type {
   Endpoint,
   Channel,
   HandlerResponse,
-} from '@triad/core';
+} from '@triadjs/core';
 import type { Logger } from './logger.js';
 
 // ---------------------------------------------------------------------------
@@ -334,7 +334,7 @@ function wrapChannel(
  *   withLoggingInstrumentation,
  *   createPinoLogger,
  *   getLogger,
- * } from '@triad/logging';
+ * } from '@triadjs/logging';
  *
  * const instrumented = withLoggingInstrumentation(router, {
  *   logger: createPinoLogger(pino()),

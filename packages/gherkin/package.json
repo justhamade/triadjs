@@ -1,6 +1,6 @@
 {
-  "name": "@triad/gherkin",
-  "version": "0.1.0",
+  "name": "@triadjs/gherkin",
+  "version": "0.2.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -21,11 +21,33 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@triad/core": "*"
+    "@triadjs/core": "0.2.0"
   },
   "devDependencies": {
     "tsup": "^8.3.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
-  }
+  },
+  "description": "Gherkin .feature file generator from Triad behaviors",
+  "license": "MIT",
+  "author": "Justin Hamade",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justhamade/triad.git",
+    "directory": "packages/gherkin"
+  },
+  "homepage": "https://github.com/justhamade/triad/tree/main/packages/gherkin",
+  "bugs": {
+    "url": "https://github.com/justhamade/triad/issues"
+  },
+  "keywords": [
+    "triad",
+    "api",
+    "typescript",
+    "gherkin",
+    "bdd",
+    "cucumber",
+    "testing"
+  ],
+  "private": false
 }

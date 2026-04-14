@@ -1,5 +1,5 @@
 /**
- * Error-path integration tests for @triad/hono.
+ * Error-path integration tests for @triadjs/hono.
  *
  * Each test sends a real fetch Request via `app.fetch()` and asserts on
  * the response status, content-type, and error envelope shape. The goal:
@@ -9,7 +9,7 @@
 
 import { describe, expect, it, beforeAll } from 'vitest';
 import { Hono } from 'hono';
-import { createRouter, endpoint, t } from '@triad/core';
+import { createRouter, endpoint, t } from '@triadjs/core';
 import { createTriadApp } from '../src/index.js';
 
 // ---------------------------------------------------------------------------

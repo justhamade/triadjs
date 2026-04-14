@@ -18,7 +18,7 @@
  * bus and domain-service alternatives.
  */
 
-import { endpoint, scenario, t } from '@triad/core';
+import { endpoint, scenario, t } from '@triadjs/core';
 import { CreateReview, Review } from '../schemas/review.js';
 import { ApiError } from '../schemas/common.js';
 import { requireAuth } from '../auth.js';

@@ -5,19 +5,19 @@
  *
  * Uses the `kind` discriminator rather than `instanceof` checks so the
  * walker keeps working when the router was loaded through a different
- * copy of `@triad/core` than the test-runner itself (e.g. via jiti in the
+ * copy of `@triadjs/core` than the test-runner itself (e.g. via jiti in the
  * CLI). `instanceof` breaks across duplicate module graphs; string
  * comparison does not.
  */
 
-import type { Router, SchemaNode, ModelSchema, ModelShape } from '@triad/core';
+import type { Router, SchemaNode, ModelSchema, ModelShape } from '@triadjs/core';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ModelRegistry = Map<string, ModelSchema<any>>;
 
 // Structural view of the schema subclasses we need to walk. We intentionally
 // do not `instanceof` against the imported classes because the router we're
-// walking may be constructed by a *different* copy of `@triad/core`.
+// walking may be constructed by a *different* copy of `@triadjs/core`.
 interface ModelLike {
   readonly kind: 'model';
   readonly name: string;

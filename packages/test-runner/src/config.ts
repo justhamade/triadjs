@@ -7,7 +7,7 @@
  *
  * ```ts
  * // triad.config.ts
- * import { defineConfig } from '@triad/test-runner';
+ * import { defineConfig } from '@triadjs/test-runner';
  *
  * export default defineConfig({
  *   router: './src/app.ts',
@@ -25,8 +25,8 @@
  * });
  * ```
  *
- * The config lives in `@triad/test-runner` rather than its own package
- * because it's the first consumer; Phase 6 `@triad/cli` will re-export
+ * The config lives in `@triadjs/test-runner` rather than its own package
+ * because it's the first consumer; Phase 6 `@triadjs/cli` will re-export
  * `defineConfig` from here so users can import it from either place.
  */
 

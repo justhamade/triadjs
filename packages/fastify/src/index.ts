@@ -1,5 +1,5 @@
 /**
- * @triad/fastify — mount a Triad router onto a Fastify app.
+ * @triadjs/fastify — mount a Triad router onto a Fastify app.
  *
  * Triad's core is HTTP-framework-agnostic. This package is the
  * first-party Fastify adapter: it registers one Fastify route per Triad

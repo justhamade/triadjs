@@ -25,7 +25,7 @@
  */
 
 import pc from 'picocolors';
-import type { Endpoint, Router, SchemaNode, ModelShape, Channel } from '@triad/core';
+import type { Endpoint, Router, SchemaNode, ModelShape, Channel } from '@triadjs/core';
 import { loadConfig } from '../load-config.js';
 import { loadRouter } from '../load-router.js';
 import { CliError } from '../errors.js';

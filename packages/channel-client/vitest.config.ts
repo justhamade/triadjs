@@ -14,8 +14,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@triad/core': coreSrc,
-      '@triad/tanstack-query': tanstackSrc,
+      '@triadjs/core': coreSrc,
+      '@triadjs/tanstack-query': tanstackSrc,
     },
   },
 });

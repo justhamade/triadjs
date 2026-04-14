@@ -1,5 +1,5 @@
 /**
- * @triad/core — public API.
+ * @triadjs/core — public API.
  *
  * Phase 1: schema DSL (`t.*`).
  * Phase 2: endpoint / behavior / router.

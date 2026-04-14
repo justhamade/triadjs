@@ -10,8 +10,8 @@
  * to emit its framework-specific hook/factory code.
  */
 
-import type { Channel, SchemaNode } from '@triad/core';
-import type { TypeEmitter } from '@triad/tanstack-query';
+import type { Channel, SchemaNode } from '@triadjs/core';
+import type { TypeEmitter } from '@triadjs/tanstack-query';
 
 // ---------------------------------------------------------------------------
 // Name conversion

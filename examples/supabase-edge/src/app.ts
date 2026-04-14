@@ -16,7 +16,7 @@
  * layers.
  */
 
-import { createRouter } from '@triad/core';
+import { createRouter } from '@triadjs/core';
 
 import { getMe } from './endpoints/auth.js';
 import {
@@ -37,7 +37,7 @@ const router = createRouter({
   title: 'Triad Supabase Edge Example',
   version: '1.0.0',
   description:
-    'Triad reference example #4 — a tiny blog API deployed as a Supabase Edge Function on Deno via @triad/hono. Demonstrates Supabase Auth JWT validation, per-request Supabase clients, ownership-based authorization, and the repository pattern against @supabase/supabase-js.',
+    'Triad reference example #4 — a tiny blog API deployed as a Supabase Edge Function on Deno via @triadjs/hono. Demonstrates Supabase Auth JWT validation, per-request Supabase clients, ownership-based authorization, and the repository pattern against @supabase/supabase-js.',
   servers: [
     { url: 'http://localhost:3300', description: 'Local Node dev server' },
     {

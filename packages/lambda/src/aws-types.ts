@@ -2,7 +2,7 @@
  * Minimal structural types for the AWS Lambda event shapes we support.
  *
  * We deliberately inline these rather than depending on `@types/aws-lambda`
- * to keep `@triad/lambda` zero-dependency at build time and avoid bloating
+ * to keep `@triadjs/lambda` zero-dependency at build time and avoid bloating
  * the user's Lambda bundle. The fields here are a strict subset of the
  * real types — enough to parse incoming requests and emit correct
  * responses across API Gateway v1, API Gateway v2 (HTTP API),

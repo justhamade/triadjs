@@ -38,7 +38,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Infer } from '@triad/core';
+import type { Infer } from '@triadjs/core';
 import type { Post as PostSchema } from '../schemas/post.js';
 import type {
   CreatePostInput,

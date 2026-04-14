@@ -1,4 +1,4 @@
-# @triad/tanstack-query
+# @triadjs/tanstack-query
 
 Generate fully-typed [TanStack Query](https://tanstack.com/query) hooks
 from a Triad router. Closes the single-source-of-truth loop: a change
@@ -8,7 +8,7 @@ the frontend.
 ## Install
 
 ```bash
-npm install --save-dev @triad/tanstack-query
+npm install --save-dev @triadjs/tanstack-query
 ```
 
 `@tanstack/react-query` is a peer concern: the generated code imports
@@ -27,7 +27,7 @@ triad frontend generate --target tanstack-query --output ./src/generated/api
 Or via `triad.config.ts`:
 
 ```ts
-import { defineConfig } from '@triad/test-runner';
+import { defineConfig } from '@triadjs/test-runner';
 
 export default defineConfig({
   router: './src/app.ts',
@@ -132,5 +132,5 @@ headers, request signing, or a custom retry policy, either:
 ## Related
 
 - Phase 11 of the Triad ROADMAP
-- `@triad/openapi` — generates OpenAPI documents from the same router
-- `@triad/drizzle` — generates Drizzle schemas from the same router
+- `@triadjs/openapi` — generates OpenAPI documents from the same router
+- `@triadjs/drizzle` — generates Drizzle schemas from the same router

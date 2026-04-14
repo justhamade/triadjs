@@ -196,7 +196,7 @@ describe('runDocsCheck — command', () => {
     const fs = await import('node:fs');
     const os = await import('node:os');
     const path = await import('node:path');
-    const { createRouter, endpoint, t } = await import('@triad/core');
+    const { createRouter, endpoint, t } = await import('@triadjs/core');
 
     // Build a router with two endpoints; use it to produce a "current" doc.
     const Pet = t.model('Pet', { id: t.string(), name: t.string() });
@@ -222,7 +222,7 @@ describe('runDocsCheck — command', () => {
     // Baseline = router WITHOUT ep2 (so adding it is a "safe" new endpoint).
     const baseRouter = createRouter({ title: 'x', version: '1' });
     baseRouter.add(ep1);
-    const { generateOpenAPI, toYaml } = await import('@triad/openapi');
+    const { generateOpenAPI, toYaml } = await import('@triadjs/openapi');
     const baseDoc = generateOpenAPI(baseRouter);
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'triad-check-'));
     const baselineFile = path.join(tmp, 'baseline.yaml');
@@ -255,8 +255,8 @@ describe('runDocsCheck — command', () => {
     const fs = await import('node:fs');
     const os = await import('node:os');
     const path = await import('node:path');
-    const { createRouter, endpoint, t } = await import('@triad/core');
-    const { generateOpenAPI, toYaml } = await import('@triad/openapi');
+    const { createRouter, endpoint, t } = await import('@triadjs/core');
+    const { generateOpenAPI, toYaml } = await import('@triadjs/openapi');
 
     const Pet = t.model('Pet', { id: t.string(), name: t.string() });
     const ep1 = endpoint({
@@ -299,8 +299,8 @@ describe('runDocsCheck — command', () => {
     const fs = await import('node:fs');
     const os = await import('node:os');
     const path = await import('node:path');
-    const { createRouter, endpoint, t } = await import('@triad/core');
-    const { generateOpenAPI, toYaml } = await import('@triad/openapi');
+    const { createRouter, endpoint, t } = await import('@triadjs/core');
+    const { generateOpenAPI, toYaml } = await import('@triadjs/openapi');
 
     const Pet = t.model('Pet', { id: t.string(), name: t.string() });
     const ep1 = endpoint({

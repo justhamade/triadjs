@@ -2,7 +2,7 @@
 
 Triad's core does not know or care whether your handlers touch a database at all. Handlers call `ctx.services.<something>` and `ctx.services` is whatever you construct in `createServices()`. That means every ORM, query builder, or raw driver on npm is a valid choice.
 
-Triad does ship one piece of optional ORM machinery: `@triad/drizzle`, a **bridge** that generates Drizzle table definitions from your Triad schemas. This is the default happy path, but it is opt-in. Skipping it costs you nothing except the codegen convenience.
+Triad does ship one piece of optional ORM machinery: `@triadjs/drizzle`, a **bridge** that generates Drizzle table definitions from your Triad schemas. This is the default happy path, but it is opt-in. Skipping it costs you nothing except the codegen convenience.
 
 This guide covers five paths — Drizzle with the bridge, Drizzle without the bridge, Prisma, Kysely, and raw SQL — and a decision tree at the end. For deeper Drizzle detail see [`docs/drizzle-integration.md`](../drizzle-integration.md).
 
@@ -10,7 +10,7 @@ This guide covers five paths — Drizzle with the bridge, Drizzle without the br
 
 ## 1. What the Drizzle bridge is — and isn't
 
-`@triad/drizzle` is **not an ORM**. It is a thin layer that does three things:
+`@triadjs/drizzle` is **not an ORM**. It is a thin layer that does three things:
 
 1. **Codegen**: walks your `Router`, reads `.storage(...)` hints on your models, and emits a Drizzle schema file (`triad db generate --dialect sqlite|postgres|mysql`).
 2. **Type helpers**: `InferRow<typeof table>` and `InferInsert<typeof table>` mirror Drizzle's own inference so your repositories can type their row-shaped data without repeating the column list.
@@ -20,7 +20,7 @@ What it does **not** do:
 
 - It does **not** run migrations. Use `drizzle-kit` (or your own migration tool) for that.
 - It does **not** talk to the database. It emits a TypeScript file; your Drizzle client reads it.
-- It does **not** require itself. A Triad app can use `@triad/core` + `better-sqlite3` + hand-written SQL and never install `@triad/drizzle`.
+- It does **not** require itself. A Triad app can use `@triadjs/core` + `better-sqlite3` + hand-written SQL and never install `@triadjs/drizzle`.
 
 The bridge exists because the most common Triad app uses Drizzle, and having `.storage({ primaryKey: true })` next to `.identity()` on a schema field is the cleanest way to keep the API contract and the storage contract visibly aligned. If you are not using Drizzle, the metadata is simply ignored.
 
@@ -35,7 +35,7 @@ This is what `examples/petstore` and `examples/tasktracker` do. You write Triad 
 ### Model with storage hints
 
 ```ts
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 export const Pet = t.model('Pet', {
   id: t.string().format('uuid').identity().storage({ primaryKey: true }),
@@ -76,8 +76,8 @@ Commit the generated file — it is not a build artifact, it is your source of t
 
 ```ts
 import { and, asc, eq } from 'drizzle-orm';
-import type { Infer } from '@triad/core';
-import type { InferRow, InferInsert } from '@triad/drizzle';
+import type { Infer } from '@triadjs/core';
+import type { InferRow, InferInsert } from '@triadjs/drizzle';
 import type { Db } from '../db/client.js';
 import { pets } from '../db/schema.generated.js';
 import type { Pet as PetSchema } from '../schemas/pet.js';
@@ -148,11 +148,11 @@ For the full discussion (including why Triad chose Drizzle over Prisma, the "two
 
 You want Drizzle, but you do not want Triad's codegen. Maybe the tables already exist. Maybe you want to tune column types by hand. Maybe you just do not like `triad db generate` as a workflow step.
 
-Skip `@triad/drizzle` entirely:
+Skip `@triadjs/drizzle` entirely:
 
 ```bash
-npm install @triad/core drizzle-orm better-sqlite3
-# NOT needed: @triad/drizzle
+npm install @triadjs/core drizzle-orm better-sqlite3
+# NOT needed: @triadjs/drizzle
 ```
 
 Write `src/db/schema.ts` yourself:
@@ -241,7 +241,7 @@ npx prisma migrate dev --name init
 ```ts
 // src/repositories/book.ts
 import { PrismaClient } from '@prisma/client';
-import type { Infer } from '@triad/core';
+import type { Infer } from '@triadjs/core';
 import type { Book as BookSchema } from '../schemas/book.js';
 
 type Book = Infer<typeof BookSchema>;
@@ -306,7 +306,7 @@ export interface AppServices {
   bookRepo: BookRepository;
 }
 
-declare module '@triad/core' {
+declare module '@triadjs/core' {
   interface ServiceContainer extends AppServices {}
 }
 
@@ -412,7 +412,7 @@ export type Db = ReturnType<typeof createDatabase>;
 
 ```ts
 import type { Db } from '../db/client.js';
-import type { Infer } from '@triad/core';
+import type { Infer } from '@triadjs/core';
 import type { Book as BookSchema } from '../schemas/book.js';
 
 type Book = Infer<typeof BookSchema>;
@@ -447,7 +447,7 @@ export class BookRepository {
 }
 ```
 
-Kysely does not ship a migration tool. Use `kysely-migration-cli`, `dbmate`, or write migrations by hand. As with Prisma, migrations are independent of Triad — if you prefer one tool to rule them all, pair Kysely with the `@triad/drizzle` bridge used purely for schema emission, then point Kysely at the same tables.
+Kysely does not ship a migration tool. Use `kysely-migration-cli`, `dbmate`, or write migrations by hand. As with Prisma, migrations are independent of Triad — if you prefer one tool to rule them all, pair Kysely with the `@triadjs/drizzle` bridge used purely for schema emission, then point Kysely at the same tables.
 
 Isolation: fresh `:memory:` database per scenario in `test-setup.ts`, identical to the Drizzle pattern.
 
@@ -465,7 +465,7 @@ npm install -D @types/better-sqlite3
 ```ts
 // src/repositories/book.ts
 import Database from 'better-sqlite3';
-import type { Infer } from '@triad/core';
+import type { Infer } from '@triadjs/core';
 import type { Book as BookSchema } from '../schemas/book.js';
 
 type Book = Infer<typeof BookSchema>;
@@ -508,7 +508,7 @@ For Postgres, swap `better-sqlite3` for `pg` and use parameterized queries (`$1`
 
 ## 7. What you lose without the Drizzle bridge
 
-| Feature | With `@triad/drizzle` | Without |
+| Feature | With `@triadjs/drizzle` | Without |
 |---|---|---|
 | `triad db generate` | Yes | No |
 | `.storage(...)` metadata is meaningful | Yes | Ignored (keep off models for clarity) |
@@ -519,7 +519,7 @@ For Postgres, swap `better-sqlite3` for `pg` and use parameterized queries (`$1`
 What you keep (on every path):
 
 - The repository pattern.
-- The service container and `declare module '@triad/core'` augmentation.
+- The service container and `declare module '@triadjs/core'` augmentation.
 - Per-scenario isolation via `test-setup.ts`.
 - `triad test` running scenarios in-process against real handlers.
 - The OpenAPI / Gherkin / AsyncAPI output — these come from the Triad router, not the storage layer.
@@ -530,18 +530,18 @@ What you keep (on every path):
 
 ```
 Do you already have a preferred ORM?
-├── No → Drizzle + @triad/drizzle (Path A).
+├── No → Drizzle + @triadjs/drizzle (Path A).
 │       This is the default; every example in the repo uses it.
 │
 └── Yes
     ├── Drizzle but I want to write schemas by hand → Path B.
     │
     ├── Prisma → Path C.
-    │   Skip @triad/drizzle. Keep Prisma migrations separate.
+    │   Skip @triadjs/drizzle. Keep Prisma migrations separate.
     │   Convert Date and Decimal at the repository boundary.
     │
     ├── Kysely → Path D.
-    │   Skip @triad/drizzle (or use it for schema emission only and
+    │   Skip @triadjs/drizzle (or use it for schema emission only and
     │   point Kysely at the emitted tables).
     │
     ├── TypeORM / Sequelize / MikroORM → treat like Prisma (Path C).
@@ -562,7 +562,7 @@ Technically yes, for different tables. Practically this is a smell — it double
 No first-party bridge, but repositories are user code. Write `BookRepository` with the Mongo driver, expose it on `ctx.services`, done. The only thing to watch is that `rowToApi` has to convert Mongo's `ObjectId` and `Date` types into the strings Triad's `t.string()` and `t.datetime()` expect.
 
 **What about edge-runtime databases (D1, Turso, Neon, PlanetScale)?**
-All of these work. Use an HTTP-friendly driver (`@libsql/client`, `@cloudflare/workers-types` + `D1Database`, `@neondatabase/serverless`, `@planetscale/database`) inside a per-request services factory. Pair with `@triad/hono` for the adapter; see [Choosing an adapter §4](./choosing-an-adapter.md#4-hono-setup).
+All of these work. Use an HTTP-friendly driver (`@libsql/client`, `@cloudflare/workers-types` + `D1Database`, `@neondatabase/serverless`, `@planetscale/database`) inside a per-request services factory. Pair with `@triadjs/hono` for the adapter; see [Choosing an adapter §4](./choosing-an-adapter.md#4-hono-setup).
 
 **Do migrations belong in Triad?**
 No. Triad's job is the API contract; the storage contract is yours. Use `drizzle-kit`, `prisma migrate`, `dbmate`, Flyway, or whatever your team already runs. `triad db generate` regenerates *schemas*, not migrations — on purpose.

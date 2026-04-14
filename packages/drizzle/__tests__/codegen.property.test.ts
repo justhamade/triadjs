@@ -12,7 +12,7 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import ts from 'typescript';
-import { createRouter, endpoint, t, type Endpoint } from '@triad/core';
+import { createRouter, endpoint, t, type Endpoint } from '@triadjs/core';
 import { generateDrizzleSchema, walkRouter } from '../src/index.js';
 import type { Dialect } from '../src/codegen/types.js';
 

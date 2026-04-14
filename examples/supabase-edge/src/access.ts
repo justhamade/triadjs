@@ -19,8 +19,8 @@
  * `docs/guides/supabase.md` §5 for the RLS side of the story.
  */
 
-import type { Infer } from '@triad/core';
-import { checkOwnership } from '@triad/core';
+import type { Infer } from '@triadjs/core';
+import { checkOwnership } from '@triadjs/core';
 import type { Post } from './schemas/post.js';
 import type { SupabaseEdgeServices } from './services.js';
 

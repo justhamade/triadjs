@@ -27,7 +27,7 @@ Triad's north star is that **an AI coding assistant should be able to understand
 ## Taste of it
 
 ```typescript
-import { t, endpoint, scenario, createRouter } from '@triad/core';
+import { t, endpoint, scenario, createRouter } from '@triadjs/core';
 
 const Pet = t.model('Pet', {
   id: t.string().format('uuid').identity(),
@@ -83,28 +83,28 @@ For WebSocket channels, `channel()` works the same way and produces AsyncAPI + t
 
 | Package | Purpose |
 |---|---|
-| [`@triad/core`](packages/core) | Schema DSL, `endpoint()`, `channel()`, `scenario()`, `scenario.auto()`, `createRouter()` |
-| [`@triad/openapi`](packages/openapi) | Router → OpenAPI 3.1 (YAML/JSON) |
-| [`@triad/asyncapi`](packages/asyncapi) | Router → AsyncAPI 3.0 (YAML/JSON) |
-| [`@triad/gherkin`](packages/gherkin) | Behaviors → `.feature` files |
-| [`@triad/test-runner`](packages/test-runner) | In-process BDD runner + schema-derived auto-scenario generation |
-| [`@triad/fastify`](packages/fastify) | Fastify HTTP + WebSocket adapter |
-| [`@triad/express`](packages/express) | Express HTTP adapter |
-| [`@triad/hono`](packages/hono) | Hono adapter (Node, Deno, Bun, Cloudflare Workers) |
-| [`@triad/lambda`](packages/lambda) | AWS Lambda adapter (API Gateway v1/v2, ALB, Function URL) |
-| [`@triad/drizzle`](packages/drizzle) | Triad schemas → Drizzle tables + SQL migrations (SQLite, Postgres, MySQL) |
-| [`@triad/tanstack-query`](packages/tanstack-query) | Router → typed React Query hooks |
-| [`@triad/solid-query`](packages/solid-query) | Router → typed Solid Query hooks |
-| [`@triad/vue-query`](packages/vue-query) | Router → typed Vue Query composables |
-| [`@triad/svelte-query`](packages/svelte-query) | Router → typed Svelte Query store factories |
-| [`@triad/channel-client`](packages/channel-client) | Router → typed WebSocket clients (vanilla TS, React, Solid, Vue, Svelte) |
-| [`@triad/forms`](packages/forms) | Router → form validators (react-hook-form, @tanstack/form) |
-| [`@triad/jwt`](packages/jwt) | `requireJWT` BeforeHandler factory wrapping jose |
-| [`@triad/otel`](packages/otel) | OpenTelemetry tracing (opt-in router wrapper) |
-| [`@triad/metrics`](packages/metrics) | Prometheus metrics (opt-in router wrapper) |
-| [`@triad/logging`](packages/logging) | Structured logging with AsyncLocalStorage (opt-in router wrapper) |
-| [`@triad/security-headers`](packages/security-headers) | Security headers middleware (Fastify, Express, Hono) |
-| [`@triad/cli`](packages/cli) | `triad test`, `triad fuzz`, `triad docs`, `triad new`, `triad mock`, `triad db`, `triad validate`, `triad frontend` |
+| [`@triadjs/core`](packages/core) | Schema DSL, `endpoint()`, `channel()`, `scenario()`, `scenario.auto()`, `createRouter()` |
+| [`@triadjs/openapi`](packages/openapi) | Router → OpenAPI 3.1 (YAML/JSON) |
+| [`@triadjs/asyncapi`](packages/asyncapi) | Router → AsyncAPI 3.0 (YAML/JSON) |
+| [`@triadjs/gherkin`](packages/gherkin) | Behaviors → `.feature` files |
+| [`@triadjs/test-runner`](packages/test-runner) | In-process BDD runner + schema-derived auto-scenario generation |
+| [`@triadjs/fastify`](packages/fastify) | Fastify HTTP + WebSocket adapter |
+| [`@triadjs/express`](packages/express) | Express HTTP adapter |
+| [`@triadjs/hono`](packages/hono) | Hono adapter (Node, Deno, Bun, Cloudflare Workers) |
+| [`@triadjs/lambda`](packages/lambda) | AWS Lambda adapter (API Gateway v1/v2, ALB, Function URL) |
+| [`@triadjs/drizzle`](packages/drizzle) | Triad schemas → Drizzle tables + SQL migrations (SQLite, Postgres, MySQL) |
+| [`@triadjs/tanstack-query`](packages/tanstack-query) | Router → typed React Query hooks |
+| [`@triadjs/solid-query`](packages/solid-query) | Router → typed Solid Query hooks |
+| [`@triadjs/vue-query`](packages/vue-query) | Router → typed Vue Query composables |
+| [`@triadjs/svelte-query`](packages/svelte-query) | Router → typed Svelte Query store factories |
+| [`@triadjs/channel-client`](packages/channel-client) | Router → typed WebSocket clients (vanilla TS, React, Solid, Vue, Svelte) |
+| [`@triadjs/forms`](packages/forms) | Router → form validators (react-hook-form, @tanstack/form) |
+| [`@triadjs/jwt`](packages/jwt) | `requireJWT` BeforeHandler factory wrapping jose |
+| [`@triadjs/otel`](packages/otel) | OpenTelemetry tracing (opt-in router wrapper) |
+| [`@triadjs/metrics`](packages/metrics) | Prometheus metrics (opt-in router wrapper) |
+| [`@triadjs/logging`](packages/logging) | Structured logging with AsyncLocalStorage (opt-in router wrapper) |
+| [`@triadjs/security-headers`](packages/security-headers) | Security headers middleware (Fastify, Express, Hono) |
+| [`@triadjs/cli`](packages/cli) | `triad test`, `triad fuzz`, `triad docs`, `triad new`, `triad mock`, `triad db`, `triad validate`, `triad frontend` |
 
 ---
 
@@ -147,7 +147,7 @@ Triad is **pre-1.0** and under active development. Feature-complete through Phas
 - ✅ Drizzle bridge with SQL migration codegen (SQLite, Postgres, MySQL)
 - ✅ Frontend codegen: TanStack Query, Solid Query, Vue Query, Svelte Query, form validators, typed WebSocket clients
 - ✅ Observability: OpenTelemetry tracing, Prometheus metrics, structured logging (all opt-in router wrappers)
-- ✅ Auth: `@triad/jwt` with JWKS/HS256 + security headers middleware
+- ✅ Auth: `@triadjs/jwt` with JWKS/HS256 + security headers middleware
 - ✅ Developer tooling: `triad new` scaffolding, `triad mock` server, `triad docs check` breaking-change detection
 
 **21 packages, 4 reference examples, 83 behavior scenarios, 1000+ unit/integration/property tests.** APIs may still shift before 1.0 — pin exact versions if you adopt early.

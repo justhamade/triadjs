@@ -1,5 +1,5 @@
 /**
- * `@triad/tanstack-query` — generate fully-typed TanStack Query hooks
+ * `@triadjs/tanstack-query` — generate fully-typed TanStack Query hooks
  * from a Triad router.
  */
 

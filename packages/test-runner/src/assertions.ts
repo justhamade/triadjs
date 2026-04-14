@@ -10,7 +10,7 @@
  * aspirational behaviors drift into the test suite undetected.
  */
 
-import type { Assertion, HandlerResponse } from '@triad/core';
+import type { Assertion, HandlerResponse } from '@triadjs/core';
 import { AssertionFailure } from './results.js';
 import type { ModelRegistry } from './models.js';
 import { substitute, type Fixtures } from './substitute.js';

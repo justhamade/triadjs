@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createRouter, endpoint, scenario, t } from '@triad/core';
-import type { ServiceContainer } from '@triad/core';
+import { createRouter, endpoint, scenario, t } from '@triadjs/core';
+import type { ServiceContainer } from '@triadjs/core';
 import { auto } from '../../core/src/scenario-auto.js';
 import { runBehaviors } from '../src/runner.js';
 

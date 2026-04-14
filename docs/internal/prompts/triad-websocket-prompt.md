@@ -40,7 +40,7 @@ HTTP has request → response (one-shot). WebSockets have connection → bidirec
 ## The `channel()` API
 
 ```typescript
-import { channel, scenario, t } from '@triad/core';
+import { channel, scenario, t } from '@triadjs/core';
 
 // Message schemas — regular Triad models, reusable across HTTP and WS
 const ChatMessage = t.model('ChatMessage', {
@@ -521,7 +521,7 @@ The test runner should use the `ws` package for WebSocket client connections in 
 Channels register on the same router as endpoints:
 
 ```typescript
-import { createRouter } from '@triad/core';
+import { createRouter } from '@triadjs/core';
 import { createPet, getPet, listPets } from './endpoints/pets';
 import { chatRoom } from './channels/chat';
 
@@ -626,7 +626,7 @@ packages/
 │       ├── channel-context.ts  # ChannelConnectContext, ChannelMessageContext types
 │       └── wire-protocol.ts    # JSON envelope format for WS messages
 │
-├── asyncapi/                   # @triad/asyncapi — AsyncAPI 3.0 generator (NEW)
+├── asyncapi/                   # @triadjs/asyncapi — AsyncAPI 3.0 generator (NEW)
 │   ├── package.json
 │   ├── tsconfig.json
 │   ├── src/
@@ -651,16 +651,16 @@ packages/
 
 ## Implementation Order (Phase 9)
 
-1. `@triad/core/channel.ts` — The `channel()` function and its type definitions
-2. `@triad/core/channel-context.ts` — ChannelConnectContext, ChannelMessageContext, BroadcastMap, SendMap types
-3. `@triad/core/wire-protocol.ts` — JSON envelope format, message routing logic
-4. Update `@triad/core/router.ts` — Support registering channels alongside endpoints
-5. `@triad/asyncapi/generator.ts` — Walk channels → produce AsyncAPI 3.0 spec
-6. Update `@triad/gherkin/generator.ts` — Handle channel behaviors in Gherkin output
-7. `@triad/test-runner/ws-client.ts` — WebSocket test client for behavior execution
-8. `@triad/test-runner/ws-runner.ts` — Execute channel behaviors with multi-client support
-9. `@triad/test-runner/ws-assertions.ts` — received, not-received, ordering, connection rejection assertions
-10. Update `@triad/cli` — `triad docs` generates both OpenAPI + AsyncAPI
+1. `@triadjs/core/channel.ts` — The `channel()` function and its type definitions
+2. `@triadjs/core/channel-context.ts` — ChannelConnectContext, ChannelMessageContext, BroadcastMap, SendMap types
+3. `@triadjs/core/wire-protocol.ts` — JSON envelope format, message routing logic
+4. Update `@triadjs/core/router.ts` — Support registering channels alongside endpoints
+5. `@triadjs/asyncapi/generator.ts` — Walk channels → produce AsyncAPI 3.0 spec
+6. Update `@triadjs/gherkin/generator.ts` — Handle channel behaviors in Gherkin output
+7. `@triadjs/test-runner/ws-client.ts` — WebSocket test client for behavior execution
+8. `@triadjs/test-runner/ws-runner.ts` — Execute channel behaviors with multi-client support
+9. `@triadjs/test-runner/ws-assertions.ts` — received, not-received, ordering, connection rejection assertions
+10. Update `@triadjs/cli` — `triad docs` generates both OpenAPI + AsyncAPI
 11. Example: Add a chat room channel to the petstore example app
 12. Tests for everything
 

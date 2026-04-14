@@ -7,7 +7,7 @@
  * that each call creates a new store subscription.
  */
 
-import type { Endpoint } from '@triad/core';
+import type { Endpoint } from '@triadjs/core';
 import {
   TypeEmitter,
   collectEndpointShape,
@@ -16,7 +16,7 @@ import {
   renderPathExpression,
   toPascal,
   type ResourceInfo,
-} from '@triad/tanstack-query';
+} from '@triadjs/tanstack-query';
 
 export interface EndpointHook {
   name: string;
@@ -45,7 +45,7 @@ interface EndpointShape {
  * Derive a Svelte-flavoured factory name: `createXxxQuery` for GETs
  * and `createXxxMutation` for mutations. GETs whose endpoint name
  * starts with `get` drop the prefix, mirroring the hook-naming rules
- * from `@triad/tanstack-query`.
+ * from `@triadjs/tanstack-query`.
  */
 export function svelteFactoryName(endpoint: Endpoint): string {
   const base = toPascal(endpoint.name);

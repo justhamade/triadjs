@@ -2,7 +2,7 @@
  * `withMetricsInstrumentation` — opt-in Prometheus metrics
  * instrumentation for a Triad router.
  *
- * Mirrors `@triad/otel`'s `withOtelInstrumentation`: walks every
+ * Mirrors `@triadjs/otel`'s `withOtelInstrumentation`: walks every
  * endpoint on the router (root + bounded contexts) and replaces the
  * handler with one that measures latency and records a request into
  * the provided collector.
@@ -12,7 +12,7 @@
  * returns the same router instance for chainable usage.
  */
 
-import type { Router, Endpoint, Channel, HandlerResponse } from '@triad/core';
+import type { Router, Endpoint, Channel, HandlerResponse } from '@triadjs/core';
 import type { MetricsCollector } from './collector.js';
 
 export type MetricsInstrumentationOptions = {

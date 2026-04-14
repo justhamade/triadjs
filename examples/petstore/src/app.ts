@@ -8,7 +8,7 @@
  * detect cross-context leakage.
  */
 
-import { createRouter } from '@triad/core';
+import { createRouter } from '@triadjs/core';
 import {
   createPet,
   getPet,

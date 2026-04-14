@@ -9,7 +9,7 @@
  * readable.
  */
 
-import { endpoint, scenario, t } from '@triad/core';
+import { endpoint, scenario, t } from '@triadjs/core';
 import {
   Adopter,
   Adoption,

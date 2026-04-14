@@ -1,8 +1,8 @@
 /**
- * @triad/lambda — run a Triad router as an AWS Lambda handler.
+ * @triadjs/lambda — run a Triad router as an AWS Lambda handler.
  *
  * ```ts
- * import { createLambdaHandler } from '@triad/lambda';
+ * import { createLambdaHandler } from '@triadjs/lambda';
  * import router from './app.js';
  * import { createServices } from './services.js';
  *
@@ -15,7 +15,7 @@
  *
  * Supports API Gateway v1 (REST API), API Gateway v2 (HTTP API),
  * Lambda Function URLs, and ALB target invocations. Error envelopes
- * match `@triad/express`, `@triad/fastify`, and `@triad/hono`
+ * match `@triadjs/express`, `@triadjs/fastify`, and `@triadjs/hono`
  * byte-for-byte. WebSocket channels are not supported — Lambda is
  * request/response only.
  */

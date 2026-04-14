@@ -1,5 +1,5 @@
 /**
- * @triad/hono — mount a Triad router onto a Hono application.
+ * @triadjs/hono — mount a Triad router onto a Hono application.
  *
  * Triad's core is HTTP-framework-agnostic. This package is the
  * first-party Hono adapter: it builds a fresh `Hono` app containing
@@ -11,7 +11,7 @@
  * Deno, Bun, Fastly, Lagon) — Hono is Web Fetch API native and runs
  * anywhere a `Request`/`Response` handler can run.
  *
- * WebSocket channels are **not** supported in v1 — use `@triad/fastify`
+ * WebSocket channels are **not** supported in v1 — use `@triadjs/fastify`
  * if you need channel support.
  */
 

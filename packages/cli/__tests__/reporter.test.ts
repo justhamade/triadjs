@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { RunSummary, TestResult } from '@triad/test-runner';
+import type { RunSummary, TestResult } from '@triadjs/test-runner';
 import { reportSummary } from '../src/reporter.js';
 
 function captured(): { write: (s: string) => void; text: () => string } {

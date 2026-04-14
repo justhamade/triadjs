@@ -14,7 +14,7 @@ import {
   t,
   type Endpoint,
   type HttpMethod,
-} from '@triad/core';
+} from '@triadjs/core';
 import { generateOpenAPI } from '../src/generator.js';
 
 const METHODS: readonly HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];

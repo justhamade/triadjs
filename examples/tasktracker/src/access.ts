@@ -13,14 +13,14 @@
  * here, and `checkOwnership` guarantees the 404 vs 403 branching is
  * identical across contexts.
  *
- * The generic helper in `@triad/core` does not fetch — that's the
+ * The generic helper in `@triadjs/core` does not fetch — that's the
  * repository's job. This wrapper handles the fetch-then-check pattern
  * for the `projectRepo` specifically, returning a ready-to-render
  * tuple the caller passes to the right `ctx.respond[...]` slot.
  */
 
-import type { Infer } from '@triad/core';
-import { checkOwnership } from '@triad/core';
+import type { Infer } from '@triadjs/core';
+import { checkOwnership } from '@triadjs/core';
 import type { Project } from './schemas/project.js';
 import type { TaskTrackerServices } from './services.js';
 

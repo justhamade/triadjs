@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { t, ValidationException } from '@triad/core';
+import { t, ValidationException } from '@triadjs/core';
 import {
   validateAgainst,
   validateAgainstSafe,

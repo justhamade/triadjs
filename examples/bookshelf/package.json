@@ -1,5 +1,5 @@
 {
-  "name": "@triad/example-bookshelf",
+  "name": "@triadjs/example-bookshelf",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -16,16 +16,16 @@
   },
   "dependencies": {
     "@fastify/websocket": "^11.0.0",
-    "@triad/core": "*",
-    "@triad/drizzle": "*",
-    "@triad/fastify": "*",
+    "@triadjs/core": "*",
+    "@triadjs/drizzle": "*",
+    "@triadjs/fastify": "*",
     "better-sqlite3": "^11.0.0",
     "drizzle-orm": "^0.36.0",
     "fastify": "^5.0.0"
   },
   "devDependencies": {
-    "@triad/cli": "*",
-    "@triad/test-runner": "*",
+    "@triadjs/cli": "*",
+    "@triadjs/test-runner": "*",
     "@types/better-sqlite3": "^7.6.0",
     "@types/ws": "^8.5.0",
     "tsx": "^4.19.0",

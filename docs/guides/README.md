@@ -8,10 +8,10 @@ Topical how-tos for picking adapters, ORMs, and working productively with AI cod
 - [**Choosing an ORM**](./choosing-an-orm.md) — how the Drizzle bridge works, when to skip it, and how to wire Prisma, Kysely, or raw SQL into a Triad project.
 - [**Working with AI assistants**](./working-with-ai.md) — practical setup and prompts for Claude Code, Cursor, Copilot, and Aider, plus a catalogue of common agent mistakes and how to catch them.
 - [**Triad on Supabase**](./supabase.md) — deploying a Triad API as a Supabase Edge Function on Deno, with Supabase Auth, per-request Supabase clients, RLS as defense in depth, and the memory-vs-Supabase repository split.
-- [**Deploying to AWS**](./deploying-to-aws.md) — Lambda via `@triad/lambda`, ECS Fargate, App Runner, Beanstalk, EC2. Decision matrix, SAM/CDK snippets, cold-start tuning, CI/CD patterns, and cost math for realistic workloads.
-- [**Observability**](./observability.md) — OpenTelemetry via `@triad/otel`, six backend integrations (Honeycomb, Datadog, Grafana Tempo, Jaeger, Sentry, AWS X-Ray), span reference, debugging missing spans, and what the package does NOT do.
-- [**Authentication**](./auth.md) — `@triad/jwt` deep dive plus integration cookbooks for Auth0, Clerk, WorkOS, Firebase, NextAuth, session cookies, API keys, multi-tenancy, and RBAC layered on `beforeHandler`.
-- [**Security**](./security.md) — `@triad/security-headers` with opinionated CSP/HSTS/frame/permissions defaults plus cookbook for rate limiting per adapter, CORS, CSRF, secrets, dependency scanning, OWASP Top 10 audit, and a pre-production checklist.
+- [**Deploying to AWS**](./deploying-to-aws.md) — Lambda via `@triadjs/lambda`, ECS Fargate, App Runner, Beanstalk, EC2. Decision matrix, SAM/CDK snippets, cold-start tuning, CI/CD patterns, and cost math for realistic workloads.
+- [**Observability**](./observability.md) — OpenTelemetry via `@triadjs/otel`, six backend integrations (Honeycomb, Datadog, Grafana Tempo, Jaeger, Sentry, AWS X-Ray), span reference, debugging missing spans, and what the package does NOT do.
+- [**Authentication**](./auth.md) — `@triadjs/jwt` deep dive plus integration cookbooks for Auth0, Clerk, WorkOS, Firebase, NextAuth, session cookies, API keys, multi-tenancy, and RBAC layered on `beforeHandler`.
+- [**Security**](./security.md) — `@triadjs/security-headers` with opinionated CSP/HSTS/frame/permissions defaults plus cookbook for rate limiting per adapter, CORS, CSRF, secrets, dependency scanning, OWASP Top 10 audit, and a pre-production checklist.
 
 ## When to read what
 

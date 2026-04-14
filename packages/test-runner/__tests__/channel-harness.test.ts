@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { channel, t, ValidationException } from '@triad/core';
+import { channel, t, ValidationException } from '@triadjs/core';
 import { ChannelHarness } from '../src/channel-harness.js';
 
 // ---------------------------------------------------------------------------

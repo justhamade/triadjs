@@ -29,7 +29,7 @@
  * leave the sender to render locally, swap to `ctx.broadcastOthers`.
  */
 
-import { channel, scenario, t } from '@triad/core';
+import { channel, scenario, t } from '@triadjs/core';
 import {
   ChannelError,
   Review,

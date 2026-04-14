@@ -11,7 +11,7 @@
  * concern, not a router concern. The router is adapter-agnostic.
  */
 
-import { createRouter } from '@triad/core';
+import { createRouter } from '@triadjs/core';
 
 import { getMe, login, register } from './endpoints/auth.js';
 import {
@@ -41,7 +41,7 @@ const router = createRouter({
   title: 'Task Tracker API',
   version: '1.0.0',
   description:
-    'Triad reference example #2 — a task tracker demonstrating auth, ownership-based authorization, keyset pagination, nested resources, 204 responses, and the @triad/express adapter.',
+    'Triad reference example #2 — a task tracker demonstrating auth, ownership-based authorization, keyset pagination, nested resources, 204 responses, and the @triadjs/express adapter.',
   servers: [
     { url: 'http://localhost:3100', description: 'Local development' },
   ],

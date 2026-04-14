@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { BeforeHandlerResult } from '@triad/core';
+import type { BeforeHandlerResult } from '@triadjs/core';
 import { requireJWT } from '../src/require-jwt.js';
 import type { RequireJwtResponses } from '../src/types.js';
 import {

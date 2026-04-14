@@ -9,7 +9,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { createJiti } from 'jiti';
-import type { TriadConfig } from '@triad/test-runner';
+import type { TriadConfig } from '@triadjs/test-runner';
 import { CliError } from './errors.js';
 
 const CONFIG_CANDIDATES = [

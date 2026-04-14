@@ -9,7 +9,7 @@ Triad is opinionated. Contributions that conflict with these principles will not
 1. **Single source of truth.** One definition → types + validation + docs + tests. Never add features that create second sources of truth.
 2. **Code-first TypeScript.** No YAML schemas, no code generation from DSLs, no `.triad` files. TypeScript is the authoring language.
 3. **Declarative endpoints, fluent behaviors.** The only fluent API is `scenario().given().when().then().and()` — because BDD reads like a sentence. Everything else is a configuration object.
-4. **Framework-agnostic core.** `@triad/core` does not depend on Express, Fastify, Hono, Node's `http`, or any specific HTTP framework. Adapters go in their own packages.
+4. **Framework-agnostic core.** `@triadjs/core` does not depend on Express, Fastify, Hono, Node's `http`, or any specific HTTP framework. Adapters go in their own packages.
 5. **AI-legible by design.** Every definition should be self-describing. An AI reading one endpoint file should understand the data shape, business rules, edge cases, and expected behaviors without chasing imports.
 6. **Zero drift.** If the code compiles and the tests pass, the docs are correct. We enforce this by *producing* the docs from the code, never the other way around.
 
@@ -32,11 +32,11 @@ Triad uses **npm workspaces** (not pnpm or yarn workspaces). Node 20+ required.
 
 ```
 packages/
-  core/         @triad/core — schema DSL, endpoint, behavior, router
-  openapi/      @triad/openapi — OpenAPI 3.1 generator (Phase 3)
-  gherkin/      @triad/gherkin — Gherkin .feature generator (Phase 4)
-  test-runner/  @triad/test-runner — behavior test runner (Phase 5)
-  cli/          @triad/cli — the `triad` CLI (Phase 6)
+  core/         @triadjs/core — schema DSL, endpoint, behavior, router
+  openapi/      @triadjs/openapi — OpenAPI 3.1 generator (Phase 3)
+  gherkin/      @triadjs/gherkin — Gherkin .feature generator (Phase 4)
+  test-runner/  @triadjs/test-runner — behavior test runner (Phase 5)
+  cli/          @triadjs/cli — the `triad` CLI (Phase 6)
 examples/
   petstore/     full working example
 docs/           user-facing documentation
@@ -72,7 +72,7 @@ One logical change per commit. Do not bundle unrelated changes. Commit tests wit
 - `type` over `interface` except for classes and user-extensible declaration merging (`ServiceContainer`)
 - Schemas are **immutable**: every chainable method returns a new instance
 - No comments that restate what the code does. Comments explain *why*, not *what*
-- No runtime dependencies in `@triad/core`. Ever.
+- No runtime dependencies in `@triadjs/core`. Ever.
 
 ## How to add a new schema primitive
 

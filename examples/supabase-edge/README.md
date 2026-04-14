@@ -6,7 +6,7 @@ If you have never built a Triad app before, read [`examples/petstore`](../petsto
 
 ## Why this example exists
 
-Supabase + Deno + Edge Functions is one of the most popular "full stack in a weekend" deployment stories in the TypeScript ecosystem. Triad's HTTP layer already runs on Deno via [`@triad/hono`](../../packages/hono), so there is no adapter work to do — the gap was a **worked reference** showing the wiring: how Supabase Auth pairs with Triad's `beforeHandler`, how to keep the Supabase client per-request for RLS to work, how to split repositories so tests don't need a real Supabase project, and how to deploy with `supabase functions deploy`.
+Supabase + Deno + Edge Functions is one of the most popular "full stack in a weekend" deployment stories in the TypeScript ecosystem. Triad's HTTP layer already runs on Deno via [`@triadjs/hono`](../../packages/hono), so there is no adapter work to do — the gap was a **worked reference** showing the wiring: how Supabase Auth pairs with Triad's `beforeHandler`, how to keep the Supabase client per-request for RLS to work, how to split repositories so tests don't need a real Supabase project, and how to deploy with `supabase functions deploy`.
 
 This example fills that gap. Everything in it — the schemas, the repositories, the endpoints, the behavior tests — looks just like `examples/tasktracker`. The only differences are the persistence layer (Supabase instead of Drizzle/SQLite), the adapter (Hono instead of Express), and an extra deploy target (`supabase/functions/api/index.ts` for Deno).
 
@@ -26,7 +26,7 @@ A tiny blog API with three bounded contexts:
 
 | Concern | Petstore | Tasktracker | Bookshelf | **Supabase Edge** |
 | --- | --- | --- | --- | --- |
-| HTTP adapter | `@triad/fastify` | `@triad/express` | `@triad/fastify` | `@triad/hono` |
+| HTTP adapter | `@triadjs/fastify` | `@triadjs/express` | `@triadjs/fastify` | `@triadjs/hono` |
 | Persistence | Drizzle (SQLite) | Drizzle (SQLite) | Drizzle (SQLite) | **Supabase (`@supabase/supabase-js`)** |
 | Auth | None | In-process token store | In-process token store | **Supabase Auth JWT** |
 | Deploy target | Node | Node | Node | **Supabase Edge Function (Deno)** |
@@ -150,12 +150,12 @@ If your team needs automated Supabase integration tests, run `supabase start` lo
 ## What's NOT here
 
 - **Real Supabase integration tests.** Covered above — `triad test` runs memory-only.
-- **Realtime subscriptions.** Supabase Realtime is the right answer for fan-out; `@triad/hono` doesn't ship a channels adapter. See `docs/guides/supabase.md` §7.
+- **Realtime subscriptions.** Supabase Realtime is the right answer for fan-out; `@triadjs/hono` doesn't ship a channels adapter. See `docs/guides/supabase.md` §7.
 - **Password flows.** Supabase Auth owns sign-up and sign-in. Our API only sees validated JWTs.
 - **A caching layer on `SupabaseAuthVerifier.verify`.** Every authenticated request currently does a `auth.getUser` round-trip to Supabase. Real deployments should cache for ~30s. Discussed in `docs/guides/supabase.md` §4.
 
 ## See also
 
 - **[`docs/guides/supabase.md`](../../docs/guides/supabase.md)** — the full walkthrough: architecture, RLS policies, repository pattern, realtime, deploying, migration from an ad-hoc Supabase app. Read this if you are planning to build a real Triad + Supabase project.
-- **[`docs/guides/choosing-an-adapter.md`](../../docs/guides/choosing-an-adapter.md)** — context for why `@triad/hono` is the right choice for this runtime target.
+- **[`docs/guides/choosing-an-adapter.md`](../../docs/guides/choosing-an-adapter.md)** — context for why `@triadjs/hono` is the right choice for this runtime target.
 - **[`examples/tasktracker`](../tasktracker)** — the closest structural match: same ownership-based auth pattern, same bounded-context layout, different persistence and adapter.

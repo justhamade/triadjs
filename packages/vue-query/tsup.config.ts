@@ -7,5 +7,5 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   target: 'es2022',
-  external: ['@triad/core', '@triad/tanstack-query'],
+  external: ['@triadjs/core', '@triadjs/tanstack-query'],
 });

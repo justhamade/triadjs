@@ -8,8 +8,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { channel, t } from '@triad/core';
-import { TypeEmitter } from '@triad/tanstack-query';
+import { channel, t } from '@triadjs/core';
+import { TypeEmitter } from '@triadjs/tanstack-query';
 import { emitChannelReactHook } from '../src/react-hook-generator.js';
 
 const Review = t.model('Review', {

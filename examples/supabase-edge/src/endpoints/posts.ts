@@ -13,7 +13,7 @@
  * bounded context.
  */
 
-import { endpoint, scenario, t } from '@triad/core';
+import { endpoint, scenario, t } from '@triadjs/core';
 import { CreatePost, Post, PostPage, UpdatePost } from '../schemas/post.js';
 import { ApiError } from '../schemas/common.js';
 import { requireAuth } from '../supabase-auth.js';

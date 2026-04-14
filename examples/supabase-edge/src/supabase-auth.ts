@@ -25,7 +25,7 @@
  *      Clerk, only this file and the verifier need to move.
  */
 
-import type { BeforeHandler, Infer } from '@triad/core';
+import type { BeforeHandler, Infer } from '@triadjs/core';
 import type { User as UserSchema } from './schemas/user.js';
 import type { ApiError } from './schemas/common.js';
 

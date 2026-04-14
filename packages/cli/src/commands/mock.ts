@@ -22,7 +22,7 @@
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import pc from 'picocolors';
-import type { Endpoint, Router, SchemaNode } from '@triad/core';
+import type { Endpoint, Router, SchemaNode } from '@triadjs/core';
 import { loadConfig } from '../load-config.js';
 import { loadRouter } from '../load-router.js';
 import { CliError } from '../errors.js';

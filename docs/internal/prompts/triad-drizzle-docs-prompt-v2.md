@@ -4,7 +4,7 @@
 
 You are writing documentation for **Triad**, a TypeScript/Node.js API framework where specification, implementation, validation, and testing are a single source of truth.
 
-Triad's `t.model()` definitions are the single source of truth for the API contract AND the database schema. The `@triad/drizzle` package generates Drizzle ORM table definitions directly from Triad models, eliminating the need to maintain a separate database schema.
+Triad's `t.model()` definitions are the single source of truth for the API contract AND the database schema. The `@triadjs/drizzle` package generates Drizzle ORM table definitions directly from Triad models, eliminating the need to maintain a separate database schema.
 
 Create a documentation file (`docs/drizzle-integration.md`) covering the full integration story.
 
@@ -42,7 +42,7 @@ t.model('Pet', { ... })
 ### The Model with Storage Hints
 
 ```typescript
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 const Pet = t.model('Pet', {
   id: t.string().format('uuid').identity()

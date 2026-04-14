@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 import { describeEndpoint, describeSchema } from '../src/schema-reader.js';
 import type { FieldDescriptor, EndpointDescriptor } from '../src/schema-reader.js';
-import { endpoint } from '@triad/core';
+import { endpoint } from '@triadjs/core';
 
 // ---------------------------------------------------------------------------
 // Helper to build a minimal endpoint for testing describeEndpoint

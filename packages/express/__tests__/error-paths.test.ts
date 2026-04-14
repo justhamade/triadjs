@@ -1,5 +1,5 @@
 /**
- * Error-path integration tests for @triad/express.
+ * Error-path integration tests for @triadjs/express.
  *
  * Each test sends a real HTTP request via supertest and asserts on the
  * response status, content-type, and error envelope shape. The goal:
@@ -10,7 +10,7 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import express, { type Express } from 'express';
 import request from 'supertest';
-import { createRouter, endpoint, t } from '@triad/core';
+import { createRouter, endpoint, t } from '@triadjs/core';
 import { createTriadRouter, triadErrorHandler } from '../src/index.js';
 
 // ---------------------------------------------------------------------------

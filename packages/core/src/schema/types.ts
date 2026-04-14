@@ -26,7 +26,7 @@ export interface SchemaMetadata {
   /** Override name used when emitting OpenAPI components (models only). */
   name?: string;
   /**
-   * Storage hints consumed by storage adapters (e.g. `@triad/drizzle`).
+   * Storage hints consumed by storage adapters (e.g. `@triadjs/drizzle`).
    *
    * These are intentionally separate from validation metadata: they
    * describe how the value is *persisted*, not how it travels over the
@@ -225,7 +225,7 @@ export abstract class SchemaNode<TOutput = unknown> {
   /**
    * Attach storage-layer metadata. Merges with any existing storage hints
    * so multiple `.storage({...})` calls accumulate rather than overwrite.
-   * Consumed by storage adapters (`@triad/drizzle` and friends); ignored
+   * Consumed by storage adapters (`@triadjs/drizzle` and friends); ignored
    * by validation and OpenAPI emission.
    */
   storage(meta: StorageMetadata): this {

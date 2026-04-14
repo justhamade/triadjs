@@ -2,7 +2,7 @@
  * Express server entry point.
  *
  * This is the one place where the tasktracker diverges meaningfully
- * from petstore: we mount the Triad router using `@triad/express`'s
+ * from petstore: we mount the Triad router using `@triadjs/express`'s
  * `createTriadRouter` instead of Fastify's `triadPlugin`. The router,
  * endpoints, schemas, repositories, and services are all identical in
  * shape to what a Fastify-based Triad app would look like — that's
@@ -30,7 +30,7 @@
 
 import { pathToFileURL } from 'node:url';
 import express, { type Express } from 'express';
-import { createTriadRouter, triadErrorHandler } from '@triad/express';
+import { createTriadRouter, triadErrorHandler } from '@triadjs/express';
 
 import router from './app.js';
 import { createDatabase } from './db/client.js';

@@ -6,15 +6,15 @@
  * validate a form-submission payload: required/optional, the field
  * type, enum values, and the nested shape for sub-models. It is
  * deliberately small so the bundled runtime can parse it without
- * pulling in `@triad/core`.
+ * pulling in `@triadjs/core`.
  *
  * Dispatch is by `kind` string (NOT `instanceof`) so two copies of
- * `@triad/core` loaded via different module graphs still produce the
+ * `@triadjs/core` loaded via different module graphs still produce the
  * same descriptor — the same pattern used by the tanstack-query
  * emitter.
  */
 
-import type { SchemaNode } from '@triad/core';
+import type { SchemaNode } from '@triadjs/core';
 
 export type FormFieldKind =
   | 'string'

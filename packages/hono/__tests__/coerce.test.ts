@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 import { coerceScalar, coerceByShape } from '../src/coerce.js';
 
 describe('coerceScalar — Hono', () => {

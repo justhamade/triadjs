@@ -15,7 +15,7 @@
  * transports that want to evolve independently.
  */
 
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 /**
  * Rating is a value object — identity-less, immutable, compared by

@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { createRouter, endpoint, t } from '@triad/core';
+import { createRouter, endpoint, t } from '@triadjs/core';
 import { generateOpenAPI, convertPath } from '../src/generator.js';
 
 describe('generateOpenAPI — router with no endpoints', () => {

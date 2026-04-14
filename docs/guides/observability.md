@@ -17,7 +17,7 @@ exact database query, fix it, ship.
 
 Triad does not build an observability stack itself. Instead it plugs
 into the **OpenTelemetry** ecosystem — the open standard that every
-major APM vendor now speaks. `@triad/otel` is a thin wrapper that
+major APM vendor now speaks. `@triadjs/otel` is a thin wrapper that
 automatically instruments every endpoint, beforeHandler, channel
 handler, and channel onConnect in your router with spans tagged from
 the router's own metadata. Pair it with an OpenTelemetry SDK and an
@@ -39,7 +39,7 @@ before you assume you're covered.
 
 | Pillar       | Triad's contribution                                                                                                              | External tool                                                     |
 | ------------ | --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| **Traces**   | `@triad/otel` auto-instruments every endpoint, beforeHandler, channel handler, and onConnect with spans tagged from router metadata | OpenTelemetry SDK + exporter (Jaeger, Tempo, Honeycomb, Datadog)  |
+| **Traces**   | `@triadjs/otel` auto-instruments every endpoint, beforeHandler, channel handler, and onConnect with spans tagged from router metadata | OpenTelemetry SDK + exporter (Jaeger, Tempo, Honeycomb, Datadog)  |
 | **Metrics**  | _Phase 14.2 — not yet shipped._ Planned: automatic Prometheus histograms per declared endpoint with correct status-code buckets     | Prometheus / Grafana / Datadog                                    |
 | **Logs**     | _Phase 14.3 — not yet shipped._ Planned: structured logging helpers keyed by `traceId` / `endpoint.name`                          | pino / winston + shipper                                          |
 
@@ -53,18 +53,18 @@ Until Phases 14.2 and 14.3 ship, you still get:
   OpenTelemetry context propagation, which gives you `traceId` in every
   log line automatically once the SDK is running.
 
-## 3. Getting started with `@triad/otel`
+## 3. Getting started with `@triadjs/otel`
 
 ### Install
 
-Install `@triad/otel` plus an OpenTelemetry SDK for your runtime.
+Install `@triadjs/otel` plus an OpenTelemetry SDK for your runtime.
 
 ```bash
-npm install @triad/otel @opentelemetry/api @opentelemetry/sdk-node \
+npm install @triadjs/otel @opentelemetry/api @opentelemetry/sdk-node \
             @opentelemetry/auto-instrumentations-node
 ```
 
-- `@opentelemetry/api` is a peer dependency of `@triad/otel`. It must
+- `@opentelemetry/api` is a peer dependency of `@triadjs/otel`. It must
   be present, it must be the same version everywhere in your project
   (use a single `npm install` to avoid duplicate-module hazards), and
   it must be resolvable from both your application code and any
@@ -75,7 +75,7 @@ npm install @triad/otel @opentelemetry/api @opentelemetry/sdk-node \
   recommended: it auto-instruments Node.js built-ins (`http`,
   `https`), common database drivers, `undici`, and many other things.
   This is what gives you spans for _outgoing_ HTTP calls and database
-  queries — `@triad/otel` only covers what the router knows about.
+  queries — `@triadjs/otel` only covers what the router knows about.
 
 ### Minimal setup
 
@@ -109,9 +109,9 @@ Then import it at the very top of your entry point and wrap the router:
 import './tracing.js'; // MUST be first
 
 import Fastify from 'fastify';
-import { createRouter } from '@triad/core';
-import { triadPlugin } from '@triad/fastify';
-import { withOtelInstrumentation } from '@triad/otel';
+import { createRouter } from '@triadjs/core';
+import { triadPlugin } from '@triadjs/fastify';
+import { withOtelInstrumentation } from '@triadjs/otel';
 import { createPet, getPet, listPets } from './pets/endpoints.js';
 
 const router = createRouter({ title: 'My API', version: '1.0.0' });
@@ -148,7 +148,7 @@ missing spans).
 
 ### Common mistake
 
-**Forgetting to import `tracing.ts` before `@triad/fastify`.** The
+**Forgetting to import `tracing.ts` before `@triadjs/fastify`.** The
 auto-instrumentation hooks into Node's `http` module the moment
 `NodeSDK.start()` runs, and it only hooks the copy of `http` that has
 not yet been loaded. If Fastify has already required `http` before your
@@ -158,7 +158,7 @@ on the very first line of your entry file, before every other import.
 
 ## 4. What spans get created
 
-`@triad/otel` wraps handlers at four points in the request lifecycle.
+`@triadjs/otel` wraps handlers at four points in the request lifecycle.
 
 ### Span name reference
 
@@ -216,7 +216,7 @@ http.request (auto-instrumented, SpanKind.SERVER)
 ```
 
 The outer `http.request` span is created by the auto-instrumentation
-before your handler runs. `@triad/otel` wraps each handler in its own
+before your handler runs. `@triadjs/otel` wraps each handler in its own
 `startActiveSpan` call, which sets that new span as the current active
 span — so anything your handler does that creates a child span
 (database queries, outgoing `fetch` calls, your own manual spans) is
@@ -254,7 +254,7 @@ sdk.start();
 
 Honeycomb is particularly good for high-cardinality attributes — the
 `triad.endpoint.name`, `triad.context`, and `enduser.id` tags
-`@triad/otel` produces will give you powerful breakdowns out of the
+`@triadjs/otel` produces will give you powerful breakdowns out of the
 box.
 
 ### Datadog
@@ -278,7 +278,7 @@ tracer.init({
 
 With `logInjection: true` Datadog auto-attaches `dd.trace_id` to every
 log line, which is the fastest way to jump from a log message to its
-trace. `@triad/otel` still contributes spans through the OTel API,
+trace. `@triadjs/otel` still contributes spans through the OTel API,
 which `dd-trace` picks up and ships to Datadog APM.
 
 ### Grafana Tempo
@@ -343,7 +343,7 @@ Sentry.init({
 ```
 
 The Sentry Node SDK now uses OpenTelemetry internally, so any spans
-produced by `@triad/otel` are picked up automatically and surfaced as
+produced by `@triadjs/otel` are picked up automatically and surfaced as
 transactions in Sentry's Performance UI.
 
 ### AWS X-Ray
@@ -417,7 +417,7 @@ instrumentation ships separately.
 When you have a specific operation inside a handler worth calling out
 (a complex SQL query, a call to an ML model, a file upload), wrap it
 in your own span. It will automatically nest inside the handler span
-that `@triad/otel` created.
+that `@triadjs/otel` created.
 
 ```ts
 import { trace } from '@opentelemetry/api';
@@ -501,7 +501,7 @@ Checklist, in order of how often each one bites:
 3. **Two copies of `@opentelemetry/api`.** If npm ends up with two
    versions of `@opentelemetry/api` in `node_modules` (because one
    transitive dep pinned an old version), the SDK's global tracer
-   provider is registered on one copy and `@triad/otel` reads from the
+   provider is registered on one copy and `@triadjs/otel` reads from the
    other. Symptom: the SDK logs "provider registered" but spans from
    your handlers never appear. Fix: run `npm ls @opentelemetry/api` and
    deduplicate.
@@ -525,7 +525,7 @@ Checklist, in order of how often each one bites:
    expecting a child span from something inside the main handler it
    won't appear.
 
-## 8. What `@triad/otel` does NOT do
+## 8. What `@triadjs/otel` does NOT do
 
 Be explicit about the boundary:
 
@@ -551,7 +551,7 @@ Be explicit about the boundary:
 
 ## 9. FAQ
 
-**Can I use `@triad/otel` without the `withOtelInstrumentation`
+**Can I use `@triadjs/otel` without the `withOtelInstrumentation`
 wrapper?** Not in v1. The wrapper is the single opt-in point. A future
 version may expose a per-endpoint flag (`endpoint({ otel: false, ... })`)
 for fine-grained control, but for now it's all-or-nothing at the router
@@ -563,7 +563,7 @@ inside each adapter — the wrapper mutates `endpoint.handler` and
 `endpoint.beforeHandler` directly on the runtime objects that every
 adapter invokes. The adapters don't need to know the wrapper exists.
 
-**What about `@triad/lambda`?** It works. Be aware that OpenTelemetry
+**What about `@triadjs/lambda`?** It works. Be aware that OpenTelemetry
 SDK initialization adds 100–300ms to the cold start. For latency-
 sensitive Lambda functions, use a provisioned-concurrency deployment or
 consider the AWS Distro for OpenTelemetry Lambda layer, which keeps the
@@ -581,7 +581,7 @@ that matters, don't wrap it — move that endpoint into a separate
 router and leave that router un-wrapped.
 
 **Why mutate the router instead of returning a new one?** Cloning the
-router would require `@triad/otel` to understand the internal shape of
+router would require `@triadjs/otel` to understand the internal shape of
 the `Router` class. Mutation keeps the wrapper a few dozen lines of
 code and makes it adapter-agnostic. The tradeoff is that
 `withOtelInstrumentation(router) === router` — the return value is
@@ -592,11 +592,11 @@ there for ergonomic chaining, not because it's a new object.
 Metrics and logs are planned for Phases 14.2 and 14.3 and are NOT
 shipped today. The shape of those phases, from the roadmap:
 
-- **Phase 14.2 — `@triad/metrics`:** automatic histograms per endpoint
+- **Phase 14.2 — `@triadjs/metrics`:** automatic histograms per endpoint
   (`triad_request_duration_seconds`) and per channel message type,
   with labels pulled from the same router metadata the tracing wrapper
   uses. Prometheus scrape endpoint hook for each adapter.
-- **Phase 14.3 — `@triad/logging`:** structured logging helpers that
+- **Phase 14.3 — `@triadjs/logging`:** structured logging helpers that
   bind the current trace context to every log line. Paired with
   `pino`, this produces logs with `traceId`, `spanId`,
   `triad.endpoint.name`, and `enduser.id` on every line — making logs

@@ -17,7 +17,7 @@
  * effectively zero. Noted as friction in the report.
  */
 
-import { endpoint, scenario } from '@triad/core';
+import { endpoint, scenario } from '@triadjs/core';
 import {
   AuthResult,
   LoginInput,

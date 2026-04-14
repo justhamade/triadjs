@@ -1,0 +1,36 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.3/schema.json",
+  "changelog": ["@changesets/changelog-github", { "repo": "justhamade/triad" }],
+  "commit": false,
+  "fixed": [
+    [
+      "@triadjs/core",
+      "@triadjs/openapi",
+      "@triadjs/asyncapi",
+      "@triadjs/gherkin",
+      "@triadjs/test-runner",
+      "@triadjs/fastify",
+      "@triadjs/express",
+      "@triadjs/hono",
+      "@triadjs/lambda",
+      "@triadjs/drizzle",
+      "@triadjs/tanstack-query",
+      "@triadjs/solid-query",
+      "@triadjs/vue-query",
+      "@triadjs/svelte-query",
+      "@triadjs/channel-client",
+      "@triadjs/forms",
+      "@triadjs/jwt",
+      "@triadjs/otel",
+      "@triadjs/metrics",
+      "@triadjs/logging",
+      "@triadjs/security-headers",
+      "@triadjs/cli"
+    ]
+  ],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": []
+}

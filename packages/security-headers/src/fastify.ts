@@ -4,7 +4,7 @@
  *
  * ```ts
  * import Fastify from 'fastify';
- * import { securityHeadersFastify } from '@triad/security-headers';
+ * import { securityHeadersFastify } from '@triadjs/security-headers';
  *
  * const app = Fastify();
  * await app.register(securityHeadersFastify, {
@@ -12,7 +12,7 @@
  * });
  * ```
  *
- * Register BEFORE `@triad/fastify`'s `triadPlugin` so security headers
+ * Register BEFORE `@triadjs/fastify`'s `triadPlugin` so security headers
  * apply to every Triad route without further wiring.
  */
 
@@ -56,5 +56,5 @@ const plugin: FastifyPluginAsync<SecurityHeadersOptions> =
 
 export const securityHeadersFastify = fp(plugin, {
   fastify: '4.x || 5.x',
-  name: '@triad/security-headers',
+  name: '@triadjs/security-headers',
 });

@@ -1,6 +1,6 @@
 {
-  "name": "@triad/express",
-  "version": "0.1.0",
+  "name": "@triadjs/express",
+  "version": "0.2.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -22,7 +22,7 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@triad/core": "*",
+    "@triadjs/core": "0.2.0",
     "express": "^4.19.0",
     "multer": "^1.4.5-lts.1"
   },
@@ -32,7 +32,7 @@
     }
   },
   "devDependencies": {
-    "@triad/core": "*",
+    "@triadjs/core": "0.2.0",
     "@types/express": "^4.17.21",
     "@types/multer": "^1.4.13",
     "@types/supertest": "^6.0.2",
@@ -42,5 +42,26 @@
     "tsup": "^8.3.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
-  }
+  },
+  "description": "Express HTTP adapter for Triad routers",
+  "license": "MIT",
+  "author": "Justin Hamade",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justhamade/triad.git",
+    "directory": "packages/express"
+  },
+  "homepage": "https://github.com/justhamade/triad/tree/main/packages/express",
+  "bugs": {
+    "url": "https://github.com/justhamade/triad/issues"
+  },
+  "keywords": [
+    "triad",
+    "api",
+    "typescript",
+    "express",
+    "http",
+    "adapter"
+  ],
+  "private": false
 }

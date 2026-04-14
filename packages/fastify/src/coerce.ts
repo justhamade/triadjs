@@ -15,7 +15,7 @@
  * jiti, bundler aliases, or any other module-graph arrangement.
  */
 
-import type { ModelShape, SchemaNode } from '@triad/core';
+import type { ModelShape, SchemaNode } from '@triadjs/core';
 
 /**
  * Coerce every field in `raw` using the target schema's kind. Returns a

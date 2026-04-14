@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createRouter, channel, scenario, t } from '@triad/core';
-import type { ServiceContainer } from '@triad/core';
+import { createRouter, channel, scenario, t } from '@triadjs/core';
+import type { ServiceContainer } from '@triadjs/core';
 import { runChannelBehaviors } from '../src/channel-runner.js';
 
 // ---------------------------------------------------------------------------
@@ -19,7 +19,7 @@ class InMemoryRoomStore {
   readonly messages: string[] = [];
 }
 
-declare module '@triad/core' {
+declare module '@triadjs/core' {
   interface ServiceContainer {
     rooms?: InMemoryRoomStore;
   }

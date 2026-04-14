@@ -1,5 +1,5 @@
 /**
- * @triad/drizzle — bridge helpers for pairing Triad schemas with Drizzle
+ * @triadjs/drizzle — bridge helpers for pairing Triad schemas with Drizzle
  * tables.
  *
  * # The pattern
@@ -45,7 +45,7 @@
  * Triad schemas is a future-facing hint for codegen tooling.
  */
 
-import type { SchemaNode, Infer, ValidationError } from '@triad/core';
+import type { SchemaNode, Infer, ValidationError } from '@triadjs/core';
 
 // ---------------------------------------------------------------------------
 // Type helpers

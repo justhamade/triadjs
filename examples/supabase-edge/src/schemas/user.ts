@@ -24,7 +24,7 @@
  * in `src/auth-verifier-supabase.ts`.
  */
 
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 export const User = t.model('User', {
   id: t

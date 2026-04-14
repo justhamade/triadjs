@@ -3,7 +3,7 @@
  * Triad router mounted as a native Hono route.
  *
  * ```ts
- * import { createTriadApp } from '@triad/hono';
+ * import { createTriadApp } from '@triadjs/hono';
  * import router from './src/app.js';
  *
  * const app = createTriadApp(router, {
@@ -36,11 +36,11 @@
  *
  * WebSocket channels are **not** supported by this adapter in v1 —
  * Hono's websocket helpers are runtime-specific (different on Bun,
- * Cloudflare, Node). Use `@triad/fastify` if you need channels.
+ * Cloudflare, Node). Use `@triadjs/fastify` if you need channels.
  */
 
 import { Hono } from 'hono';
-import { Router as TriadRouter } from '@triad/core';
+import { Router as TriadRouter } from '@triadjs/core';
 
 import {
   createRouteHandler,
@@ -77,7 +77,7 @@ export function createTriadApp(
 ): Hono {
   if (!TriadRouter.isRouter(router)) {
     throw new TypeError(
-      '@triad/hono: `router` argument must be a Triad Router instance created with createRouter().',
+      '@triadjs/hono: `router` argument must be a Triad Router instance created with createRouter().',
     );
   }
 

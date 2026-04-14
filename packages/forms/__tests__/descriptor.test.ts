@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 import { describeSchema } from '../src/descriptor.js';
 
 describe('describeSchema', () => {

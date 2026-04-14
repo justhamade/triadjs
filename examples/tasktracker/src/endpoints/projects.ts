@@ -17,7 +17,7 @@
  * when it exists but belongs to another user.
  */
 
-import { endpoint, scenario, t } from '@triad/core';
+import { endpoint, scenario, t } from '@triadjs/core';
 import { CreateProject, Project } from '../schemas/project.js';
 import { ApiError } from '../schemas/common.js';
 import { requireAuth } from '../auth.js';

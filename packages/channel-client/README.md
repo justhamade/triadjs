@@ -1,9 +1,9 @@
-# @triad/channel-client
+# @triadjs/channel-client
 
 Generate fully-typed vanilla TypeScript WebSocket clients from Triad
 `channel()` declarations.
 
-This is the channel counterpart to `@triad/tanstack-query`: just as that
+This is the channel counterpart to `@triadjs/tanstack-query`: just as that
 package generates typed React Query hooks from HTTP endpoints, this one
 generates typed WebSocket clients from `channel()` declarations. The
 runtime is dependency-free — the output is plain TypeScript over the
@@ -12,7 +12,7 @@ standard `WebSocket` global.
 ## Install
 
 ```bash
-npm install --save-dev @triad/channel-client
+npm install --save-dev @triadjs/channel-client
 ```
 
 The generator only runs at build time; the emitted output has no

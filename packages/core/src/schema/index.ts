@@ -2,7 +2,7 @@
  * The `t` namespace — Triad's schema DSL entry point.
  *
  * ```ts
- * import { t } from '@triad/core';
+ * import { t } from '@triadjs/core';
  *
  * const Pet = t.model('Pet', {
  *   id: t.string().format('uuid').identity(),

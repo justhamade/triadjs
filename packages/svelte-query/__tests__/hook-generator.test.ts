@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { endpoint, t } from '@triad/core';
-import { TypeEmitter } from '@triad/tanstack-query';
+import { endpoint, t } from '@triadjs/core';
+import { TypeEmitter } from '@triadjs/tanstack-query';
 import { renderSvelteHook, svelteFactoryName } from '../src/hook-generator.js';
 
 const Book = t.model('Book', {

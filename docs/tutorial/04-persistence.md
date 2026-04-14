@@ -7,7 +7,7 @@ No handler changes. No endpoint changes. Not a single scenario is rewritten. The
 ## 1. Install the data layer
 
 ```bash
-npm install @triad/drizzle drizzle-orm better-sqlite3
+npm install @triadjs/drizzle drizzle-orm better-sqlite3
 npm install -D @types/better-sqlite3
 ```
 
@@ -85,7 +85,7 @@ Replace `src/repositories/book.ts`:
 
 ```ts
 import { asc, eq } from 'drizzle-orm';
-import type { Infer } from '@triad/core';
+import type { Infer } from '@triadjs/core';
 
 import type { Db } from '../db/client.js';
 import { books } from '../db/schema.js';
@@ -202,7 +202,7 @@ export interface BookshelfServices {
   bookRepo: BookRepository;
 }
 
-declare module '@triad/core' {
+declare module '@triadjs/core' {
   interface ServiceContainer extends BookshelfServices {}
 }
 
@@ -265,7 +265,7 @@ Update `src/server.ts` to take the database URL from the environment:
 
 ```ts
 import Fastify from 'fastify';
-import { triadPlugin } from '@triad/fastify';
+import { triadPlugin } from '@triadjs/fastify';
 import router from './app.js';
 import { createDatabase } from './db/client.js';
 import { createServices } from './services.js';
@@ -306,7 +306,7 @@ Now `bookshelf.db` exists on disk and survives restarts.
 Now that you have a working hand-written Drizzle schema, you can delete most of it. Add `.storage()` hints to `src/schemas/book.ts`:
 
 ```ts
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 export const Book = t.model('Book', {
   id: t
@@ -391,10 +391,10 @@ For production, commit the emitted SQL files, run them with your migration runne
 
 ## Sidebar: What if I don't want Drizzle?
 
-Triad has no runtime dependency on Drizzle. The `@triad/drizzle` package is a **codegen-only** bridge; nothing in `@triad/core`, `@triad/fastify`, or the test runner imports it. If you want Prisma, Knex, pg-promise, or a hand-rolled pool, just write your repository against that instead — the handlers don't care.
+Triad has no runtime dependency on Drizzle. The `@triadjs/drizzle` package is a **codegen-only** bridge; nothing in `@triadjs/core`, `@triadjs/fastify`, or the test runner imports it. If you want Prisma, Knex, pg-promise, or a hand-rolled pool, just write your repository against that instead — the handlers don't care.
 
 The one thing you lose is the `triad db generate` codegen path. Your repositories become the single source of truth for the storage shape, and your OpenAPI stays clean because it's derived from the Triad schemas regardless of what's behind the repository. For a fuller discussion, see [`docs/guides/choosing-an-orm.md`](../guides/choosing-an-orm.md).
 
 ## Next up
 
-[Step 5 — Authentication](05-authentication.md). Right now anyone can read or write any book. You will add a `User` entity, registration and login endpoints, a `requireAuth` beforeHandler, and ownership checks so users can only touch their own books. This is where the `beforeHandler` hook and `checkOwnership` from `@triad/core` come in.
+[Step 5 — Authentication](05-authentication.md). Right now anyone can read or write any book. You will add a `User` entity, registration and login endpoints, a `requireAuth` beforeHandler, and ownership checks so users can only touch their own books. This is where the `beforeHandler` hook and `checkOwnership` from `@triadjs/core` come in.

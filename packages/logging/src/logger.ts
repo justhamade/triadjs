@@ -1,6 +1,6 @@
 /**
  * `Logger` — the tiny, logger-agnostic interface at the heart of
- * `@triad/logging`. Users bring their own logger (pino, winston, or the
+ * `@triadjs/logging`. Users bring their own logger (pino, winston, or the
  * built-in console adapter) and the wrapper attaches request-scoped
  * context via `child()`.
  *

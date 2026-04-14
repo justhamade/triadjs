@@ -59,7 +59,7 @@ export interface SupabaseEdgeServices {
   authVerifier: AuthVerifier;
 }
 
-declare module '@triad/core' {
+declare module '@triadjs/core' {
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   interface ServiceContainer extends SupabaseEdgeServices {}
 }

@@ -12,7 +12,7 @@
  * sets to produce ALTER statements).
  */
 
-import type { Router } from '@triad/core';
+import type { Router } from '@triadjs/core';
 import { walkRouter, CodegenError } from './walker.js';
 import {
   emitSqlite,

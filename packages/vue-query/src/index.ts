@@ -1,5 +1,5 @@
 /**
- * `@triad/vue-query` — generate fully-typed Vue Query composables from
+ * `@triadjs/vue-query` — generate fully-typed Vue Query composables from
  * a Triad router.
  */
 

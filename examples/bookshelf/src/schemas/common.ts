@@ -11,7 +11,7 @@
  * all adapters skip the `Content-Type` header.
  */
 
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 export const ApiError = t.model('ApiError', {
   code: t.string().doc('Machine-readable error code').example('NOT_FOUND'),

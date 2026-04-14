@@ -1,6 +1,6 @@
 {
-  "name": "@triad/lambda",
-  "version": "0.1.0",
+  "name": "@triadjs/lambda",
+  "version": "0.2.0",
   "type": "module",
   "private": false,
   "main": "./dist/index.js",
@@ -23,12 +23,33 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@triad/core": "*"
+    "@triadjs/core": "0.2.0"
   },
   "devDependencies": {
-    "@triad/core": "*",
+    "@triadjs/core": "0.2.0",
     "tsup": "^8.3.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
-  }
+  },
+  "description": "AWS Lambda adapter for Triad routers — API Gateway, ALB, Function URL",
+  "license": "MIT",
+  "author": "Justin Hamade",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justhamade/triad.git",
+    "directory": "packages/lambda"
+  },
+  "homepage": "https://github.com/justhamade/triad/tree/main/packages/lambda",
+  "bugs": {
+    "url": "https://github.com/justhamade/triad/issues"
+  },
+  "keywords": [
+    "triad",
+    "api",
+    "typescript",
+    "aws",
+    "lambda",
+    "serverless",
+    "adapter"
+  ]
 }

@@ -10,7 +10,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import express, { type Express } from 'express';
 import request from 'supertest';
-import { createRouter, endpoint, t } from '@triad/core';
+import { createRouter, endpoint, t } from '@triadjs/core';
 import { createTriadRouter, triadErrorHandler } from '../src/index.js';
 
 // ---------------------------------------------------------------------------
@@ -54,7 +54,7 @@ class InMemoryPetRepo {
   }
 }
 
-declare module '@triad/core' {
+declare module '@triadjs/core' {
   interface ServiceContainer {
     petRepo?: InMemoryPetRepo;
     tenantId?: string;

@@ -19,7 +19,7 @@
  * via `ctx.services` — same pattern as the HTTP endpoint handlers.
  */
 
-import { channel, scenario, t } from '@triad/core';
+import { channel, scenario, t } from '@triadjs/core';
 import {
   ChatMessage,
   ChannelError,

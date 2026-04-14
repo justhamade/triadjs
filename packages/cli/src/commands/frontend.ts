@@ -17,27 +17,27 @@
 
 import * as path from 'node:path';
 import pc from 'picocolors';
-import { generate, writeFiles } from '@triad/tanstack-query';
+import { generate, writeFiles } from '@triadjs/tanstack-query';
 import {
   generateChannelClient,
   writeFiles as writeChannelFiles,
-} from '@triad/channel-client';
+} from '@triadjs/channel-client';
 import {
   generate as generateSolidQuery,
   writeFiles as writeSolidQueryFiles,
-} from '@triad/solid-query';
+} from '@triadjs/solid-query';
 import {
   generate as generateVueQuery,
   writeFiles as writeVueQueryFiles,
-} from '@triad/vue-query';
+} from '@triadjs/vue-query';
 import {
   generate as generateSvelteQuery,
   writeFiles as writeSvelteQueryFiles,
-} from '@triad/svelte-query';
+} from '@triadjs/svelte-query';
 import {
   generate as generateForms,
   writeFiles as writeFormsFiles,
-} from '@triad/forms';
+} from '@triadjs/forms';
 import { loadConfig } from '../load-config.js';
 import { loadRouter } from '../load-router.js';
 import { CliError } from '../errors.js';

@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { channel, createRouter, t } from '@triad/core';
+import { channel, createRouter, t } from '@triadjs/core';
 import { generateAsyncAPI, convertPath } from '../src/generator.js';
 
 function minimalChannel(name: string, path = '/ws/x') {

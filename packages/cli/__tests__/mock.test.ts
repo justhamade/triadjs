@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it, afterEach } from 'vitest';
-import { createRouter, endpoint, t, type Router } from '@triad/core';
+import { createRouter, endpoint, t, type Router } from '@triadjs/core';
 import { startMockServer, type MockServerHandle } from '../src/commands/mock.js';
 
 function buildRouter(): Router {

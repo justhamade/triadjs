@@ -1,4 +1,4 @@
-import { createRouter, endpoint, scenario, t } from '@triad/core';
+import { createRouter, endpoint, scenario, t } from '@triadjs/core';
 
 const Pet = t.model('Pet', {
   id: t.string().format('uuid').identity().doc('Unique pet identifier'),
@@ -25,7 +25,7 @@ interface PetRepo {
   findById(id: string): Promise<unknown | null>;
 }
 
-declare module '@triad/core' {
+declare module '@triadjs/core' {
   interface ServiceContainer {
     petRepo?: PetRepo;
   }
@@ -109,7 +109,7 @@ const getPet = endpoint({
 const router = createRouter({
   title: 'Petstore API',
   version: '1.0.0',
-  description: 'A fixture project used by @triad/cli integration tests.',
+  description: 'A fixture project used by @triadjs/cli integration tests.',
 });
 
 router.add(createPet, getPet);

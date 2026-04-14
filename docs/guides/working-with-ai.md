@@ -59,7 +59,7 @@ Project rules:
 - Every endpoint must have a behaviors: [] array. Scenarios ARE the tests.
 - Never hand-write openapi.yaml. Run `triad docs`.
 - Auth goes in beforeHandler, not in the handler body. Read ctx.state.user.
-- Never cast ctx.services — augment `ServiceContainer` via `declare module '@triad/core'`.
+- Never cast ctx.services — augment `ServiceContainer` via `declare module '@triadjs/core'`.
 - Never redefine schemas in test files. Import them.
 - Use the assertion phrase table in docs/ai-agent-guide.md §5.5.
   Double quotes only. No single quotes in assertion literals.
@@ -153,7 +153,7 @@ bounded context. Requirements:
 - Protected by requireAuth (see src/auth.ts).
 - Creates a Review with rating (1-5) and comment (minLength 10).
 - Only the owner of the book can create reviews. Use checkOwnership
-  from @triad/core; on failure return 403 for forbidden, 404 for
+  from @triadjs/core; on failure return 403 for forbidden, 404 for
   not-found. Distinguish them — do not collapse.
 - Returns: 201 with the created Review, 400 validation, 401 missing
   token, 403 not owner, 404 book not found.
@@ -163,7 +163,7 @@ bounded context. Requirements:
 
 Read docs/ai-agent-guide.md first, paying attention to §3 (endpoints),
 §5 (behaviors), §6 (beforeHandler), and §12 (common pitfalls). Do not
-invent identifiers — every public name must come from @triad/core or
+invent identifiers — every public name must come from @triadjs/core or
 existing code in this repository.
 
 Write the endpoint as one file under src/endpoints/reviews.ts and
@@ -207,7 +207,7 @@ plus ApiError. Do not touch the Library context.
 Read docs/ai-agent-guide.md §2 (schemas), §3.4 (bounded contexts),
 §6 (services), and §10 (Drizzle bridge) before writing code.
 
-If the project uses @triad/drizzle (check package.json), add
+If the project uses @triadjs/drizzle (check package.json), add
 .storage({ primaryKey: true }) on the id field and .storage({ indexed: true })
 on bookId. Otherwise skip the .storage() calls.
 
@@ -240,8 +240,8 @@ Requirements:
 
 Read docs/ai-agent-guide.md §4 (channels) and docs/phase-9-websockets.md
 for the design rationale. The Fastify adapter is the only one that
-supports channels — verify that this project uses @triad/fastify before
-starting. If it uses @triad/express or @triad/hono, stop and tell me.
+supports channels — verify that this project uses @triadjs/fastify before
+starting. If it uses @triadjs/express or @triadjs/hono, stop and tell me.
 
 Do not touch the HTTP endpoint. Do not change tests on the HTTP endpoint.
 ```
@@ -392,7 +392,7 @@ Grounded in real failure modes observed while building this project.
 
 **What happens**: the agent does `(ctx.services as any).myThing` or `ctx.services as MyServices` inside a handler.
 
-**Why**: the agent skipped or did not understand the `declare module '@triad/core'` augmentation step. Without it, `ctx.services` is `{}` and casting is the only way to compile.
+**Why**: the agent skipped or did not understand the `declare module '@triadjs/core'` augmentation step. Without it, `ctx.services` is `{}` and casting is the only way to compile.
 
 **How to catch**: a grep or lint rule for `ctx\.services as` and `(ctx\.services as any)`. Either is a code-review rejection.
 

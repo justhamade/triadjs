@@ -1,6 +1,6 @@
 /**
  * Structural interface for the subset of the `jose` package that
- * `@triad/jwt` uses. Kept behind a narrow port so a breaking change
+ * `@triadjs/jwt` uses. Kept behind a narrow port so a breaking change
  * to `jose` is visible in one place.
  */
 export interface JoseVerifyOptions {
@@ -27,7 +27,7 @@ export interface JoseLike {
 
 /**
  * Cached jose module handle. We deliberately avoid a top-level
- * `import('jose')` so that `@triad/jwt` can be imported even if the
+ * `import('jose')` so that `@triadjs/jwt` can be imported even if the
  * user has not installed the peer dep — the error only surfaces when
  * the factory tries to verify its first token.
  */
@@ -48,7 +48,7 @@ export async function loadJose(): Promise<JoseLike> {
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     throw new Error(
-      `@triad/jwt requires the \`jose\` package as a peer dependency. Install it with \`npm install jose\`. Underlying error: ${reason}`,
+      `@triadjs/jwt requires the \`jose\` package as a peer dependency. Install it with \`npm install jose\`. Underlying error: ${reason}`,
     );
   }
 }

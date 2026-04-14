@@ -70,7 +70,7 @@ Fastify ships with pino. Use it. Update `src/server.ts` to pass structured log c
 
 ```ts
 import Fastify from 'fastify';
-import { triadPlugin } from '@triad/fastify';
+import { triadPlugin } from '@triadjs/fastify';
 import router from './app.js';
 import { createDatabase } from './db/client.js';
 import { createServices } from './services.js';
@@ -303,7 +303,7 @@ If you have an Express app already and you want to mount Bookshelf inside it —
 
 ```ts
 import express from 'express';
-import { createTriadRouter, triadErrorHandler } from '@triad/express';
+import { createTriadRouter, triadErrorHandler } from '@triadjs/express';
 import router from './app.js';
 import { createDatabase } from './db/client.js';
 import { createServices } from './services.js';
@@ -332,7 +332,7 @@ This is the payoff for Triad's adapter split. Hono runs anywhere the Fetch API r
 
 ```ts
 // src/worker.ts
-import { createTriadApp } from '@triad/hono';
+import { createTriadApp } from '@triadjs/hono';
 import router from './app.js';
 import { createServices } from './services.js';
 

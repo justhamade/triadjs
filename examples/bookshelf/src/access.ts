@@ -1,7 +1,7 @@
 /**
  * Access-control helper for the Library and Reviews contexts.
  *
- * Composes Triad's generic `checkOwnership` helper from `@triad/core`
+ * Composes Triad's generic `checkOwnership` helper from `@triadjs/core`
  * with Bookshelf's `BookRepository` shape to produce a context-specific
  * `loadOwnedBook` wrapper every book-scoped endpoint can reuse. Keeping
  * the fetch-then-check pattern in one place guarantees the 404 vs 403
@@ -18,8 +18,8 @@
  * that trade-off is worth it.
  */
 
-import type { Infer } from '@triad/core';
-import { checkOwnership } from '@triad/core';
+import type { Infer } from '@triadjs/core';
+import { checkOwnership } from '@triadjs/core';
 import type { Book } from './schemas/book.js';
 import type { BookshelfServices } from './services.js';
 

@@ -7,8 +7,8 @@
  */
 
 import { and, eq } from 'drizzle-orm';
-import type { Infer } from '@triad/core';
-import type { InferRow, InferInsert } from '@triad/drizzle';
+import type { Infer } from '@triadjs/core';
+import type { InferRow, InferInsert } from '@triadjs/drizzle';
 
 import type { Db } from '../db/client.js';
 import { adopters, adoptions } from '../db/schema.js';

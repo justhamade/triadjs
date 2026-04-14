@@ -7,5 +7,5 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   target: 'es2022',
-  external: ['@triad/core', 'fastify', 'fastify-plugin', 'express', 'hono'],
+  external: ['@triadjs/core', 'fastify', 'fastify-plugin', 'express', 'hono'],
 });

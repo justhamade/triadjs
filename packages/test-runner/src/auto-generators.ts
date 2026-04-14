@@ -9,7 +9,7 @@
  *   5. Random valid — N random inputs via fast-check (optional).
  */
 
-import type { SchemaNode } from '@triad/core';
+import type { SchemaNode } from '@triadjs/core';
 import type { EndpointDescriptor, FieldDescriptor } from './schema-reader.js';
 
 // ---------------------------------------------------------------------------

@@ -278,7 +278,7 @@ export function createMetricsCollector(
         warnedOverflow = true;
         // eslint-disable-next-line no-console
         console.warn(
-          `[@triad/metrics] cardinality cap (${maxCardinality}) reached; further routes will be bucketed as route="${OVERFLOW_ROUTE}"`,
+          `[@triadjs/metrics] cardinality cap (${maxCardinality}) reached; further routes will be bucketed as route="${OVERFLOW_ROUTE}"`,
         );
       }
       const created: HttpSeries = {

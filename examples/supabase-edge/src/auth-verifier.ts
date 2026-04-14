@@ -20,7 +20,7 @@
  * `requireAuth` beforeHandler can reach them.
  */
 
-import type { Infer } from '@triad/core';
+import type { Infer } from '@triadjs/core';
 import type { User as UserSchema } from './schemas/user.js';
 
 type User = Infer<typeof UserSchema>;

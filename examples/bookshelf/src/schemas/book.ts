@@ -18,7 +18,7 @@
  * stable shape even when a page is empty.
  */
 
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 export const Book = t.model('Book', {
   id: t

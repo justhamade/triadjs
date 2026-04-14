@@ -13,7 +13,7 @@
  * or endpoint handlers caring where their data lives.
  */
 
-import type { Infer } from '@triad/core';
+import type { Infer } from '@triadjs/core';
 import type { ChatMessage } from '../schemas/chat.js';
 
 type Message = Infer<typeof ChatMessage>;

@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { createRouter, endpoint, t } from '@triad/core';
+import { createRouter, endpoint, t } from '@triadjs/core';
 import {
   createLambdaHandler,
   type LambdaContext,
@@ -57,7 +57,7 @@ class InMemoryPetRepo {
   }
 }
 
-declare module '@triad/core' {
+declare module '@triadjs/core' {
   interface ServiceContainer {
     petRepo?: InMemoryPetRepo;
     tenantId?: string;

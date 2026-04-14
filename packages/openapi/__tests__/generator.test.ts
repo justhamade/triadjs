@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createRouter, endpoint, scenario, t } from '@triad/core';
+import { createRouter, endpoint, scenario, t } from '@triadjs/core';
 import { generateOpenAPI, convertPath } from '../src/generator.js';
 import { toYaml, toJson } from '../src/serialize.js';
 

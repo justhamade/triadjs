@@ -9,7 +9,7 @@
  * client.
  */
 
-import type { ValidationError } from '@triad/core';
+import type { ValidationError } from '@triadjs/core';
 
 export type RequestPart = 'params' | 'query' | 'body' | 'headers';
 

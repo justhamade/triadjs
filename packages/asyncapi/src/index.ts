@@ -1,9 +1,9 @@
 /**
- * @triad/asyncapi — generate AsyncAPI 3.0 documents from a Triad router.
+ * @triadjs/asyncapi — generate AsyncAPI 3.0 documents from a Triad router.
  *
  * ```ts
- * import { createRouter, channel } from '@triad/core';
- * import { generateAsyncAPI, toYaml } from '@triad/asyncapi';
+ * import { createRouter, channel } from '@triadjs/core';
+ * import { generateAsyncAPI, toYaml } from '@triadjs/asyncapi';
  *
  * const router = createRouter({ title: 'Realtime API', version: '1.0.0' });
  * router.add(chatRoom);

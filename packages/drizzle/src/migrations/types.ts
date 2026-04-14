@@ -57,7 +57,7 @@ export interface ColumnChange {
 
 export interface GenerateMigrationOptions {
   /** The Triad router to snapshot. */
-  router: import('@triad/core').Router;
+  router: import('@triadjs/core').Router;
   /** Target SQL dialect. */
   dialect: import('../codegen/types.js').Dialect;
   /** Directory containing existing migrations and the `.snapshot.json`. */

@@ -12,7 +12,7 @@
  * that's a lookup, not an ownership check.
  */
 
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 export const Comment = t.model('Comment', {
   id: t

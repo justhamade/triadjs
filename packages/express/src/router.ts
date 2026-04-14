@@ -4,7 +4,7 @@
  *
  * ```ts
  * import express from 'express';
- * import { createTriadRouter, triadErrorHandler } from '@triad/express';
+ * import { createTriadRouter, triadErrorHandler } from '@triadjs/express';
  * import router from './src/app.js';
  *
  * const app = express();
@@ -17,7 +17,7 @@
  * ```
  *
  * Per-request services factories work the same way they do in
- * `@triad/fastify`:
+ * `@triadjs/fastify`:
  *
  * ```ts
  * app.use(createTriadRouter(router, {
@@ -31,11 +31,11 @@
  * path conversion is needed.
  *
  * WebSocket channels are **not** supported by this adapter in v1 — use
- * `@triad/fastify` if you need channels.
+ * `@triadjs/fastify` if you need channels.
  */
 
 import { Router as ExpressRouter, type Router as ExpressRouterType } from 'express';
-import { Router as TriadRouter, hasFileFields } from '@triad/core';
+import { Router as TriadRouter, hasFileFields } from '@triadjs/core';
 
 import {
   createRouteHandler,
@@ -72,7 +72,7 @@ export function createTriadRouter(
 ): ExpressRouterType {
   if (!TriadRouter.isRouter(router)) {
     throw new TypeError(
-      '@triad/express: `router` argument must be a Triad Router instance created with createRouter().',
+      '@triadjs/express: `router` argument must be a Triad Router instance created with createRouter().',
     );
   }
 

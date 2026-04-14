@@ -36,7 +36,7 @@ HTTP has request → response. WebSockets have connection → bidirectional stre
 ## Example: A Chat Room Channel
 
 ```typescript
-import { channel, scenario, t } from '@triad/core';
+import { channel, scenario, t } from '@triadjs/core';
 
 // Message schemas — regular Triad models, reusable across HTTP and WS
 const ChatMessage = t.model('ChatMessage', {
@@ -433,7 +433,7 @@ packages/
 │       ├── channel-context.ts       # Connect/message context types
 │       └── wire-protocol.ts         # JSON envelope + routing
 │
-├── asyncapi/                        # NEW — @triad/asyncapi
+├── asyncapi/                        # NEW — @triadjs/asyncapi
 │   └── src/generator.ts             # Channels → AsyncAPI 3.0
 │
 ├── test-runner/
@@ -450,16 +450,16 @@ packages/
 
 ## Implementation Order
 
-1. `@triad/core/channel.ts` — The `channel()` function and type definitions
-2. `@triad/core/channel-context.ts` — Context types, BroadcastMap, SendMap
-3. `@triad/core/wire-protocol.ts` — JSON envelope and message routing
-4. Update `@triad/core/router.ts` — Register channels alongside endpoints
-5. `@triad/asyncapi/generator.ts` — Channels → AsyncAPI 3.0
-6. Update `@triad/gherkin/generator.ts` — Channel behaviors in Gherkin
-7. `@triad/test-runner/ws-client.ts` — WebSocket test client
-8. `@triad/test-runner/ws-runner.ts` — Multi-client behavior execution
-9. `@triad/test-runner/ws-assertions.ts` — WS-specific assertions
-10. Update `@triad/cli` — `triad docs` emits both specs
+1. `@triadjs/core/channel.ts` — The `channel()` function and type definitions
+2. `@triadjs/core/channel-context.ts` — Context types, BroadcastMap, SendMap
+3. `@triadjs/core/wire-protocol.ts` — JSON envelope and message routing
+4. Update `@triadjs/core/router.ts` — Register channels alongside endpoints
+5. `@triadjs/asyncapi/generator.ts` — Channels → AsyncAPI 3.0
+6. Update `@triadjs/gherkin/generator.ts` — Channel behaviors in Gherkin
+7. `@triadjs/test-runner/ws-client.ts` — WebSocket test client
+8. `@triadjs/test-runner/ws-runner.ts` — Multi-client behavior execution
+9. `@triadjs/test-runner/ws-assertions.ts` — WS-specific assertions
+10. Update `@triadjs/cli` — `triad docs` emits both specs
 11. Example: chat room channel in the petstore example app
 12. Tests everywhere
 

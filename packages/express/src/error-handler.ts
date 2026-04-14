@@ -12,7 +12,7 @@
  */
 
 import type { ErrorRequestHandler, Request, Response, NextFunction } from 'express';
-import { ValidationException } from '@triad/core';
+import { ValidationException } from '@triadjs/core';
 import { RequestValidationError } from './errors.js';
 
 export interface TriadErrorHandlerOptions {
@@ -27,7 +27,7 @@ const defaultLogError = (err: unknown, req: Request): void => {
 
 /**
  * Create an express error middleware that formats Triad errors with the
- * same JSON envelope as `@triad/fastify`. Register it **after** the
+ * same JSON envelope as `@triadjs/fastify`. Register it **after** the
  * Triad router:
  *
  * ```ts

@@ -16,7 +16,7 @@
  * the correct behaviour for an unauthenticated endpoint.
  */
 
-import type { BeforeHandler } from '@triad/core';
+import type { BeforeHandler } from '@triadjs/core';
 import type { RequireJwtOptions, RequireJwtResponses, StandardJwtClaims } from './types.js';
 import { loadJose, type JoseLike, type JoseVerifyKey, type JoseVerifyOptions } from './jose-adapter.js';
 
@@ -40,12 +40,12 @@ function buildKeyResolver<TUser>(options: RequireJwtOptions<TUser>): KeyResolver
 
   if (hasJwks && hasSecret) {
     throw new Error(
-      '@triad/jwt: requireJWT accepts exactly one of `jwksUri` or `secret`, not both.',
+      '@triadjs/jwt: requireJWT accepts exactly one of `jwksUri` or `secret`, not both.',
     );
   }
   if (!hasJwks && !hasSecret) {
     throw new Error(
-      '@triad/jwt: requireJWT requires either `jwksUri` or `secret`.',
+      '@triadjs/jwt: requireJWT requires either `jwksUri` or `secret`.',
     );
   }
 

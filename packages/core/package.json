@@ -1,6 +1,6 @@
 {
-  "name": "@triad/core",
-  "version": "0.1.0",
+  "name": "@triadjs/core",
+  "version": "0.2.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -29,5 +29,29 @@
     "tsup": "^8.3.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
-  }
+  },
+  "description": "Triad schema DSL, endpoint, channel, behavior, and router primitives",
+  "license": "MIT",
+  "author": "Justin Hamade",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justhamade/triad.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/justhamade/triad/tree/main/packages/core",
+  "bugs": {
+    "url": "https://github.com/justhamade/triad/issues"
+  },
+  "keywords": [
+    "triad",
+    "api",
+    "typescript",
+    "schema",
+    "dsl",
+    "validation",
+    "openapi",
+    "bdd",
+    "testing"
+  ],
+  "private": false
 }

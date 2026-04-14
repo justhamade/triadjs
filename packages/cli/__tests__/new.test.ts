@@ -110,7 +110,7 @@ describe('runNew', () => {
     expect(pkg.private).toBeUndefined();
   });
 
-  it('replaces workspace @triad/* deps with a version placeholder', async () => {
+  it('replaces workspace @triadjs/* deps with a version placeholder', async () => {
     const target = path.join(tmpRoot, 'rewritten');
     const cap = captureOutput();
     try {
@@ -124,7 +124,7 @@ describe('runNew', () => {
       string
     >;
     for (const [name, version] of Object.entries(allDeps)) {
-      if (name.startsWith('@triad/')) {
+      if (name.startsWith('@triadjs/')) {
         expect(version).toBe('^0.1.0');
       }
     }

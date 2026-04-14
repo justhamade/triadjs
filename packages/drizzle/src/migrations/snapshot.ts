@@ -17,7 +17,7 @@
  *      ordering quirks.
  */
 
-import type { Router } from '@triad/core';
+import type { Router } from '@triadjs/core';
 import { walkRouter } from '../codegen/walker.js';
 import type { RouterSnapshot } from './types.js';
 

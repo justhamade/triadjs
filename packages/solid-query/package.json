@@ -1,6 +1,6 @@
 {
-  "name": "@triad/solid-query",
-  "version": "0.1.0",
+  "name": "@triadjs/solid-query",
+  "version": "0.2.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -21,12 +21,34 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@triad/core": "*",
-    "@triad/tanstack-query": "*"
+    "@triadjs/core": "0.2.0",
+    "@triadjs/tanstack-query": "0.2.0"
   },
   "devDependencies": {
     "tsup": "^8.3.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
-  }
+  },
+  "description": "Solid Query hook generator for Triad routers",
+  "license": "MIT",
+  "author": "Justin Hamade",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justhamade/triad.git",
+    "directory": "packages/solid-query"
+  },
+  "homepage": "https://github.com/justhamade/triad/tree/main/packages/solid-query",
+  "bugs": {
+    "url": "https://github.com/justhamade/triad/issues"
+  },
+  "keywords": [
+    "triad",
+    "api",
+    "typescript",
+    "solid",
+    "solidjs",
+    "solid-query",
+    "codegen"
+  ],
+  "private": false
 }

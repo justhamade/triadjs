@@ -1,6 +1,6 @@
 {
-  "name": "@triad/hono",
-  "version": "0.1.0",
+  "name": "@triadjs/hono",
+  "version": "0.2.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -22,14 +22,37 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@triad/core": "*",
+    "@triadjs/core": "0.2.0",
     "hono": "^4.6.0"
   },
   "devDependencies": {
-    "@triad/core": "*",
+    "@triadjs/core": "0.2.0",
     "hono": "^4.6.0",
     "tsup": "^8.3.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
-  }
+  },
+  "description": "Hono adapter for Triad routers — Node, Deno, Bun, Cloudflare Workers",
+  "license": "MIT",
+  "author": "Justin Hamade",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justhamade/triad.git",
+    "directory": "packages/hono"
+  },
+  "homepage": "https://github.com/justhamade/triad/tree/main/packages/hono",
+  "bugs": {
+    "url": "https://github.com/justhamade/triad/issues"
+  },
+  "keywords": [
+    "triad",
+    "api",
+    "typescript",
+    "hono",
+    "edge",
+    "cloudflare",
+    "deno",
+    "adapter"
+  ],
+  "private": false
 }

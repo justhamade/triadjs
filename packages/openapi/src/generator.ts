@@ -27,7 +27,7 @@ import {
   createOpenAPIContext,
   isEmptySchema,
   hasFileFields,
-} from '@triad/core';
+} from '@triadjs/core';
 
 // ---------------------------------------------------------------------------
 // OpenAPI 3.1 document types (the subset Triad produces)

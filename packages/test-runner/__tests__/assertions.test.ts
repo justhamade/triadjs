@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { t } from '@triad/core';
-import type { Assertion, HandlerResponse } from '@triad/core';
+import { t } from '@triadjs/core';
+import type { Assertion, HandlerResponse } from '@triadjs/core';
 import {
   runSingleAssertion,
   getByPath,

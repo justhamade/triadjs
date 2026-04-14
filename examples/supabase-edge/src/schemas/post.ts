@@ -19,7 +19,7 @@
  * moving between examples sees the same contract.
  */
 
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 export const Post = t.model('Post', {
   id: t

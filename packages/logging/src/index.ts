@@ -1,5 +1,5 @@
 /**
- * @triad/logging — structured logging instrumentation for Triad routers.
+ * @triadjs/logging — structured logging instrumentation for Triad routers.
  *
  * Opt-in router wrapper that attaches a request-scoped child logger
  * (endpoint name, bounded context, user id, request id) to every log

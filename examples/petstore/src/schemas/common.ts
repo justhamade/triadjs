@@ -11,7 +11,7 @@
  * uses it so clients can parse errors uniformly.
  */
 
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 export const Money = t.value('Money', {
   amount: t

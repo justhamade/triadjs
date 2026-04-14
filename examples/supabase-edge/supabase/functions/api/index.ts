@@ -10,7 +10,7 @@
 //     Node's ESM resolver rejects them unless you configure it.
 //   - `https://esm.sh/...` remote imports — Deno native, Node can't
 //     resolve them without a loader.
-//   - `npm:@triad/...@*` specifiers — Deno-native npm interop.
+//   - `npm:@triadjs/...@*` specifiers — Deno-native npm interop.
 //
 // `tsconfig.json` in the example root excludes `supabase/**/*`
 // so `npm run typecheck` stays green. If you edit this file, run
@@ -49,7 +49,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 // `@*` means "latest published version"; in a real deployment you'd
 // pin to whatever is in your lockfile.
 // eslint-disable-next-line import/no-unresolved
-import { createTriadApp } from 'npm:@triad/hono@*';
+import { createTriadApp } from 'npm:@triadjs/hono@*';
 
 // Local imports use explicit `.ts` extensions so Deno's module
 // resolver can find them. Note these point up and out of the

@@ -8,7 +8,7 @@
  * just defines what crosses the API boundary.
  */
 
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 import { Money } from './common.js';
 
 export const Adopter = t.model('Adopter', {

@@ -43,7 +43,7 @@ export function computeHeaders(
   const factory = ((nonce?: string): HeaderMap => {
     if (typeof nonce !== 'string' || nonce.length === 0) {
       throw new Error(
-        '@triad/security-headers: csp.useNonce is enabled but no nonce was supplied. ' +
+        '@triadjs/security-headers: csp.useNonce is enabled but no nonce was supplied. ' +
           'Adapter wrappers must pass a fresh per-request nonce to the header factory.',
       );
     }

@@ -2,14 +2,14 @@
  * Vitest / Jest adapter for the behavior runner.
  *
  * Rather than depending on a specific test framework, the adapter accepts
- * `describe` and `it` functions from the caller. This keeps `@triad/test-
+ * `describe` and `it` functions from the caller. This keeps `@triadjs/test-
  * runner` free of any test-framework dependency — users bring their own.
  *
  * Usage:
  *
  * ```ts
  * import { describe, it } from 'vitest';
- * import { registerBehaviors } from '@triad/test-runner';
+ * import { registerBehaviors } from '@triadjs/test-runner';
  * import router from '../src/app';
  * import { createTestServices } from './test-setup';
  *
@@ -26,7 +26,7 @@
  * like business rules: "Pets can be created with valid data — FAILED".
  */
 
-import type { Router } from '@triad/core';
+import type { Router } from '@triadjs/core';
 import { runOneBehavior, type RunOptions } from './runner.js';
 import { collectModels } from './models.js';
 

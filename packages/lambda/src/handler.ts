@@ -24,7 +24,7 @@
  *   - 500: `{ code: 'INTERNAL_ERROR', message: 'The server produced an invalid response.' }`
  *
  * WebSocket channels are **not** supported — Lambda is request/response
- * only. Use `@triad/fastify` on a long-lived container if you need
+ * only. Use `@triadjs/fastify` on a long-lived container if you need
  * channels.
  */
 
@@ -42,7 +42,7 @@ import {
   buildRespondMap,
   isEmptySchema,
   invokeBeforeHandler,
-} from '@triad/core';
+} from '@triadjs/core';
 
 import type {
   LambdaEvent,
@@ -394,7 +394,7 @@ export function createLambdaHandler(
 ): LambdaHandler {
   if (!TriadRouter.isRouter(router)) {
     throw new TypeError(
-      '@triad/lambda: `router` argument must be a Triad Router instance created with createRouter().',
+      '@triadjs/lambda: `router` argument must be a Triad Router instance created with createRouter().',
     );
   }
 

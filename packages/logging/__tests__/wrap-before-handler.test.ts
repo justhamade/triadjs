@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { createRouter, endpoint, t } from '@triad/core';
+import { createRouter, endpoint, t } from '@triadjs/core';
 import type {
   BeforeHandlerContext,
   HandlerContext,
   HandlerResponse,
   ResponsesConfig,
-} from '@triad/core';
+} from '@triadjs/core';
 import {
   withLoggingInstrumentation,
   getLogger,

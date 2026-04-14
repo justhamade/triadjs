@@ -16,7 +16,7 @@
  *     nested objects/arrays are JSON-stringified.
  */
 
-import type { Behavior } from '@triad/core';
+import type { Behavior } from '@triadjs/core';
 
 /** Render a single behavior to an array of indented Gherkin lines. */
 export function formatScenario(behavior: Behavior, indent = 2): string[] {

@@ -1,5 +1,5 @@
 /**
- * @triad/jwt — JWT verification for Triad endpoints.
+ * @triadjs/jwt — JWT verification for Triad endpoints.
  *
  * Public surface is intentionally tiny: one factory and the option /
  * claim types. See the README for integration recipes with Auth0,

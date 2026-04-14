@@ -18,7 +18,7 @@ import type {
   FileSchema,
   LiteralSchema,
   ModelShape,
-} from '@triad/core';
+} from '@triadjs/core';
 
 // ---------------------------------------------------------------------------
 // Public types

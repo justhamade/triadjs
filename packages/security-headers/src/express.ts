@@ -4,7 +4,7 @@
  *
  * ```ts
  * import express from 'express';
- * import { securityHeadersExpress } from '@triad/security-headers';
+ * import { securityHeadersExpress } from '@triadjs/security-headers';
  *
  * const app = express();
  * app.use(securityHeadersExpress({ frameOptions: 'SAMEORIGIN' }));

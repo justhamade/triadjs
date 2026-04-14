@@ -1,8 +1,8 @@
 /**
- * @triad/gherkin — generate `.feature` files from a Triad router.
+ * @triadjs/gherkin — generate `.feature` files from a Triad router.
  *
  * ```ts
- * import { generateGherkin, writeGherkinFiles } from '@triad/gherkin';
+ * import { generateGherkin, writeGherkinFiles } from '@triadjs/gherkin';
  *
  * const files = generateGherkin(router);
  * writeGherkinFiles(files, './generated/features');

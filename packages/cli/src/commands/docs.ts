@@ -14,12 +14,12 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import pc from 'picocolors';
-import { generateOpenAPI, toJson, toYaml } from '@triad/openapi';
+import { generateOpenAPI, toJson, toYaml } from '@triadjs/openapi';
 import {
   generateAsyncAPI,
   toYaml as toAsyncYaml,
   toJson as toAsyncJson,
-} from '@triad/asyncapi';
+} from '@triadjs/asyncapi';
 import { loadConfig } from '../load-config.js';
 import { loadRouter } from '../load-router.js';
 import { CliError } from '../errors.js';

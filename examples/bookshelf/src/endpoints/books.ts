@@ -19,7 +19,7 @@
  * for bodyless responses.
  */
 
-import { endpoint, scenario, t } from '@triad/core';
+import { endpoint, scenario, t } from '@triadjs/core';
 import { Book, BookPage, CreateBook, UpdateBook } from '../schemas/book.js';
 import { ApiError } from '../schemas/common.js';
 import { requireAuth } from '../auth.js';

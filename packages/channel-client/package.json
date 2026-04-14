@@ -1,6 +1,6 @@
 {
-  "name": "@triad/channel-client",
-  "version": "0.1.0",
+  "name": "@triadjs/channel-client",
+  "version": "0.2.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -21,12 +21,36 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@triad/core": "*",
-    "@triad/tanstack-query": "*"
+    "@triadjs/core": "0.2.0",
+    "@triadjs/tanstack-query": "0.2.0"
   },
   "devDependencies": {
     "tsup": "^8.3.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
-  }
+  },
+  "description": "Typed WebSocket client generator for Triad channels — vanilla TS, React, Solid, Vue, Svelte",
+  "license": "MIT",
+  "author": "Justin Hamade",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justhamade/triad.git",
+    "directory": "packages/channel-client"
+  },
+  "homepage": "https://github.com/justhamade/triad/tree/main/packages/channel-client",
+  "bugs": {
+    "url": "https://github.com/justhamade/triad/issues"
+  },
+  "keywords": [
+    "triad",
+    "api",
+    "typescript",
+    "websocket",
+    "client",
+    "codegen",
+    "react",
+    "vue",
+    "svelte"
+  ],
+  "private": false
 }

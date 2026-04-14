@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createRouter, endpoint, t } from '@triad/core';
+import { createRouter, endpoint, t } from '@triadjs/core';
 import { generate } from '../src/generator.js';
 
 const Book = t.model('Book', {

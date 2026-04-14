@@ -9,9 +9,9 @@ This guide walks through defining a Triad endpoint, running its behaviors as tes
 ## 1. Install
 
 ```bash
-npm install @triad/core
+npm install @triadjs/core
 # Later:
-# npm install -D @triad/cli @triad/test-runner
+# npm install -D @triadjs/cli @triadjs/test-runner
 ```
 
 Triad requires **Node 20+** and **TypeScript 5.x** with strict mode.
@@ -21,7 +21,7 @@ Triad requires **Node 20+** and **TypeScript 5.x** with strict mode.
 Create `src/schemas/pet.ts`:
 
 ```typescript
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 export const Pet = t.model('Pet', {
   id: t.string().format('uuid').identity().doc('Unique pet identifier'),
@@ -55,7 +55,7 @@ No code generation. No YAML. No duplication.
 Create `src/endpoints/pets.ts`:
 
 ```typescript
-import { endpoint, scenario, t } from '@triad/core';
+import { endpoint, scenario, t } from '@triadjs/core';
 import { Pet, CreatePet, ApiError } from '../schemas/pet';
 
 export const createPet = endpoint({
@@ -119,7 +119,7 @@ export const createPet = endpoint({
 Create `src/app.ts`:
 
 ```typescript
-import { createRouter } from '@triad/core';
+import { createRouter } from '@triadjs/core';
 import { createPet } from './endpoints/pets';
 
 export const router = createRouter({
@@ -146,7 +146,7 @@ router.context('Adoption', {
 
 ## 5. Generate the OpenAPI spec
 
-> Phase 3 — the `@triad/openapi` package.
+> Phase 3 — the `@triadjs/openapi` package.
 
 ```bash
 triad docs --output ./generated/openapi.yaml
@@ -156,7 +156,7 @@ Your Pet model becomes a `$ref: '#/components/schemas/Pet'`. Your endpoint becom
 
 ## 6. Run the behavior tests
 
-> Phase 5 — the `@triad/test-runner` package.
+> Phase 5 — the `@triadjs/test-runner` package.
 
 ```bash
 triad test
@@ -174,7 +174,7 @@ If any step fails, the test fails with the scenario name — which tells you **w
 
 ## 7. Export Gherkin for non-developers
 
-> Phase 4 — the `@triad/gherkin` package.
+> Phase 4 — the `@triadjs/gherkin` package.
 
 ```bash
 triad gherkin --output ./generated/features/

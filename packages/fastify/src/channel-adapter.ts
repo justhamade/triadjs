@@ -38,7 +38,7 @@
  * We use structural `kind` checks rather than `instanceof` everywhere
  * we introspect schemas or channels, so this module keeps working when
  * routers are loaded through jiti or bundler aliases that produce a
- * second copy of `@triad/core`.
+ * second copy of `@triadjs/core`.
  */
 
 import type { FastifyInstance, FastifyRequest } from 'fastify';
@@ -50,7 +50,7 @@ import {
   type ServiceContainer,
   type ValidationError,
   ValidationException,
-} from '@triad/core';
+} from '@triadjs/core';
 
 import { RequestValidationError } from './errors.js';
 import { coerceByShape } from './coerce.js';

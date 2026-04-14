@@ -6,8 +6,8 @@
 
 **Related reading**
 
-- [`@triad/security-headers`](../../packages/security-headers/README.md) — the package that sets HTTP security headers across all three adapters.
-- [`@triad/jwt`](../../packages/jwt/README.md) — JWT verification built on `jose`.
+- [`@triadjs/security-headers`](../../packages/security-headers/README.md) — the package that sets HTTP security headers across all three adapters.
+- [`@triadjs/jwt`](../../packages/jwt/README.md) — JWT verification built on `jose`.
 - [Authentication cookbook](./auth.md) — everything auth-related; this guide links out rather than duplicating.
 - [Observability cookbook](./observability.md) — logging, metrics, tracing.
 - [Deploying to AWS](./deploying-to-aws.md) — cloud-level hardening patterns.
@@ -17,7 +17,7 @@
 ## Table of contents
 
 1. [Threat model for a typical Triad app](#1-threat-model-for-a-typical-triad-app)
-2. [Security headers via `@triad/security-headers`](#2-security-headers-via-triadsecurity-headers)
+2. [Security headers via `@triadjs/security-headers`](#2-security-headers-via-triadsecurity-headers)
 3. [Rate limiting per adapter](#3-rate-limiting-per-adapter)
 4. [CORS configuration per adapter](#4-cors-configuration-per-adapter)
 5. [CSRF protection](#5-csrf-protection)
@@ -69,9 +69,9 @@ The rest of this cookbook covers the defenses you bolt on top of Triad to close 
 
 ---
 
-## 2. Security headers via `@triad/security-headers`
+## 2. Security headers via `@triadjs/security-headers`
 
-Triad's `HandlerResponse` deliberately doesn't carry response headers — routers produce typed bodies, adapters turn them into HTTP. Security headers therefore belong at the adapter layer, and `@triad/security-headers` is the one place they're configured.
+Triad's `HandlerResponse` deliberately doesn't carry response headers — routers produce typed bodies, adapters turn them into HTTP. Security headers therefore belong at the adapter layer, and `@triadjs/security-headers` is the one place they're configured.
 
 See [the package README](../../packages/security-headers/README.md) for the full API reference. This section covers **why** each header matters.
 
@@ -120,7 +120,7 @@ Cross-origin isolation headers. `same-origin` defaults prevent cross-origin wind
 
 ## 3. Rate limiting per adapter
 
-`@triad/security-headers` does not ship rate limiting — the per-adapter ecosystems have excellent libraries already, and duplicating them would be lower quality. Here's what to reach for.
+`@triadjs/security-headers` does not ship rate limiting — the per-adapter ecosystems have excellent libraries already, and duplicating them would be lower quality. Here's what to reach for.
 
 ### Fastify — `@fastify/rate-limit`
 
@@ -272,7 +272,7 @@ If you do use cookie auth (typical for SSR apps), pick one of the two standard p
 The server sets a random token in a cookie (readable by JavaScript) and requires the same token in a header on every mutation. An attacker's page can set headers to its own origin but can't read the cookie from yours, so it can't match them.
 
 ```ts
-import type { BeforeHandler } from '@triad/core';
+import type { BeforeHandler } from '@triadjs/core';
 import { randomBytes } from 'node:crypto';
 
 const csrfGuard: BeforeHandler = async (ctx) => {
@@ -312,7 +312,7 @@ Triad's schemas catch type and shape issues. They don't catch business-semantics
 ### HTML / SQL injection
 
 - Triad's schema validates that a string is a string. If you then interpolate that string into HTML, you have XSS. Use a templating engine that auto-escapes (React, Svelte, Vue, Lit, Handlebars with `{{ }}`), or manually escape via `DOMPurify` / `sanitize-html`.
-- If you interpolate into SQL, you have SQL injection. **Always** use parameterized queries. Drizzle (see `@triad/drizzle`) handles this for you — never fall back to raw string interpolation.
+- If you interpolate into SQL, you have SQL injection. **Always** use parameterized queries. Drizzle (see `@triadjs/drizzle`) handles this for you — never fall back to raw string interpolation.
 - If you interpolate into shell commands (spawning processes), use `execFile`/`spawn` with an argument array, never `exec` with a concatenated string.
 
 ### File upload safety
@@ -336,7 +336,7 @@ If your API accepts URLs from users (webhooks, avatar URLs, image proxy) and the
 
 ### Log injection
 
-If you write user-supplied strings to logs via `console.log`, an attacker can inject fake log lines (newlines, ANSI escapes) that confuse log parsers. Structured logging via [`@triad/logging`](../../packages/logging/README.md) emits JSON objects — newlines inside field values become `\n` in the JSON-encoded form and can't forge new log entries.
+If you write user-supplied strings to logs via `console.log`, an attacker can inject fake log lines (newlines, ANSI escapes) that confuse log parsers. Structured logging via [`@triadjs/logging`](../../packages/logging/README.md) emits JSON objects — newlines inside field values become `\n` in the JSON-encoded form and can't forge new log entries.
 
 ---
 
@@ -437,7 +437,7 @@ Security monitoring is a subset of observability. You want to know when:
 - A particular IP or user is responsible for most of the failures (structured logs with client IP + user ID fields).
 - Unusual latency patterns suggest a slow-loris or timing attack.
 
-Wire up [`@triad/logging`](../../packages/logging/README.md) for structured logs, [`@triad/metrics`](../../packages/metrics/README.md) for request-level counters and histograms, and [`@triad/otel`](../../packages/otel/README.md) for distributed traces. Tag spans with caller identity when available so traces are useful during an incident.
+Wire up [`@triadjs/logging`](../../packages/logging/README.md) for structured logs, [`@triadjs/metrics`](../../packages/metrics/README.md) for request-level counters and histograms, and [`@triadjs/otel`](../../packages/otel/README.md) for distributed traces. Tag spans with caller identity when available so traces are useful during an incident.
 
 The full observability walkthrough (including alert examples) lives in [`docs/guides/observability.md`](./observability.md).
 
@@ -453,13 +453,13 @@ The biggest risk. Triad's `checkOwnership` helper and the `beforeHandler` extens
 
 ### A02:2021 — Cryptographic Failures
 
-Triad doesn't encrypt on your behalf. `@triad/jwt` wraps `jose` with secure defaults (RS256/ES256/EdDSA, no `alg: none`), but if you need to encrypt data at rest, use your database's encryption features or a KMS. For data in transit, HSTS and TLS termination at your load balancer cover the basics.
+Triad doesn't encrypt on your behalf. `@triadjs/jwt` wraps `jose` with secure defaults (RS256/ES256/EdDSA, no `alg: none`), but if you need to encrypt data at rest, use your database's encryption features or a KMS. For data in transit, HSTS and TLS termination at your load balancer cover the basics.
 
 ### A03:2021 — Injection
 
 Triad's Zod-backed schema validation catches ~all shape and type injection vectors. What it doesn't do:
 - Escape HTML (use your templating engine).
-- Escape SQL (use Drizzle or another parameterized query library — see `@triad/drizzle`).
+- Escape SQL (use Drizzle or another parameterized query library — see `@triadjs/drizzle`).
 - Escape shell (use `spawn` with arg arrays).
 
 ### A04:2021 — Insecure Design
@@ -468,7 +468,7 @@ Triad's typed boundaries make many design failures visible at compile time. Usin
 
 ### A05:2021 — Security Misconfiguration
 
-`@triad/security-headers` handles the most common HTTP-level misconfigurations. Other things to check:
+`@triadjs/security-headers` handles the most common HTTP-level misconfigurations. Other things to check:
 - TLS configuration (use your load balancer's preset strict mode).
 - Database default credentials changed.
 - Debug endpoints removed from production builds.
@@ -480,11 +480,11 @@ Covered by §8 above.
 
 ### A07:2021 — Identification and Authentication Failures
 
-Covered by Phase 18 / [`@triad/jwt`](../../packages/jwt/README.md) and the [auth cookbook](./auth.md). Key points: rate limit auth endpoints aggressively (§3), use strong password hashing (argon2id or bcrypt with cost ≥ 12), and never roll your own session token format.
+Covered by Phase 18 / [`@triadjs/jwt`](../../packages/jwt/README.md) and the [auth cookbook](./auth.md). Key points: rate limit auth endpoints aggressively (§3), use strong password hashing (argon2id or bcrypt with cost ≥ 12), and never roll your own session token format.
 
 ### A08:2021 — Software and Data Integrity Failures
 
-- JWT signatures (`@triad/jwt`).
+- JWT signatures (`@triadjs/jwt`).
 - HTTPS end-to-end.
 - Sign and verify webhook payloads (HMAC with a shared secret, constant-time compare).
 - Don't `npm install` from a URL without a hash.
@@ -503,7 +503,7 @@ Covered by §6 (URL validation). Triad doesn't do this for you — if your app a
 
 Run through this list before first production deploy, then again before every major change.
 
-- [ ] `@triad/security-headers` middleware registered on every adapter instance.
+- [ ] `@triadjs/security-headers` middleware registered on every adapter instance.
 - [ ] HTTPS enforced at load balancer; HSTS header set; `preload` considered (but only after subdomain audit).
 - [ ] Rate limiting configured — tight on auth, looser on reads.
 - [ ] CORS uses an explicit allowlist, not `'*'`, for any endpoint accepting credentials.
@@ -516,7 +516,7 @@ Run through this list before first production deploy, then again before every ma
 - [ ] Password hashing uses argon2id or bcrypt (cost ≥ 12).
 - [ ] JWT verification rejects `alg: none` and enforces expected algorithms.
 - [ ] Error responses never leak stack traces or internal SQL.
-- [ ] Logs structured via `@triad/logging`; sensitive fields (passwords, tokens, PII) are redacted.
+- [ ] Logs structured via `@triadjs/logging`; sensitive fields (passwords, tokens, PII) are redacted.
 - [ ] Every request body has a Triad schema; no handler uses `any` for input.
 - [ ] Every response has a schema; Triad will catch shape drift at runtime.
 - [ ] File uploads are size-bounded (`t.file().maxSize()`) and type-validated by magic bytes.
@@ -535,8 +535,8 @@ Run through this list before first production deploy, then again before every ma
 
 ## 12. FAQ
 
-**Q: Why not ship `@triad/cors` and `@triad/rate-limit`?**
-The per-adapter ecosystems (`@fastify/cors`, `cors`, `hono/cors`, `@fastify/rate-limit`, `express-rate-limit`, `hono-rate-limiter`) are mature and well-maintained. Duplicating them in a Triad-branded wrapper would be lower quality than what exists, and would give you one more package to keep in sync. `@triad/security-headers` exists only because response headers are one of the few things Triad's `HandlerResponse` abstraction can't model — everything else, use the best-in-class adapter package.
+**Q: Why not ship `@triadjs/cors` and `@triadjs/rate-limit`?**
+The per-adapter ecosystems (`@fastify/cors`, `cors`, `hono/cors`, `@fastify/rate-limit`, `express-rate-limit`, `hono-rate-limiter`) are mature and well-maintained. Duplicating them in a Triad-branded wrapper would be lower quality than what exists, and would give you one more package to keep in sync. `@triadjs/security-headers` exists only because response headers are one of the few things Triad's `HandlerResponse` abstraction can't model — everything else, use the best-in-class adapter package.
 
 **Q: Can I disable security headers for specific routes?**
 In v1, no — the middleware applies to its scope. If you need one CSP for `/api` and another for `/public`, mount two instances on two scopes (e.g. two Fastify plugin registrations with different prefixes). Per-route overrides are a candidate for v-next.
@@ -544,7 +544,7 @@ In v1, no — the middleware applies to its scope. If you need one CSP for `/api
 **Q: What about a WAF (Web Application Firewall)?**
 WAFs (Cloudflare, AWS WAF, GCP Armor) complement application-level defenses; they don't replace them. A WAF catches known attack patterns at the edge; Triad + this cookbook handle everything a WAF can't see because it doesn't understand your schemas. Use both.
 
-**Q: Is `@triad/security-headers` enough for PCI-DSS / HIPAA / SOC2 compliance?**
+**Q: Is `@triadjs/security-headers` enough for PCI-DSS / HIPAA / SOC2 compliance?**
 No. Compliance is 80% organizational — policies, access controls, audit logs, employee training, vendor management — and 20% technical. This package covers a chunk of the technical surface for the HTTP layer, but it's one line in a long checklist. Get a compliance advisor before claiming anything.
 
 **Q: How do I test security headers in my own test suite?**
@@ -575,4 +575,4 @@ securityHeadersFastify({
 Start in `reportOnly: true` mode and tighten as the reports come in.
 
 **Q: What's the difference between `frame-ancestors` and `X-Frame-Options`?**
-`frame-ancestors` in CSP is the modern form — it supports multiple origins, wildcards, and is enforced by all current browsers. `X-Frame-Options` is the legacy form (`DENY` / `SAMEORIGIN`) kept for very old browsers. `@triad/security-headers` sets both by default; you lose nothing by keeping the legacy header and gain a small amount of back-compat.
+`frame-ancestors` in CSP is the modern form — it supports multiple origins, wildcards, and is enforced by all current browsers. `X-Frame-Options` is the legacy form (`DENY` / `SAMEORIGIN`) kept for very old browsers. `@triadjs/security-headers` sets both by default; you lose nothing by keeping the legacy header and gain a small amount of back-compat.

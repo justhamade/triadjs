@@ -1,6 +1,6 @@
 {
-  "name": "@triad/fastify",
-  "version": "0.1.0",
+  "name": "@triadjs/fastify",
+  "version": "0.2.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -23,7 +23,7 @@
   "peerDependencies": {
     "@fastify/multipart": "^9.0.0 || ^8.0.0",
     "@fastify/websocket": "^11.0.0 || ^10.0.0",
-    "@triad/core": "*",
+    "@triadjs/core": "0.2.0",
     "fastify": "^4.0.0 || ^5.0.0"
   },
   "peerDependenciesMeta": {
@@ -37,11 +37,33 @@
   "devDependencies": {
     "@fastify/multipart": "^9.4.0",
     "@fastify/websocket": "^11.0.0",
-    "@triad/core": "*",
+    "@triadjs/core": "0.2.0",
     "@types/ws": "^8.18.1",
     "fastify": "^5.0.0",
     "tsup": "^8.3.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
-  }
+  },
+  "description": "Fastify HTTP and WebSocket adapter for Triad routers",
+  "license": "MIT",
+  "author": "Justin Hamade",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justhamade/triad.git",
+    "directory": "packages/fastify"
+  },
+  "homepage": "https://github.com/justhamade/triad/tree/main/packages/fastify",
+  "bugs": {
+    "url": "https://github.com/justhamade/triad/issues"
+  },
+  "keywords": [
+    "triad",
+    "api",
+    "typescript",
+    "fastify",
+    "http",
+    "websocket",
+    "adapter"
+  ],
+  "private": false
 }

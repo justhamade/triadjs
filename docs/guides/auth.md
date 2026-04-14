@@ -6,9 +6,9 @@
 
 **Related reading**
 
-- [`@triad/jwt`](../../packages/jwt/README.md) — the JWT verification package this cookbook leans on.
-- [`@triad/core` — `BeforeHandler`](../../packages/core/src/before-handler.ts) — the underlying extension point.
-- [`@triad/core` — `checkOwnership`](../../packages/core/src/ownership.ts) — the pairing helper for authorization.
+- [`@triadjs/jwt`](../../packages/jwt/README.md) — the JWT verification package this cookbook leans on.
+- [`@triadjs/core` — `BeforeHandler`](../../packages/core/src/before-handler.ts) — the underlying extension point.
+- [`@triadjs/core` — `checkOwnership`](../../packages/core/src/ownership.ts) — the pairing helper for authorization.
 - [Supabase guide](./supabase.md) — end-to-end Supabase walkthrough; the section here is deliberately short.
 
 ---
@@ -16,7 +16,7 @@
 ## Table of contents
 
 1. [Overview — Triad's auth philosophy](#1-overview--triads-auth-philosophy)
-2. [`@triad/jwt` deep dive](#2-triadjwt-deep-dive)
+2. [`@triadjs/jwt` deep dive](#2-triadjwt-deep-dive)
 3. [Auth0](#3-auth0)
 4. [Clerk](#4-clerk)
 5. [WorkOS](#5-workos)
@@ -72,7 +72,7 @@ get a set of small, testable, composable pieces.
 
 | You have…                               | Use…                   | Why                                                    |
 | --------------------------------------- | ---------------------- | ------------------------------------------------------ |
-| SPA or mobile client hitting a JSON API | JWT (`@triad/jwt`)     | Stateless, cacheable, plays well with CDNs and edges.  |
+| SPA or mobile client hitting a JSON API | JWT (`@triadjs/jwt`)     | Stateless, cacheable, plays well with CDNs and edges.  |
 | Server-rendered app (Next / Remix)      | Session cookies        | HttpOnly cookies + CSRF tokens. No token in JS.        |
 | Service-to-service calls                | API keys               | Long-lived, stored hashed, scoped per integration.     |
 | Third-party identity (Auth0 / Clerk)    | JWT + JWKS             | Let the provider rotate keys; you just verify.         |
@@ -84,9 +84,9 @@ for the price of one.
 
 ---
 
-## 2. `@triad/jwt` deep dive
+## 2. `@triadjs/jwt` deep dive
 
-`@triad/jwt` is a single factory: `requireJWT`. It returns a
+`@triadjs/jwt` is a single factory: `requireJWT`. It returns a
 `BeforeHandler` that reads `Authorization: Bearer <token>`, verifies
 the token with the configured key material, and attaches a typed
 user object to `ctx.state.user`.
@@ -94,7 +94,7 @@ user object to `ctx.state.user`.
 ### Minimal example
 
 ```ts
-import { requireJWT } from '@triad/jwt';
+import { requireJWT } from '@triadjs/jwt';
 
 export const requireAuth = requireJWT({
   jwksUri: 'https://issuer.example.com/.well-known/jwks.json',
@@ -126,7 +126,7 @@ endpoint({
 ### JWKS vs static secrets
 
 - **Production**: JWKS (`jwksUri`). The provider rotates keys without
-  your code ever changing. `@triad/jwt` caches the JWKS set on first
+  your code ever changing. `@triadjs/jwt` caches the JWKS set on first
   use and re-fetches only when a new `kid` appears.
 - **Development / internal tools**: a shared `secret` with HS256 is
   acceptable if you control both issuer and verifier. Never use a
@@ -186,7 +186,7 @@ token": revocation lists, tenant suspensions, emergency kill switches.
    expired. Five seconds covers NTP drift; anything more invites
    abuse.
 4. **Trusting claims before verifying.** Never read `claims.sub`
-   before `jwtVerify` has returned successfully. `@triad/jwt` enforces
+   before `jwtVerify` has returned successfully. `@triadjs/jwt` enforces
    this at the API, but hand-rolled verifiers get it wrong all the
    time.
 5. **Logging the raw token.** Tokens are bearer credentials. Log
@@ -207,7 +207,7 @@ registered in the Auth0 dashboard.
 ### Configuration
 
 ```ts
-import { requireJWT } from '@triad/jwt';
+import { requireJWT } from '@triadjs/jwt';
 
 const AUTH0_DOMAIN = process.env.AUTH0_DOMAIN!;    // my-tenant.auth0.com
 const AUTH0_AUDIENCE = process.env.AUTH0_AUDIENCE!; // https://api.my-app.com
@@ -519,7 +519,7 @@ Back it with Redis, Postgres, or in-memory for tests. The
 ### The `requireSession` beforeHandler
 
 ```ts
-import type { BeforeHandler } from '@triad/core';
+import type { BeforeHandler } from '@triadjs/core';
 
 export const requireSession: BeforeHandler<{ user: User }, With401> =
   async (ctx) => {
@@ -707,7 +707,7 @@ handler: async (ctx) => {
 },
 ```
 
-`checkOwnership` is the tiny helper in `@triad/core` that returns a
+`checkOwnership` is the tiny helper in `@triadjs/core` that returns a
 typed "yes this is yours" result so the handler's remaining logic
 can stay on the happy path.
 
@@ -857,7 +857,7 @@ and stop.
 ### Can I use `requireJWT` with HTTP/2 push, WebSockets, or SSE?
 
 - **WebSockets**: pass the token as a subprotocol or on the first
-  message. `@triad/core`'s `channel` API has its own `beforeHandler`
+  message. `@triadjs/core`'s `channel` API has its own `beforeHandler`
   slot on connect.
 - **SSE**: EventSource doesn't support custom headers. Use a query
   param that proxies a short-lived token (note the URL-leak warning
@@ -873,9 +873,9 @@ Usually yes.
 
 ### How do I test a protected endpoint?
 
-`@triad/test-runner` builds a fake `BeforeHandlerContext` and runs
+`@triadjs/test-runner` builds a fake `BeforeHandlerContext` and runs
 the hook in isolation. For JWT: mint a test token with a test
 secret, pass it in the `Authorization` header of the test request,
-and assert against the response. `@triad/jwt`'s own test suite is a
+and assert against the response. `@triadjs/jwt`'s own test suite is a
 small worked example — see
 `packages/jwt/__tests__/require-jwt.test.ts`.

@@ -7,13 +7,13 @@
  * emission via {@link TypeEmitter.registerNamed}.
  */
 
-import { SchemaNode, type ModelShape } from '@triad/core';
+import { SchemaNode, type ModelShape } from '@triadjs/core';
 
 // NOTE on module-graph safety:
 //
 // We intentionally dispatch on `node.kind` (the discriminant string on
 // every SchemaNode) rather than `instanceof`. The CLI loads the user's
-// router via jiti which may resolve `@triad/core` through a different
+// router via jiti which may resolve `@triadjs/core` through a different
 // copy than the one imported here; `instanceof` breaks across copies
 // whereas `kind` is stable because every schema constructor sets it to
 // a string literal.

@@ -2,7 +2,7 @@
  * Migration codegen tests.
  *
  * Exercises the IR diff, SQL emitter, and file writer through behavior
- * — constructing real routers via `@triad/core`, calling the public
+ * — constructing real routers via `@triadjs/core`, calling the public
  * migration API, and asserting on the SQL text and snapshot files.
  */
 
@@ -10,7 +10,7 @@ import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { createRouter, endpoint, t, type Router } from '@triad/core';
+import { createRouter, endpoint, t, type Router } from '@triadjs/core';
 import {
   snapshotIR,
   serializeSnapshot,

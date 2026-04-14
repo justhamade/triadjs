@@ -3,7 +3,7 @@
  *
  * ```ts
  * import Fastify from 'fastify';
- * import { triadPlugin } from '@triad/fastify';
+ * import { triadPlugin } from '@triadjs/fastify';
  * import router from './src/app.js';
  *
  * const app = Fastify({ logger: true });
@@ -33,7 +33,7 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify';
-import { Router, hasFileFields } from '@triad/core';
+import { Router, hasFileFields } from '@triadjs/core';
 import {
   createRouteHandler,
   type ServicesResolver,
@@ -64,7 +64,7 @@ export const triadPlugin: FastifyPluginAsync<TriadPluginOptions> = async (
 
   if (!Router.isRouter(router)) {
     throw new TypeError(
-      '@triad/fastify: `router` option must be a Triad Router instance created with createRouter().',
+      '@triadjs/fastify: `router` option must be a Triad Router instance created with createRouter().',
     );
   }
 
@@ -85,7 +85,7 @@ export const triadPlugin: FastifyPluginAsync<TriadPluginOptions> = async (
       multipartPlugin = await import('@fastify/multipart');
     } catch (err) {
       throw new Error(
-        '@triad/fastify: the router contains endpoints with t.file() fields but `@fastify/multipart` is not installed. ' +
+        '@triadjs/fastify: the router contains endpoints with t.file() fields but `@fastify/multipart` is not installed. ' +
           'Run `npm install @fastify/multipart` to enable file upload support.',
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         { cause: err as any },
@@ -125,11 +125,9 @@ export const triadPlugin: FastifyPluginAsync<TriadPluginOptions> = async (
   // Intercept Fastify's built-in JSON parse errors and content-type
   // rejections, wrapping them in the standard Triad VALIDATION_ERROR
   // envelope for parity with Hono and Express adapters.
-  fastify.setErrorHandler((error, _request, reply) => {
-    const statusCode =
-      'statusCode' in error ? (error as { statusCode: number }).statusCode : 0;
-    const errorCode =
-      'code' in error ? (error as { code: string }).code : '';
+  fastify.setErrorHandler((error: Error & { statusCode?: number; code?: string }, _request, reply) => {
+    const statusCode = error.statusCode ?? 0;
+    const errorCode = error.code ?? '';
 
     // JSON parse error: SyntaxError with statusCode 400, or Fastify's
     // FST_ERR_CTP_INVALID_JSON_BODY error code in newer versions.
@@ -205,7 +203,7 @@ export const triadPlugin: FastifyPluginAsync<TriadPluginOptions> = async (
     websocketPlugin = await import('@fastify/websocket');
   } catch (err) {
     throw new Error(
-      '@triad/fastify: the router contains WebSocket channels but `@fastify/websocket` is not installed. ' +
+      '@triadjs/fastify: the router contains WebSocket channels but `@fastify/websocket` is not installed. ' +
         'Run `npm install @fastify/websocket` (or the equivalent for your package manager) to enable channel support.',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { cause: err as any },

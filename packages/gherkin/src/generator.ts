@@ -18,7 +18,7 @@
  * end up with zero scenarios are not emitted.
  */
 
-import type { Router, Endpoint, Channel, Behavior } from '@triad/core';
+import type { Router, Endpoint, Channel, Behavior } from '@triadjs/core';
 import { formatScenario } from './formatter.js';
 
 // ---------------------------------------------------------------------------

@@ -262,7 +262,7 @@ export interface ChannelConfig<
  * `Router.isRouter`.
  */
 const CHANNEL_BRAND: unique symbol = Symbol.for(
-  '@triad/core/Channel',
+  '@triadjs/core/Channel',
 ) as never;
 
 /**
@@ -331,9 +331,9 @@ export interface Channel {
 
 /**
  * Structural check for Channel instances that works across duplicate
- * `@triad/core` module graphs. Use this instead of `channel instanceof
+ * `@triadjs/core` module graphs. Use this instead of `channel instanceof
  * Channel` or a `kind === 'channel'` check in any code that might
- * receive values constructed by a different copy of `@triad/core` (CLI
+ * receive values constructed by a different copy of `@triadjs/core` (CLI
  * + jiti, tests + bundler aliases, etc.).
  */
 export function isChannel(value: unknown): value is Channel {

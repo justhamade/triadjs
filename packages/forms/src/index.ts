@@ -1,5 +1,5 @@
 /**
- * `@triad/forms` — generate typed form validators from a Triad router.
+ * `@triadjs/forms` — generate typed form validators from a Triad router.
  *
  * For every endpoint with a request body, emits a
  * `validateXxx(input)` function returning

@@ -1,5 +1,5 @@
 /**
- * Test helpers for `@triad/jwt`.
+ * Test helpers for `@triadjs/jwt`.
  *
  * These utilities use the real `jose` library for token signing so
  * tests exercise genuine cryptographic verification — no fakes.
@@ -12,7 +12,7 @@
  */
 
 import { SignJWT, generateKeyPair, exportJWK, type CryptoKey as JoseCryptoKey } from 'jose';
-import type { BeforeHandlerContext, ResponsesConfig, HandlerResponse } from '@triad/core';
+import type { BeforeHandlerContext, ResponsesConfig, HandlerResponse } from '@triadjs/core';
 
 export const HS256_SECRET = new TextEncoder().encode(
   'test-secret-at-least-32-bytes-long!!!',

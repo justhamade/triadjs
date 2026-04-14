@@ -1,33 +1,33 @@
-# @triad/logging
+# @triadjs/logging
 
 Structured logging instrumentation for Triad routers. Attaches a
 request-scoped child logger (endpoint name, bounded context, user id,
 request id, static fields) to every log line emitted inside a handler.
 
 This is the third opt-in observability package, alongside
-[`@triad/otel`](../otel) for traces and [`@triad/metrics`](../metrics)
+[`@triadjs/otel`](../otel) for traces and [`@triadjs/metrics`](../metrics)
 for metrics. All three use the same pattern: wrap the router once,
 forget about instrumentation inside your handlers.
 
 ## Install
 
 ```bash
-npm install @triad/logging
+npm install @triadjs/logging
 ```
 
-Zero runtime dependencies. Peer-depends on `@triad/core`.
+Zero runtime dependencies. Peer-depends on `@triadjs/core`.
 
 ## Quick start
 
 ```ts
 import pino from 'pino';
-import { createRouter } from '@triad/core';
+import { createRouter } from '@triadjs/core';
 import {
   withLoggingInstrumentation,
   createPinoLogger,
   getLogger,
   requestIdFromHeader,
-} from '@triad/logging';
+} from '@triadjs/logging';
 
 const router = createRouter({ title: 'Books API', version: '1.0.0' });
 router.add(/* ...endpoints... */);
@@ -47,7 +47,7 @@ const instrumented = withLoggingInstrumentation(router, {
 Then inside any handler (or any function it calls, at any await depth):
 
 ```ts
-import { getLogger } from '@triad/logging';
+import { getLogger } from '@triadjs/logging';
 
 export const createBook = endpoint({
   // ...
@@ -79,7 +79,7 @@ A zero-dependency JSON-per-line logger. Perfect for dev, Lambda, or
 anywhere pino/winston are overkill.
 
 ```ts
-import { createConsoleLogger } from '@triad/logging';
+import { createConsoleLogger } from '@triadjs/logging';
 
 const logger = createConsoleLogger({ level: 'info', pretty: false });
 // { "level":"info","message":"book.created","time":"2026-04-10T...","bookId":"42" }
@@ -96,7 +96,7 @@ levels, redaction, serializers.
 
 ```ts
 import pino from 'pino';
-import { createPinoLogger } from '@triad/logging';
+import { createPinoLogger } from '@triadjs/logging';
 
 const logger = createPinoLogger(
   pino({ level: 'info', redact: ['password', 'token'] }),
@@ -112,7 +112,7 @@ Wraps a user-supplied winston logger.
 
 ```ts
 import winston from 'winston';
-import { createWinstonLogger } from '@triad/logging';
+import { createWinstonLogger } from '@triadjs/logging';
 
 const logger = createWinstonLogger(
   winston.createLogger({
@@ -131,7 +131,7 @@ Implement the `Logger` interface and pass it in. It's four methods plus
 `child()`:
 
 ```ts
-import type { Logger } from '@triad/logging';
+import type { Logger } from '@triadjs/logging';
 
 const myLogger: Logger = {
   debug(msg, ctx) { /* ... */ },
@@ -146,7 +146,7 @@ withLoggingInstrumentation(router, { logger: myLogger });
 
 ## How `getLogger()` works
 
-`@triad/logging` uses Node's built-in `AsyncLocalStorage` to bind the
+`@triadjs/logging` uses Node's built-in `AsyncLocalStorage` to bind the
 request-scoped child logger to the current async context. When the
 wrapper runs your handler, it does so inside `als.run(childLogger, ...)`
 — and because `AsyncLocalStorage` propagates across `await` boundaries,
@@ -199,10 +199,10 @@ WebSocket channel handlers and `onConnect` are wrapped by default
 - **No sampling.** Configure that in your underlying logger.
 - **No aggregation.** Use your log pipeline (Datadog, Loki, CloudWatch,
   whatever).
-- **No metrics or traces.** Those are `@triad/metrics` and `@triad/otel`.
+- **No metrics or traces.** Those are `@triadjs/metrics` and `@triadjs/otel`.
 
 ## Related
 
 - [Observability guide](../../docs/guides/observability.md)
-- [`@triad/otel`](../otel) — traces
-- [`@triad/metrics`](../metrics) — metrics
+- [`@triadjs/otel`](../otel) — traces
+- [`@triadjs/metrics`](../metrics) — metrics

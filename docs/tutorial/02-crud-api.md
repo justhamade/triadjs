@@ -9,7 +9,7 @@ By the end of this step, Bookshelf has a working `POST /books`, `GET /books`, `G
 Create `src/schemas/book.ts`:
 
 ```ts
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 export const Book = t.model('Book', {
   id: t.string().format('uuid').identity().doc('Unique book identifier'),
@@ -40,7 +40,7 @@ Four things to notice:
 Create a shared error envelope at `src/schemas/common.ts`:
 
 ```ts
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 export const ApiError = t.model('ApiError', {
   code: t.string().doc('Machine-readable error code'),
@@ -57,7 +57,7 @@ Handlers should not talk to storage directly. Put the storage logic in a class t
 Create `src/repositories/book.ts`:
 
 ```ts
-import type { Infer } from '@triad/core';
+import type { Infer } from '@triadjs/core';
 import type { Book as BookSchema } from '../schemas/book.js';
 
 type Book = Infer<typeof BookSchema>;
@@ -141,7 +141,7 @@ export interface BookshelfServices {
   bookRepo: BookRepository;
 }
 
-declare module '@triad/core' {
+declare module '@triadjs/core' {
   interface ServiceContainer extends BookshelfServices {}
 }
 
@@ -159,7 +159,7 @@ The `declare module` block is the crucial piece. It tells the TypeScript compile
 Create `src/endpoints/books.ts`:
 
 ```ts
-import { endpoint, scenario, t } from '@triad/core';
+import { endpoint, scenario, t } from '@triadjs/core';
 import { Book, CreateBook, UpdateBook } from '../schemas/book.js';
 import { ApiError } from '../schemas/common.js';
 
@@ -386,7 +386,7 @@ A few notes on what you just wrote:
 Create `src/app.ts`:
 
 ```ts
-import { createRouter } from '@triad/core';
+import { createRouter } from '@triadjs/core';
 import {
   createBook,
   listBooks,
@@ -430,7 +430,7 @@ This is the first glimmer of DDD in your tutorial app. A bounded context names a
 Your `triad.config.ts` needs a test setup module now, because behaviors call `services.bookRepo.create(...)` in `.setup()`:
 
 ```ts
-import { defineConfig } from '@triad/test-runner';
+import { defineConfig } from '@triadjs/test-runner';
 
 export default defineConfig({
   router: './src/app.ts',
@@ -473,7 +473,7 @@ Update `src/server.ts` to pass the services to the Fastify plugin:
 
 ```ts
 import Fastify from 'fastify';
-import { triadPlugin } from '@triad/fastify';
+import { triadPlugin } from '@triadjs/fastify';
 import router from './app.js';
 import { createServices } from './services.js';
 

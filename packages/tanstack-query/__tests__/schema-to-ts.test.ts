@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 import { TypeEmitter } from '../src/schema-to-ts.js';
 
 describe('TypeEmitter', () => {

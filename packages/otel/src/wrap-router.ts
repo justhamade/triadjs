@@ -15,7 +15,7 @@
  * triple the surface area and force every new adapter to re-implement
  * the same instrumentation. Wrapping the router before it reaches any
  * adapter gives us a single place to tag spans, guarantees uniform
- * behavior across all adapters, and keeps `@triad/otel` a pure
+ * behavior across all adapters, and keeps `@triadjs/otel` a pure
  * compile-time-opt-in — users who don't import it pay zero cost.
  *
  * ## Mutation vs. cloning
@@ -39,10 +39,10 @@
  * A future version could clone the router for a pure functional API,
  * but that would require intimate knowledge of the Router class's
  * internals and negate the main benefit of this layer (not touching
- * `@triad/core`).
+ * `@triadjs/core`).
  */
 
-import type { Router, Endpoint, Channel, HandlerResponse } from '@triad/core';
+import type { Router, Endpoint, Channel, HandlerResponse } from '@triadjs/core';
 import {
   trace,
   SpanKind,
@@ -58,7 +58,7 @@ import {
 
 export interface OtelInstrumentationOptions {
   /**
-   * Name passed to `trace.getTracer(name)`. Defaults to `'@triad/otel'`.
+   * Name passed to `trace.getTracer(name)`. Defaults to `'@triadjs/otel'`.
    * Ignored when `tracer` is provided explicitly.
    */
   tracerName?: string;
@@ -101,7 +101,7 @@ type ResolvedOptions = {
 
 function resolveOptions(options: OtelInstrumentationOptions): ResolvedOptions {
   const tracer =
-    options.tracer ?? trace.getTracer(options.tracerName ?? '@triad/otel');
+    options.tracer ?? trace.getTracer(options.tracerName ?? '@triadjs/otel');
   const resolved: ResolvedOptions = {
     tracer,
     staticAttributes: (options.staticAttributes ?? {}) as Attributes,

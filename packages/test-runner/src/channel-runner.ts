@@ -41,7 +41,7 @@ import {
   type Assertion,
   type ServiceContainer,
   ValidationException,
-} from '@triad/core';
+} from '@triadjs/core';
 
 import {
   summarize,

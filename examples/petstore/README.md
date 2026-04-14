@@ -35,7 +35,7 @@ examples/petstore/
 - **Bounded contexts** — endpoints are grouped into `Pets` and `Adoption` contexts, each declaring its own ubiquitous language via `models[]`.
 - **Behavior-as-test-as-docs** — every endpoint has `scenario/given/when/then` behaviors that run as tests, become Gherkin `.feature` files, and serve as human-readable business rules.
 - **Thin handlers** — no validation logic, no type annotations on `ctx.*`, no error plumbing for schemas. The handler body is almost purely "call the repository".
-- **Fastify integration** — `@triad/fastify`'s `triadPlugin` mounts the router onto a real HTTP server with full request and response validation.
+- **Fastify integration** — `@triadjs/fastify`'s `triadPlugin` mounts the router onto a real HTTP server with full request and response validation.
 - **Drizzle + SQLite** — real database, real SQL, type-safe query builder. The repository layer maps between the Triad API shape (`adoptionFee: Money`) and the storage shape (two integer columns `adoption_fee_amount` + `adoption_fee_currency`). Tags (`string[]` in the API) are stored as JSON text since SQLite has no array type.
 - **`.storage()` hints on schemas** — fields carry storage metadata (`primaryKey`, `indexed`, `defaultNow`) alongside their validation rules. Today the Drizzle table is hand-written in `src/db/schema.ts`; a future `triad db` command will generate it from these hints.
 - **Per-scenario DB isolation via fresh in-memory SQLite** — every behavior gets a brand-new `:memory:` database with the schema DDL applied. No test can leak data into another.
@@ -118,7 +118,7 @@ Runs `triad validate`. Checks for duplicate endpoint names, duplicate method+pat
 ## How the `triad.config.ts` ties it all together
 
 ```ts
-import { defineConfig } from '@triad/test-runner';
+import { defineConfig } from '@triadjs/test-runner';
 
 export default defineConfig({
   router: './src/app.ts',        // → triad docs/gherkin/validate load this

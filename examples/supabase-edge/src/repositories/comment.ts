@@ -7,7 +7,7 @@
  * by the Deno entry point, never by tests).
  */
 
-import type { Infer } from '@triad/core';
+import type { Infer } from '@triadjs/core';
 import type { Comment as CommentSchema } from '../schemas/comment.js';
 
 type Comment = Infer<typeof CommentSchema>;

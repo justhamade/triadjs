@@ -7,11 +7,11 @@
  * functions `() => T` so the generated code stays reactive end-to-end.
  *
  * Reuses `collectEndpointShape`, `renderPathExpression`, and
- * `hookNameFor` from `@triad/tanstack-query` because the type surface
+ * `hookNameFor` from `@triadjs/tanstack-query` because the type surface
  * for every endpoint is identical — only the runtime API differs.
  */
 
-import type { Endpoint } from '@triad/core';
+import type { Endpoint } from '@triadjs/core';
 import {
   TypeEmitter,
   collectEndpointShape,
@@ -20,7 +20,7 @@ import {
   hookNameFor,
   renderPathExpression,
   type ResourceInfo,
-} from '@triad/tanstack-query';
+} from '@triadjs/tanstack-query';
 
 export interface EndpointHook {
   name: string;

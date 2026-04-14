@@ -1,4 +1,4 @@
-# @triad/express
+# @triadjs/express
 
 Express adapter for the [Triad](https://github.com/) framework. Mounts a
 Triad router onto an `express` application, validating requests against
@@ -7,14 +7,14 @@ declared schemas and dispatching handler responses.
 ## Installation
 
 ```bash
-npm install @triad/express express
+npm install @triadjs/express express
 ```
 
 ## Usage
 
 ```ts
 import express from 'express';
-import { createTriadRouter, triadErrorHandler } from '@triad/express';
+import { createTriadRouter, triadErrorHandler } from '@triadjs/express';
 import router from './src/app.js';
 
 const app = express();
@@ -30,7 +30,7 @@ app.use(createTriadRouter(router, {
 
 // Optional: register the error handler to format stray Triad errors
 // (e.g. a RequestValidationError thrown from your own middleware) with
-// the same JSON envelope as @triad/fastify.
+// the same JSON envelope as @triadjs/fastify.
 app.use(triadErrorHandler());
 
 app.listen(3000);
@@ -58,7 +58,7 @@ app.use('/api/v1', createTriadRouter(router, { services }));
 ## Error envelope
 
 Request validation failures and response-validation safety-net errors
-produce the same JSON envelope shape as `@triad/fastify`, so clients
+produce the same JSON envelope shape as `@triadjs/fastify`, so clients
 can be swapped between adapters without noticing:
 
 ```json
@@ -81,7 +81,7 @@ can be swapped between adapters without noticing:
 ## Limitations
 
 - **No WebSocket / channel support in v1.** Triad channels only work
-  through `@triad/fastify` at the moment. Express channel support is on
+  through `@triadjs/fastify` at the moment. Express channel support is on
   the backlog — until then, use the fastify adapter if your router
   declares channels.
 - **No OpenAPI serving.** Neither adapter serves OpenAPI documents at
@@ -101,7 +101,7 @@ Declare file fields on the body schema and the adapter will normalize them
 into `TriadFile` instances before handing the body to your handler:
 
 ```ts
-import { t, endpoint, type TriadFile } from '@triad/core';
+import { t, endpoint, type TriadFile } from '@triadjs/core';
 
 const AvatarUpload = t.model('AvatarUpload', {
   name: t.string(),

@@ -1,4 +1,4 @@
-# @triad/jwt
+# @triadjs/jwt
 
 JWT verification for [Triad](https://github.com/ruvnet/triad) endpoints.
 A tiny `BeforeHandler` factory that wraps [`jose`](https://github.com/panva/jose)
@@ -8,18 +8,18 @@ middleware magic.
 ## Install
 
 ```bash
-npm install @triad/jwt jose
+npm install @triadjs/jwt jose
 ```
 
-`jose` is a **peer dependency**. `@triad/jwt` does not bundle it,
+`jose` is a **peer dependency**. `@triadjs/jwt` does not bundle it,
 does not pin its version, and loads it lazily via dynamic import —
 you bring your own version (5.x or 6.x today).
 
 ## Quick start — HS256 with a shared secret
 
 ```ts
-import { endpoint, t } from '@triad/core';
-import { requireJWT } from '@triad/jwt';
+import { endpoint, t } from '@triadjs/core';
+import { requireJWT } from '@triadjs/jwt';
 
 const User = t.model('User', {
   id: t.string(),
@@ -180,7 +180,7 @@ the handler site.
 
 - [docs/guides/auth.md](../../docs/guides/auth.md) — the full auth
   cookbook with provider recipes and pattern discussion.
-- [`@triad/core`](../core) — `BeforeHandler`, `HandlerContext`,
+- [`@triadjs/core`](../core) — `BeforeHandler`, `HandlerContext`,
   `checkOwnership`.
 - [`jose`](https://github.com/panva/jose) — the underlying
   verification library.

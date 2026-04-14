@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createRouter, endpoint, t } from '@triad/core';
+import { createRouter, endpoint, t } from '@triadjs/core';
 import { runFuzz } from '../src/commands/fuzz.js';
 import type { FuzzSummary } from '../src/commands/fuzz.js';
 

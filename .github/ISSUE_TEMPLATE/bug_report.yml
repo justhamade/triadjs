@@ -13,16 +13,16 @@ body:
       label: Package
       description: Which Triad package is affected?
       options:
-        - "@triad/core"
-        - "@triad/openapi"
-        - "@triad/asyncapi"
-        - "@triad/gherkin"
-        - "@triad/test-runner"
-        - "@triad/fastify"
-        - "@triad/express"
-        - "@triad/hono"
-        - "@triad/drizzle"
-        - "@triad/cli"
+        - "@triadjs/core"
+        - "@triadjs/openapi"
+        - "@triadjs/asyncapi"
+        - "@triadjs/gherkin"
+        - "@triadjs/test-runner"
+        - "@triadjs/fastify"
+        - "@triadjs/express"
+        - "@triadjs/hono"
+        - "@triadjs/drizzle"
+        - "@triadjs/cli"
         - "examples/petstore"
         - "examples/tasktracker"
         - "docs"
@@ -70,7 +70,7 @@ body:
       description: A small code block that reproduces the issue, or a link to a repo/gist. The smaller the better.
       placeholder: |
         ```typescript
-        import { t, endpoint } from '@triad/core';
+        import { t, endpoint } from '@triadjs/core';
 
         const Pet = t.model('Pet', {
           id: t.string().format('uuid').identity(),

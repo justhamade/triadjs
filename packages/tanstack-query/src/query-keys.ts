@@ -21,7 +21,7 @@
  * flat key `['auth', 'login']`.
  */
 
-import type { Endpoint } from '@triad/core';
+import type { Endpoint } from '@triadjs/core';
 
 export interface ResourceInfo {
   /** Lowercase plural segment used for the `all` key (e.g. `books`). */

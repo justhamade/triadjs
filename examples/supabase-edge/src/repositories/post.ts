@@ -33,7 +33,7 @@
  * repository does at test time.
  */
 
-import type { Infer } from '@triad/core';
+import type { Infer } from '@triadjs/core';
 import type { Post as PostSchema } from '../schemas/post.js';
 
 type Post = Infer<typeof PostSchema>;

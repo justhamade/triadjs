@@ -2,7 +2,7 @@
  * Public configuration types for the TanStack Query generator.
  */
 
-import type { Endpoint } from '@triad/core';
+import type { Endpoint } from '@triadjs/core';
 
 export interface GenerateOptions {
   /** Output directory for generated files. */

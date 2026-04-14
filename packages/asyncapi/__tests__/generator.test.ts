@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { channel, createRouter, t } from '@triad/core';
+import { channel, createRouter, t } from '@triadjs/core';
 import { convertPath, generateAsyncAPI } from '../src/generator.js';
 import { toJson, toYaml } from '../src/serialize.js';
 

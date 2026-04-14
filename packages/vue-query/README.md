@@ -1,4 +1,4 @@
-# @triad/vue-query
+# @triadjs/vue-query
 
 Generate fully-typed [Vue Query](https://tanstack.com/query/latest/docs/framework/vue/overview)
 composables from a Triad router. One source of truth — changing a
@@ -8,7 +8,7 @@ the frontend.
 ## Install
 
 ```bash
-npm install --save-dev @triad/vue-query
+npm install --save-dev @triadjs/vue-query
 ```
 
 `@tanstack/vue-query` and `vue` are peer concerns:
@@ -26,7 +26,7 @@ triad frontend generate --target vue-query --output ./src/generated/api
 Or via `triad.config.ts`:
 
 ```ts
-import { defineConfig } from '@triad/test-runner';
+import { defineConfig } from '@triadjs/test-runner';
 
 export default defineConfig({
   frontend: {
@@ -113,5 +113,5 @@ export function useCreateBook(
 ## Reuse
 
 This package reuses the schema emitter, resource derivation, query-key
-factory, and fetch client template from `@triad/tanstack-query`. Only
+factory, and fetch client template from `@triadjs/tanstack-query`. Only
 the composable emitter is unique to Vue Query.

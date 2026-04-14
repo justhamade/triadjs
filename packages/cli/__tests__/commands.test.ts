@@ -147,7 +147,7 @@ describe('runGherkin', () => {
     const channelRouterPath = path.join(FIXTURE_DIR, 'src/channel-app.ts');
     fs.writeFileSync(
       channelRouterPath,
-      `import { createRouter, endpoint, channel, scenario, t } from '@triad/core';\n` +
+      `import { createRouter, endpoint, channel, scenario, t } from '@triadjs/core';\n` +
         `const Msg = t.model('Msg', { text: t.string() });\n` +
         `const Ping = t.model('Ping', { ok: t.boolean() });\n` +
         `const ep = endpoint({\n` +
@@ -243,7 +243,7 @@ describe('runTest', () => {
     const brokenRouter = path.join(FIXTURE_DIR, 'src/broken-app.ts');
     fs.writeFileSync(
       brokenRouter,
-      `import { createRouter, endpoint, scenario, t } from '@triad/core';\n` +
+      `import { createRouter, endpoint, scenario, t } from '@triadjs/core';\n` +
         `const ep = endpoint({\n` +
         `  name: 'broken', method: 'GET', path: '/broken', summary: 'x',\n` +
         `  responses: { 200: { schema: t.string(), description: 'ok' } },\n` +
@@ -258,7 +258,7 @@ describe('runTest', () => {
     );
     fs.writeFileSync(
       brokenConfig,
-      `import { defineConfig } from '@triad/test-runner';\n` +
+      `import { defineConfig } from '@triadjs/test-runner';\n` +
         `export default defineConfig({ router: './src/broken-app.ts' });\n`,
     );
 
@@ -308,7 +308,7 @@ describe('runValidate', () => {
 // validateRouter unit tests (pure logic, no fixture needed)
 // ---------------------------------------------------------------------------
 
-import { createRouter, endpoint, scenario, t, channel, type Behavior } from '@triad/core';
+import { createRouter, endpoint, scenario, t, channel, type Behavior } from '@triadjs/core';
 import { validateRouter } from '../src/commands/validate.js';
 
 describe('validateRouter — cross-artifact checks', () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { channel, createRouter, endpoint, scenario, t } from '@triad/core';
+import { channel, createRouter, endpoint, scenario, t } from '@triadjs/core';
 import { generateGherkin, toKebabCase } from '../src/generator.js';
 import { writeGherkinFiles } from '../src/writer.js';
 

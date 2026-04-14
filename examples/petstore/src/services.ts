@@ -35,7 +35,7 @@ export interface PetstoreServices {
   messageStore: MessageStore;
 }
 
-declare module '@triad/core' {
+declare module '@triadjs/core' {
   interface ServiceContainer extends PetstoreServices {}
 }
 

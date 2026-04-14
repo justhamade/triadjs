@@ -2,7 +2,7 @@
  * Fastify server entry point.
  *
  * Run with `npm start` (tsx). Handler logic, validation, and error
- * mapping are all provided by `@triad/fastify`'s `triadPlugin` — this
+ * mapping are all provided by `@triadjs/fastify`'s `triadPlugin` — this
  * file only does process-level concerns: logging, port, database
  * lifecycle, and graceful shutdown.
  *
@@ -21,7 +21,7 @@
 
 import { pathToFileURL } from 'node:url';
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
-import { triadPlugin } from '@triad/fastify';
+import { triadPlugin } from '@triadjs/fastify';
 import router from './app.js';
 import { createDatabase } from './db/client.js';
 import { createServices, type BookshelfServices } from './services.js';

@@ -13,7 +13,7 @@
  * the server controls should never come from the client.
  */
 
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 export const Project = t.model('Project', {
   id: t

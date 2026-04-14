@@ -1,5 +1,5 @@
 /**
- * Error-path integration tests for @triad/fastify.
+ * Error-path integration tests for @triadjs/fastify.
  *
  * Each test sends a real in-process HTTP request via `app.inject()` and
  * asserts on the response status, content-type, and error envelope shape.
@@ -9,7 +9,7 @@
 
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
-import { createRouter, endpoint, t } from '@triad/core';
+import { createRouter, endpoint, t } from '@triadjs/core';
 import { triadPlugin } from '../src/plugin.js';
 
 // ---------------------------------------------------------------------------

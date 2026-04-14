@@ -7,10 +7,10 @@
  * runner can execute through its normal pipeline.
  */
 
-import type { Endpoint, Behavior, Assertion } from '@triad/core';
+import type { Endpoint, Behavior, Assertion } from '@triadjs/core';
 import { describeEndpoint } from './schema-reader.js';
 
-/** Matches the shape of AutoScenarioMarker from @triad/core/scenario-auto. */
+/** Matches the shape of AutoScenarioMarker from @triadjs/core/scenario-auto. */
 interface AutoMarkerLike {
   __auto: true;
   options: {

@@ -1,6 +1,6 @@
 {
-  "name": "@triad/drizzle",
-  "version": "0.1.0",
+  "name": "@triadjs/drizzle",
+  "version": "0.2.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -21,11 +21,11 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@triad/core": "*",
+    "@triadjs/core": "0.2.0",
     "drizzle-orm": ">=0.30.0"
   },
   "devDependencies": {
-    "@triad/core": "*",
+    "@triadjs/core": "0.2.0",
     "@types/better-sqlite3": "^7.6.0",
     "better-sqlite3": "^11.0.0",
     "drizzle-orm": "^0.36.0",
@@ -33,5 +33,28 @@
     "tsup": "^8.3.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
-  }
+  },
+  "description": "Drizzle ORM bridge — schema codegen and migration generation for Triad",
+  "license": "MIT",
+  "author": "Justin Hamade",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justhamade/triad.git",
+    "directory": "packages/drizzle"
+  },
+  "homepage": "https://github.com/justhamade/triad/tree/main/packages/drizzle",
+  "bugs": {
+    "url": "https://github.com/justhamade/triad/issues"
+  },
+  "keywords": [
+    "triad",
+    "api",
+    "typescript",
+    "drizzle",
+    "orm",
+    "database",
+    "codegen",
+    "migration"
+  ],
+  "private": false
 }

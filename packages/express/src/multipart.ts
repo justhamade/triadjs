@@ -9,7 +9,7 @@
  */
 
 import type { Request, RequestHandler } from 'express';
-import type { TriadFile } from '@triad/core';
+import type { TriadFile } from '@triadjs/core';
 
 interface MulterFile {
   fieldname: string;
@@ -41,7 +41,7 @@ async function loadMulter(): Promise<MulterModule> {
     return multerRef;
   } catch (err) {
     throw new Error(
-      '@triad/express: the router contains endpoints with t.file() fields but `multer` is not installed. ' +
+      '@triadjs/express: the router contains endpoints with t.file() fields but `multer` is not installed. ' +
         'Run `npm install multer` to enable file upload support.',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { cause: err as any },

@@ -25,7 +25,7 @@ Triad and Drizzle schemas are **different things that serve different purposes**
 // TRIAD SCHEMA — The API contract
 // "What crosses the wire"
 // ============================================
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 const Pet = t.model('Pet', {
   id: t.string().format('uuid').identity().doc('Unique pet identifier'),
@@ -88,7 +88,7 @@ export const pets = pgTable('pets', {
 import { eq, and, ilike, sql } from 'drizzle-orm';
 import { db } from './database';
 import { pets } from './schema';
-import type { t } from '@triad/core';
+import type { t } from '@triadjs/core';
 import type { Pet as PetSchema, CreatePet as CreatePetSchema } from '../schemas/pet';
 
 type PetRow = typeof pets.$inferSelect;
@@ -203,7 +203,7 @@ export const services = {
 
 ```typescript
 // app.ts
-import { createRouter } from '@triad/core';
+import { createRouter } from '@triadjs/core';
 import { createPet, getPet, listPets } from './endpoints/pets';
 import { services } from './services';
 
@@ -321,7 +321,7 @@ export async function createTestServices() {
 
 ```typescript
 // triad.config.ts
-import { defineConfig } from '@triad/cli';
+import { defineConfig } from '@triadjs/cli';
 
 export default defineConfig({
   router: './src/app.ts',

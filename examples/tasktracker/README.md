@@ -8,7 +8,7 @@ Read petstore first. This README assumes you already know how Triad's schemas, e
 
 | Concern | Petstore | Task Tracker |
 | --- | --- | --- |
-| HTTP adapter | `@triad/fastify` | `@triad/express` |
+| HTTP adapter | `@triadjs/fastify` | `@triadjs/express` |
 | Auth | None | Bearer token with a per-scenario in-memory `TokenStore` |
 | Authorization | None | Ownership checks: a user only sees their own projects and tasks |
 | Pagination | Offset (`limit`/`offset` array) | Keyset cursor (`{items, nextCursor}` envelope) |
@@ -45,7 +45,7 @@ examples/tasktracker/
 │   ├── services.ts           # Service container + ServiceContainer declaration merge
 │   ├── test-setup.ts         # Per-scenario DB + TokenStore reset
 │   ├── app.ts                # Router with Auth/Projects/Tasks bounded contexts
-│   └── server.ts             # Express entry point using @triad/express
+│   └── server.ts             # Express entry point using @triadjs/express
 └── generated/                # triad docs/gherkin output
 ```
 
@@ -128,16 +128,16 @@ Triad doesn't ship a dedicated "empty body" response helper. We work around it w
 
 ### Express adapter
 
-`src/server.ts` mounts the router with `createTriadRouter(router, { services })` from `@triad/express`. Two quirks vs the Fastify adapter:
+`src/server.ts` mounts the router with `createTriadRouter(router, { services })` from `@triadjs/express`. Two quirks vs the Fastify adapter:
 
 1. **You must register `express.json()` before the Triad router.** Fastify parses JSON internally; Express does not.
 2. **Port defaults to 3100** (petstore uses 3000) so both servers can run in parallel during development.
 
-Everything else — per-request services, per-route validation, the 400 envelope for `RequestValidationError`, the 500 envelope for `ValidationException` — is behaviourally identical to `@triad/fastify`.
+Everything else — per-request services, per-route validation, the 400 envelope for `RequestValidationError`, the 500 envelope for `ValidationException` — is behaviourally identical to `@triadjs/fastify`.
 
 ## Things to try
 
-1. **Swap the adapter.** Delete the Express imports in `server.ts`, `import { triadPlugin } from '@triad/fastify'`, and run it on Fastify. No endpoint file changes. That's the adapter-at-the-edge payoff.
+1. **Swap the adapter.** Delete the Express imports in `server.ts`, `import { triadPlugin } from '@triadjs/fastify'`, and run it on Fastify. No endpoint file changes. That's the adapter-at-the-edge payoff.
 2. **Add a bounded context.** A `Teams` context with members and per-team projects would stress-test nested ownership: a task's owner is now "anyone on the team that owns the project".
 3. **Break ownership.** Change `loadOwnedProject` to skip the `ownerId !== userId` check. Run `npm test` — the "another user's project" scenarios go red immediately.
 4. **Swap SHA-256 for bcrypt.** `hashPassword` / `verifyPassword` in `src/auth.ts` are the only files that change.

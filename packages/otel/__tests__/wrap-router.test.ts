@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createRouter, endpoint, t } from '@triad/core';
-import type { HandlerContext, HandlerResponse } from '@triad/core';
+import { createRouter, endpoint, t } from '@triadjs/core';
+import type { HandlerContext, HandlerResponse } from '@triadjs/core';
 import { withOtelInstrumentation } from '../src/index.js';
 import { createOtelHarness, type OtelTestHarness } from './test-helpers.js';
 

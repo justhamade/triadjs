@@ -21,7 +21,7 @@ Use the Petstore domain (Pet, Owner, Adoption) for all examples so they're consi
 Here's how Triad endpoints work — use this as the foundation for all examples:
 
 ```typescript
-import { t, endpoint, scenario } from '@triad/core';
+import { t, endpoint, scenario } from '@triadjs/core';
 
 // Triad schema — the API contract
 const Pet = t.model('Pet', {

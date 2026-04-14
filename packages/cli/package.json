@@ -1,6 +1,6 @@
 {
-  "name": "@triad/cli",
-  "version": "0.1.0",
+  "name": "@triadjs/cli",
+  "version": "0.2.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -24,17 +24,17 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@triad/asyncapi": "*",
-    "@triad/channel-client": "*",
-    "@triad/core": "*",
-    "@triad/forms": "*",
-    "@triad/gherkin": "*",
-    "@triad/openapi": "*",
-    "@triad/solid-query": "*",
-    "@triad/svelte-query": "*",
-    "@triad/tanstack-query": "*",
-    "@triad/test-runner": "*",
-    "@triad/vue-query": "*",
+    "@triadjs/asyncapi": "0.2.0",
+    "@triadjs/channel-client": "0.2.0",
+    "@triadjs/core": "0.2.0",
+    "@triadjs/forms": "0.2.0",
+    "@triadjs/gherkin": "0.2.0",
+    "@triadjs/openapi": "0.2.0",
+    "@triadjs/solid-query": "0.2.0",
+    "@triadjs/svelte-query": "0.2.0",
+    "@triadjs/tanstack-query": "0.2.0",
+    "@triadjs/test-runner": "0.2.0",
+    "@triadjs/vue-query": "0.2.0",
     "commander": "^12.1.0",
     "jiti": "^2.4.0",
     "picocolors": "^1.1.0",
@@ -44,5 +44,26 @@
     "tsup": "^8.3.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
-  }
+  },
+  "description": "Triad CLI — test, docs, fuzz, validate, mock, scaffold, and frontend codegen",
+  "license": "MIT",
+  "author": "Justin Hamade",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justhamade/triad.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/justhamade/triad/tree/main/packages/cli",
+  "bugs": {
+    "url": "https://github.com/justhamade/triad/issues"
+  },
+  "keywords": [
+    "triad",
+    "api",
+    "typescript",
+    "cli",
+    "developer-tools",
+    "codegen"
+  ],
+  "private": false
 }

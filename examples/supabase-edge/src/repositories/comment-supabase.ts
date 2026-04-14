@@ -8,7 +8,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Infer } from '@triad/core';
+import type { Infer } from '@triadjs/core';
 import type { Comment as CommentSchema } from '../schemas/comment.js';
 import type {
   CommentRepository,

@@ -11,7 +11,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@triad/core': coreSrc,
+      '@triadjs/core': coreSrc,
     },
   },
 });

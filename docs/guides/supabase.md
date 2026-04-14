@@ -46,7 +46,7 @@ The stack looks like this:
 │  Client      │───── HTTPS + JWT ───────▶│ Supabase Edge Fn  │
 │ (web / iOS / │                          │  (Deno runtime)   │
 │  Android)    │                          │  ┌─────────────┐  │
-└──────────────┘                          │  │ @triad/hono │  │
+└──────────────┘                          │  │ @triadjs/hono │  │
        │                                  │  │ ├─ router   │  │
        │                                  │  │ ├─ handlers │  │
        │                                  │  │ └─ repos    │  │
@@ -83,7 +83,7 @@ Layers 2 and 3 are redundant *on purpose*. See §5.
 
 The single biggest departure from the tasktracker example is that the Supabase client is built **per request**, not once at startup. The reason is §5's defense-in-depth story: a per-request client can forward the caller's `Authorization` header so every Postgres query runs under their JWT, and that's what makes RLS useful.
 
-Triad already has the plumbing for per-request services. `@triad/hono`'s `createTriadApp` accepts either a static services object or a factory that receives the Fetch `Request`:
+Triad already has the plumbing for per-request services. `@triadjs/hono`'s `createTriadApp` accepts either a static services object or a factory that receives the Fetch `Request`:
 
 ```ts
 createTriadApp(router, {
@@ -468,7 +468,7 @@ export class SupabasePostRepository implements PostRepository {
 
 ## 7. Realtime — Supabase Realtime as your channel backend
 
-Triad's channel model (see [`docs/phase-9-websockets.md`](../phase-9-websockets.md)) is currently only implemented by `@triad/fastify`. Hono's WebSocket helpers are runtime-specific (`hono/bun`, `hono/cloudflare-workers`, `hono/deno`), and unifying them into a single adapter is a non-goal for v1.
+Triad's channel model (see [`docs/phase-9-websockets.md`](../phase-9-websockets.md)) is currently only implemented by `@triadjs/fastify`. Hono's WebSocket helpers are runtime-specific (`hono/bun`, `hono/cloudflare-workers`, `hono/deno`), and unifying them into a single adapter is a non-goal for v1.
 
 For Supabase users this is fine, because **you probably want Supabase Realtime anyway**. Supabase Realtime is a WebSocket fan-out layer driven by Postgres logical replication. When you insert a row, Supabase Realtime fires to every connected client subscribed to that table, with no application code in the middle.
 
@@ -512,10 +512,10 @@ const channel = supabase
 
 Two things to note:
 
-1. **The client re-validates the payload.** Supabase Realtime hands you the raw row — snake_case, no mapping. Treat it as untrusted and validate it against the Triad schema before using it, same as any other network input. (You can share the Triad schemas between client and server by publishing them as a package, exactly like `@triad/tanstack-query` does.)
+1. **The client re-validates the payload.** Supabase Realtime hands you the raw row — snake_case, no mapping. Treat it as untrusted and validate it against the Triad schema before using it, same as any other network input. (You can share the Triad schemas between client and server by publishing them as a package, exactly like `@triadjs/tanstack-query` does.)
 2. **Triad channels are NOT involved.** Your client talks to Supabase Realtime directly. Triad's role is defining the shape that gets validated on both ends. Don't try to proxy Realtime through a Triad channel — the value is in cutting out the middleman.
 
-When you NEED a Triad channel (rich server-side validation, typed broadcast, client-side `@triad/tanstack-query` integration), deploy to a Node host with `@triad/fastify` instead. Trying to run Fastify on Deno Edge is not the right call.
+When you NEED a Triad channel (rich server-side validation, typed broadcast, client-side `@triadjs/tanstack-query` integration), deploy to a Node host with `@triadjs/fastify` instead. Trying to run Fastify on Deno Edge is not the right call.
 
 ## 8. Storage — Supabase Storage from a Triad handler
 
@@ -650,8 +650,8 @@ Deno resolves bare specifiers via an import map. Ours (`supabase/functions/api/d
 ```json
 {
   "imports": {
-    "@triad/core": "npm:@triad/core@*",
-    "@triad/hono": "npm:@triad/hono@*",
+    "@triadjs/core": "npm:@triadjs/core@*",
+    "@triadjs/hono": "npm:@triadjs/hono@*",
     "hono": "npm:hono@^4",
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
   }
@@ -671,7 +671,7 @@ Edge Functions have cold-start time. Triad's in-process router is fast (~few ms)
 - Loading `@supabase/supabase-js`.
 - The first `auth.getUser` call — network round-trip.
 
-The total is typically under 500ms; for most APIs that's fine. If you need lower tail latency, look at Supabase's "Deno Deploy" integration or fall back to a traditional Node host with `@triad/hono` or `@triad/fastify`.
+The total is typically under 500ms; for most APIs that's fine. If you need lower tail latency, look at Supabase's "Deno Deploy" integration or fall back to a traditional Node host with `@triadjs/hono` or `@triadjs/fastify`.
 
 ### The Node dev server vs the Deno deploy target
 
@@ -762,9 +762,9 @@ A checklist of mistakes that will bite you:
 - **Don't use the service role key in a user-facing endpoint.** It bypasses RLS. Use the anon key and forward the caller's JWT.
 - **Don't create a module-level `supabase = createClient(...)`.** It won't have the caller's JWT and RLS will run as anonymous. Construct it per-request.
 - **Don't skip RLS and rely only on application checks.** One bug in the application layer = full data leak. Belt and braces.
-- **Don't try to run `@triad/fastify` in an Edge Function.** Fastify needs `http.Server` which Deno Edge doesn't provide. Use `@triad/hono`.
+- **Don't try to run `@triadjs/fastify` in an Edge Function.** Fastify needs `http.Server` which Deno Edge doesn't provide. Use `@triadjs/hono`.
 - **Don't put the Deno entry file inside `src/`.** tsc will try to compile it and fail on `https://` imports, `.ts` extensions, and the `Deno` global. Keep it under `supabase/functions/api/` and exclude the subtree in `tsconfig.json`.
-- **Don't `npm install @triad/core` from inside the Deno function.** Use `npm:@triad/core@*` specifiers in the import map. The file will still work on Node if you import it from `src/` (via the `.ts` relative path) but the Edge runtime needs the Deno-native form.
+- **Don't `npm install @triadjs/core` from inside the Deno function.** Use `npm:@triadjs/core@*` specifiers in the import map. The file will still work on Node if you import it from `src/` (via the `.ts` relative path) but the Edge runtime needs the Deno-native form.
 - **Don't rely on `user_metadata` for anything security-relevant.** Users can supply arbitrary metadata during sign-up in many Supabase configurations. Treat it as untrusted display data.
 - **Don't forget the `with check` clause on INSERT/UPDATE RLS policies.** `using` gates reads and filters updates; `with check` gates the NEW row. Omit `with check` and a user can update their own row to set `author_id = some-other-user`, which is bad.
 
@@ -772,7 +772,7 @@ A checklist of mistakes that will bite you:
 
 **Does this work with non-Supabase Deno Deploy?**
 
-Yes. Drop the Supabase client, replace it with whatever auth and storage you use, and keep the `@triad/hono` + `Deno.serve` structure. The adapter is the portable layer.
+Yes. Drop the Supabase client, replace it with whatever auth and storage you use, and keep the `@triadjs/hono` + `Deno.serve` structure. The adapter is the portable layer.
 
 **Can I use Prisma with Supabase?**
 

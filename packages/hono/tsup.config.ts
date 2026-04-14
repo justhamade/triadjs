@@ -7,5 +7,5 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   target: 'es2022',
-  external: ['@triad/core', 'hono'],
+  external: ['@triadjs/core', 'hono'],
 });

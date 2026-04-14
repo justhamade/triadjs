@@ -11,8 +11,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@triad/core/scenario-auto': coreAutoSrc,
-      '@triad/core': coreSrc,
+      '@triadjs/core/scenario-auto': coreAutoSrc,
+      '@triadjs/core': coreSrc,
     },
   },
 });

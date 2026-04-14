@@ -5,7 +5,7 @@
  * framework adapters transform these results into whatever format they need.
  */
 
-import type { Assertion, Endpoint, Behavior } from '@triad/core';
+import type { Assertion, Endpoint, Behavior } from '@triadjs/core';
 
 export type TestStatus = 'passed' | 'failed' | 'errored' | 'skipped';
 

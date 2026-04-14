@@ -160,7 +160,7 @@ function rewritePackageJson(projectDir: string, projectName: string): void {
   pkg.name = projectName;
   delete pkg.private;
   // TODO(phase-21): Swap the `^0.1.0` placeholder for the real Triad
-  // release version once @triad/* is published to npm. For now the
+  // release version once @triadjs/* is published to npm. For now the
   // placeholder keeps template `package.json`s parseable and signals
   // to users which deps come from Triad.
   rewriteWorkspaceDeps(pkg, 'dependencies');
@@ -177,7 +177,7 @@ function rewriteWorkspaceDeps(
   if (!deps || typeof deps !== 'object') return;
   const entries = deps as Record<string, string>;
   for (const [name, version] of Object.entries(entries)) {
-    if (name.startsWith('@triad/') && (version === '*' || version === 'workspace:*')) {
+    if (name.startsWith('@triadjs/') && (version === '*' || version === 'workspace:*')) {
       entries[name] = '^0.1.0';
     }
   }

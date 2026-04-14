@@ -32,7 +32,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Infer } from '@triad/core';
+import type { Infer } from '@triadjs/core';
 import type { User as UserSchema } from './schemas/user.js';
 import type { AuthVerifier } from './auth-verifier.js';
 

@@ -9,7 +9,7 @@ This is the largest conceptual step in the tutorial, because authentication touc
 Create `src/schemas/user.ts`:
 
 ```ts
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 export const User = t.model('User', {
   id: t
@@ -81,7 +81,7 @@ Create `src/auth.ts`:
 
 ```ts
 import { createHash } from 'node:crypto';
-import type { BeforeHandler, Infer } from '@triad/core';
+import type { BeforeHandler, Infer } from '@triadjs/core';
 import type { User } from './schemas/user.js';
 import type { ApiError } from './schemas/common.js';
 
@@ -180,7 +180,7 @@ Create `src/repositories/user.ts`:
 
 ```ts
 import { eq } from 'drizzle-orm';
-import type { Infer } from '@triad/core';
+import type { Infer } from '@triadjs/core';
 
 import type { Db } from '../db/client.js';
 import { users } from '../db/schema.js';
@@ -284,7 +284,7 @@ export interface BookshelfServices {
   tokens: TokenStore;
 }
 
-declare module '@triad/core' {
+declare module '@triadjs/core' {
   interface ServiceContainer extends BookshelfServices {}
 }
 
@@ -331,7 +331,7 @@ export default function createTestServices(): TestServices {
 Create `src/endpoints/auth.ts`:
 
 ```ts
-import { endpoint, scenario } from '@triad/core';
+import { endpoint, scenario } from '@triadjs/core';
 import {
   AuthResult,
   LoginInput,
@@ -550,10 +550,10 @@ Update `rowToApi` / `apiToRow` to include `ownerId`. The existing `findById`, `u
 
 ## 6. Protect the book endpoints and enforce ownership
 
-Update `src/endpoints/books.ts` so every endpoint uses `requireAuth` and `checkOwnership` from `@triad/core`:
+Update `src/endpoints/books.ts` so every endpoint uses `requireAuth` and `checkOwnership` from `@triadjs/core`:
 
 ```ts
-import { checkOwnership, endpoint, scenario, t } from '@triad/core';
+import { checkOwnership, endpoint, scenario, t } from '@triadjs/core';
 import { Book, CreateBook, UpdateBook } from '../schemas/book.js';
 import { ApiError } from '../schemas/common.js';
 import { requireAuth } from '../auth.js';
@@ -706,7 +706,7 @@ Apply the same shape to `updateBook` and `deleteBook` — fetch, `checkOwnership
 Update `src/app.ts` to add an `Accounts` context and extend `Library` with the user-scoped models:
 
 ```ts
-import { createRouter } from '@triad/core';
+import { createRouter } from '@triadjs/core';
 import { register, login, getMe } from './endpoints/auth.js';
 import { createBook, listBooks, getBook, updateBook, deleteBook } from './endpoints/books.js';
 import { Book, CreateBook, UpdateBook } from './schemas/book.js';

@@ -15,7 +15,7 @@
  */
 
 import type { FastifyRequest } from 'fastify';
-import type { TriadFile } from '@triad/core';
+import type { TriadFile } from '@triadjs/core';
 
 interface MultipartPart {
   type: 'file' | 'field';
@@ -37,7 +37,7 @@ export async function parseFastifyMultipart(
   const req = request as unknown as { parts?: () => PartsIterable };
   if (typeof req.parts !== 'function') {
     throw new Error(
-      '@triad/fastify: multipart body detected but `@fastify/multipart` is not registered. ' +
+      '@triadjs/fastify: multipart body detected but `@fastify/multipart` is not registered. ' +
         'Install `@fastify/multipart` and ensure triadPlugin is mounted after registering it (the plugin auto-registers it when needed).',
     );
   }

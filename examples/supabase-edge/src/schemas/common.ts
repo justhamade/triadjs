@@ -9,7 +9,7 @@
  * errors, you already know how this one does.
  */
 
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 export const ApiError = t.model('ApiError', {
   code: t

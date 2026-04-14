@@ -10,7 +10,7 @@
 
 import { describe, expect, it, beforeEach } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
-import { createRouter, endpoint, t } from '@triad/core';
+import { createRouter, endpoint, t } from '@triadjs/core';
 import { triadPlugin } from '../src/plugin.js';
 
 // ---------------------------------------------------------------------------
@@ -59,7 +59,7 @@ class InMemoryPetRepo {
   }
 }
 
-declare module '@triad/core' {
+declare module '@triadjs/core' {
   interface ServiceContainer {
     petRepo?: InMemoryPetRepo;
   }

@@ -12,7 +12,7 @@ For the underlying mechanics (how adapters dispatch requests, what `ctx.services
 
 ### At a glance
 
-| | `@triad/fastify` | `@triad/express` | `@triad/hono` |
+| | `@triadjs/fastify` | `@triadjs/express` | `@triadjs/hono` |
 |---|---|---|---|
 | WebSocket / channel support | Yes | No (v1 HTTP only) | No (v1 HTTP only) |
 | Runtimes | Node | Node | Node, Deno, Bun, Cloudflare Workers, Fastly, Lagon |
@@ -27,7 +27,7 @@ For the underlying mechanics (how adapters dispatch requests, what `ctx.services
 
 ### When each is the right call
 
-**Pick Fastify** if you are starting a greenfield Triad project. It is the default for good reasons: Triad's WebSocket channels run through `@triad/fastify` only, throughput is excellent, the logger is already wired, and every internal feature test in the Triad repo targets it. If you are unsure, pick Fastify and move on.
+**Pick Fastify** if you are starting a greenfield Triad project. It is the default for good reasons: Triad's WebSocket channels run through `@triadjs/fastify` only, throughput is excellent, the logger is already wired, and every internal feature test in the Triad repo targets it. If you are unsure, pick Fastify and move on.
 
 **Pick Express** if you already have a large Express application and want Triad as a mountable router alongside existing middleware. Triad's Express adapter is the narrow use case: you get the whole Express ecosystem (Passport, helmet, express-session, morgan, rate limiters) running as normal, and the Triad router lives under `app.use(createTriadRouter(router, { services }))` like any other middleware. The tradeoff: no channels, and `ctx.body` is silently `undefined` if you forget `express.json()`.
 
@@ -40,7 +40,7 @@ For the underlying mechanics (how adapters dispatch requests, what `ctx.services
 Install the adapter and Fastify itself. Channels also need `@fastify/websocket`.
 
 ```bash
-npm install @triad/core @triad/fastify fastify
+npm install @triadjs/core @triadjs/fastify fastify
 npm install --save-optional @fastify/websocket   # only if your router has channels
 ```
 
@@ -48,7 +48,7 @@ A complete `src/server.ts`:
 
 ```ts
 import Fastify from 'fastify';
-import { triadPlugin } from '@triad/fastify';
+import { triadPlugin } from '@triadjs/fastify';
 import router from './app.js';
 import { createDatabase } from './db/client.js';
 import { createServices } from './services.js';
@@ -110,7 +110,7 @@ The factory runs once per request. Reference: `examples/petstore/src/server.ts`.
 ## 3. Express setup
 
 ```bash
-npm install @triad/core @triad/express express
+npm install @triadjs/core @triadjs/express express
 npm install --save-dev @types/express
 ```
 
@@ -118,7 +118,7 @@ A complete `src/server.ts`:
 
 ```ts
 import express from 'express';
-import { createTriadRouter, triadErrorHandler } from '@triad/express';
+import { createTriadRouter, triadErrorHandler } from '@triadjs/express';
 import router from './app.js';
 import { createDatabase } from './db/client.js';
 import { createServices } from './services.js';
@@ -169,7 +169,7 @@ Reference: `examples/tasktracker/src/server.ts`.
 ## 4. Hono setup
 
 ```bash
-npm install @triad/core @triad/hono hono
+npm install @triadjs/core @triadjs/hono hono
 ```
 
 Hono runs on many runtimes. The Triad adapter builds a single Hono app; the runtime decides how to serve it.
@@ -185,7 +185,7 @@ npm install @hono/node-server
 ```ts
 // src/server.ts
 import { serve } from '@hono/node-server';
-import { createTriadApp } from '@triad/hono';
+import { createTriadApp } from '@triadjs/hono';
 import router from './app.js';
 import { createDatabase } from './db/client.js';
 import { createServices } from './services.js';
@@ -204,7 +204,7 @@ No extra dependency — Bun natively understands `{ fetch }`:
 
 ```ts
 // src/server.ts
-import { createTriadApp } from '@triad/hono';
+import { createTriadApp } from '@triadjs/hono';
 import router from './app.js';
 import { createServices } from './services.js';
 
@@ -221,7 +221,7 @@ Workers do not have `process.env` and cannot construct a database connection at 
 
 ```ts
 // src/worker.ts
-import { createTriadApp } from '@triad/hono';
+import { createTriadApp } from '@triadjs/hono';
 import router from './app.js';
 import { createServicesForRequest } from './services.js';
 
@@ -250,7 +250,7 @@ The per-request factory is the idiomatic way to pass Workers-style bindings into
 Export the app directly:
 
 ```ts
-import { createTriadApp } from '@triad/hono';
+import { createTriadApp } from '@triadjs/hono';
 import router from './app.js';
 
 const app = createTriadApp(router, { services: createServices() });
@@ -266,7 +266,7 @@ The same router, three different `server.ts` files:
 ```ts
 // Fastify
 import Fastify from 'fastify';
-import { triadPlugin } from '@triad/fastify';
+import { triadPlugin } from '@triadjs/fastify';
 import router from './app.js';
 import { createServices } from './services.js';
 
@@ -278,7 +278,7 @@ await app.listen({ port: 3000 });
 ```ts
 // Express
 import express from 'express';
-import { createTriadRouter } from '@triad/express';
+import { createTriadRouter } from '@triadjs/express';
 import router from './app.js';
 import { createServices } from './services.js';
 
@@ -291,7 +291,7 @@ app.listen(3000);
 ```ts
 // Hono (Node)
 import { serve } from '@hono/node-server';
-import { createTriadApp } from '@triad/hono';
+import { createTriadApp } from '@triadjs/hono';
 import router from './app.js';
 import { createServices } from './services.js';
 
@@ -316,8 +316,8 @@ The migration mechanics are the same in every direction: the router is the sourc
 
 ### Fastify → Express
 
-1. `npm uninstall @triad/fastify fastify` (and `@fastify/websocket` if installed).
-2. `npm install @triad/express express && npm install -D @types/express`.
+1. `npm uninstall @triadjs/fastify fastify` (and `@fastify/websocket` if installed).
+2. `npm install @triadjs/express express && npm install -D @types/express`.
 3. Replace `src/server.ts` with the Express version from §3.
 4. Add `app.use(express.json())` **before** the Triad router. This is not optional.
 5. Re-run `triad test`. The test runner calls handlers in-process and does not touch the adapter, so tests pass unchanged **unless** the router declares channels.
@@ -328,8 +328,8 @@ Run `triad validate` after the swap to catch dangling channel references.
 
 ### Fastify → Hono
 
-1. `npm uninstall @triad/fastify fastify` (and `@fastify/websocket` if installed).
-2. `npm install @triad/core @triad/hono hono` and the runtime adapter you need (`@hono/node-server` for Node).
+1. `npm uninstall @triadjs/fastify fastify` (and `@fastify/websocket` if installed).
+2. `npm install @triadjs/core @triadjs/hono hono` and the runtime adapter you need (`@hono/node-server` for Node).
 3. Replace `src/server.ts` with the Hono version from §4, matching your target runtime.
 4. If you are also changing runtime (Node → Workers/Bun/Deno), rewrite the services factory to construct the database client inside a per-request hook rather than at module load. On Cloudflare Workers, `process.env` does not exist — use the `env` binding.
 5. Re-run `triad test`.

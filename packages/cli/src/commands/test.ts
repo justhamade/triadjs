@@ -14,9 +14,9 @@ import type {
   RunChannelOptions,
   RunSummary,
   TestResult,
-} from '@triad/test-runner';
-import type { ServiceContainer } from '@triad/core';
-import { runBehaviors, runChannelBehaviors } from '@triad/test-runner';
+} from '@triadjs/test-runner';
+import type { ServiceContainer } from '@triadjs/core';
+import { runBehaviors, runChannelBehaviors } from '@triadjs/test-runner';
 import { loadConfig } from '../load-config.js';
 import { loadRouter, loadTestSetup } from '../load-router.js';
 import { reportSummary } from '../reporter.js';

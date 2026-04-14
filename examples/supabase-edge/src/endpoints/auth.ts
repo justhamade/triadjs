@@ -16,7 +16,7 @@
  * `authVerifier` service — is working end-to-end.
  */
 
-import { endpoint, scenario } from '@triad/core';
+import { endpoint, scenario } from '@triadjs/core';
 import { User } from '../schemas/user.js';
 import { ApiError } from '../schemas/common.js';
 import { requireAuth } from '../supabase-auth.js';

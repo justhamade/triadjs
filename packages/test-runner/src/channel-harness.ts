@@ -26,7 +26,7 @@
  * keeps the harness deterministic — every test either passes or
  * fails for behavior reasons, never for transport flakiness.
  *
- * We deliberately do NOT import from `@triad/fastify` — the harness
+ * We deliberately do NOT import from `@triadjs/fastify` — the harness
  * mirrors the hub semantics by construction so that the two
  * implementations stay decoupled and this package has no Fastify
  * dependency.
@@ -39,7 +39,7 @@ import {
   type ModelShape,
   type SchemaNode,
   ValidationException,
-} from '@triad/core';
+} from '@triadjs/core';
 
 import { ChannelTestClient } from './channel-client.js';
 

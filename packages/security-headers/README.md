@@ -1,4 +1,4 @@
-# @triad/security-headers
+# @triadjs/security-headers
 
 Opinionated HTTP security headers for every Triad adapter (Fastify, Express, Hono).
 
@@ -7,15 +7,15 @@ Triad's `HandlerResponse` doesn't model response headers, so security headers ha
 ## Install
 
 ```bash
-npm install @triad/security-headers
+npm install @triadjs/security-headers
 ```
 
 The HTTP framework(s) you use are optional peers — install whichever you need:
 
 ```bash
-npm install fastify     # if you use @triad/fastify
-npm install express     # if you use @triad/express
-npm install hono        # if you use @triad/hono
+npm install fastify     # if you use @triadjs/fastify
+npm install express     # if you use @triadjs/express
+npm install hono        # if you use @triadjs/hono
 ```
 
 ## Quick start
@@ -24,8 +24,8 @@ npm install hono        # if you use @triad/hono
 
 ```ts
 import Fastify from 'fastify';
-import { securityHeadersFastify } from '@triad/security-headers';
-import { triadPlugin } from '@triad/fastify';
+import { securityHeadersFastify } from '@triadjs/security-headers';
+import { triadPlugin } from '@triadjs/fastify';
 import router from './app.js';
 
 const app = Fastify();
@@ -34,14 +34,14 @@ await app.register(triadPlugin, { router });
 await app.listen({ port: 3000 });
 ```
 
-Register `@triad/security-headers` **before** `@triad/fastify`'s `triadPlugin` so the headers apply to every Triad route.
+Register `@triadjs/security-headers` **before** `@triadjs/fastify`'s `triadPlugin` so the headers apply to every Triad route.
 
 ### Express
 
 ```ts
 import express from 'express';
-import { securityHeadersExpress } from '@triad/security-headers';
-import { createTriadRouter } from '@triad/express';
+import { securityHeadersExpress } from '@triadjs/security-headers';
+import { createTriadRouter } from '@triadjs/express';
 import router from './app.js';
 
 const app = express();
@@ -57,8 +57,8 @@ Mount `securityHeadersExpress()` **before** your routes — Express runs middlew
 
 ```ts
 import { Hono } from 'hono';
-import { securityHeadersHono } from '@triad/security-headers';
-import { createTriadApp } from '@triad/hono';
+import { securityHeadersHono } from '@triadjs/security-headers';
+import { createTriadApp } from '@triadjs/hono';
 import router from './app.js';
 
 const app = new Hono();

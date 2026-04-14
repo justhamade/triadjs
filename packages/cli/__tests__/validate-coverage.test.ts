@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createRouter, endpoint, scenario, t } from '@triad/core';
+import { createRouter, endpoint, scenario, t } from '@triadjs/core';
 import { auto } from '../../core/src/scenario-auto.js';
 import { analyzeCoverage } from '../src/commands/validate-coverage.js';
 import type { CoverageReport } from '../src/commands/validate-coverage.js';

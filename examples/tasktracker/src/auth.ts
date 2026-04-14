@@ -24,7 +24,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import type { BeforeHandler, Infer } from '@triad/core';
+import type { BeforeHandler, Infer } from '@triadjs/core';
 import type { User } from './schemas/user.js';
 import type { ApiError } from './schemas/common.js';
 

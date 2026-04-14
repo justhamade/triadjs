@@ -19,7 +19,7 @@
  * that.
  */
 
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 export const TaskStatus = t
   .enum('todo', 'in_progress', 'done')

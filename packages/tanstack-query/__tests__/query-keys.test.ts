@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { extractResource, flatKeyFor, emitKeyFactory, singularize, toPascal } from '../src/query-keys.js';
-import { endpoint, t } from '@triad/core';
+import { endpoint, t } from '@triadjs/core';
 
 describe('extractResource', () => {
   it('returns resource info for a flat list path', () => {

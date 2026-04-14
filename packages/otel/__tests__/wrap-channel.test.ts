@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createRouter, channel, t } from '@triad/core';
+import { createRouter, channel, t } from '@triadjs/core';
 import { SpanStatusCode } from '@opentelemetry/api';
 import { withOtelInstrumentation } from '../src/index.js';
 import { createOtelHarness, type OtelTestHarness } from './test-helpers.js';

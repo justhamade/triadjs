@@ -20,7 +20,7 @@
  * report as a small piece of friction.
  */
 
-import { endpoint, scenario } from '@triad/core';
+import { endpoint, scenario } from '@triadjs/core';
 import {
   AuthResult,
   LoginInput,

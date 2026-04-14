@@ -1,9 +1,9 @@
 /**
- * @triad/openapi — generate OpenAPI 3.1 documents from a Triad router.
+ * @triadjs/openapi — generate OpenAPI 3.1 documents from a Triad router.
  *
  * ```ts
- * import { createRouter } from '@triad/core';
- * import { generateOpenAPI, toYaml } from '@triad/openapi';
+ * import { createRouter } from '@triadjs/core';
+ * import { generateOpenAPI, toYaml } from '@triadjs/openapi';
  *
  * const router = createRouter({ title: 'API', version: '1.0.0' });
  * router.add(createPet, getPet);

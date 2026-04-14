@@ -1,8 +1,8 @@
 /**
- * @triad/test-runner — execute Triad behaviors as in-process tests.
+ * @triadjs/test-runner — execute Triad behaviors as in-process tests.
  *
  * ```ts
- * import { runBehaviors } from '@triad/test-runner';
+ * import { runBehaviors } from '@triadjs/test-runner';
  * import router from '../src/app';
  *
  * const summary = await runBehaviors(router, {
@@ -17,7 +17,7 @@
  *
  * ```ts
  * import { describe, it } from 'vitest';
- * import { registerBehaviors } from '@triad/test-runner';
+ * import { registerBehaviors } from '@triadjs/test-runner';
  * import router from '../src/app';
  *
  * registerBehaviors(router, { describe, it });

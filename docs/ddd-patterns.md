@@ -9,7 +9,7 @@ All examples use the Petstore domain (Pet, Owner, Adoption) for consistency.
 ## Baseline: A Triad Endpoint
 
 ```typescript
-import { t, endpoint, scenario } from '@triad/core';
+import { t, endpoint, scenario } from '@triadjs/core';
 
 const Pet = t.model('Pet', {
   id: t.string().format('uuid').identity().doc('Unique pet identifier'),
@@ -366,10 +366,10 @@ Most apps that have authenticated users eventually need ownership checks — "yo
 The `requireAuth` pattern from Phase 10.3 — a single typed hook that reads the bearer token, resolves the user, and either short-circuits with 401 or attaches `{ user }` to `ctx.state`. Every protected endpoint declares `beforeHandler: requireAuth` and reads `ctx.state.user` in the main handler. See `examples/tasktracker/src/auth.ts` for the reference implementation.
 
 **2. `checkOwnership` for authorization** (are you allowed to touch this?)
-A tiny pure helper exported from `@triad/core`:
+A tiny pure helper exported from `@triadjs/core`:
 
 ```ts
-import { checkOwnership } from '@triad/core';
+import { checkOwnership } from '@triadjs/core';
 
 const result = checkOwnership(
   await ctx.services.projectRepo.findById(ctx.params.projectId),
@@ -404,7 +404,7 @@ For the common case — "fetch by id and enforce ownership on the result" — wr
 
 ```ts
 // src/access.ts
-import { checkOwnership } from '@triad/core';
+import { checkOwnership } from '@triadjs/core';
 
 export async function loadOwnedProject(
   services: Pick<AppServices, 'projectRepo'>,

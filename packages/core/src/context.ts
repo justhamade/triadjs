@@ -26,7 +26,7 @@ import { isEmptySchema, type EmptySchema } from './schema/empty.js';
  * Users add their own services via declaration merging:
  *
  * ```ts
- * declare module '@triad/core' {
+ * declare module '@triadjs/core' {
  *   interface ServiceContainer {
  *     petRepo: PetRepository;
  *     eventBus: EventBus;
@@ -153,19 +153,19 @@ export interface HandlerContext<
  */
 export function buildRespondMap(
   responses: ResponsesConfig,
-): Record<number, (data: unknown) => HandlerResponse> {
-  const map: Record<number, (data: unknown) => HandlerResponse> = {};
+): Record<number, (data?: unknown, options?: ResponseOptions) => HandlerResponse> {
+  const map: Record<number, (data?: unknown, options?: ResponseOptions) => HandlerResponse> = {};
   for (const [statusStr, config] of Object.entries(responses)) {
     const status = Number(statusStr);
     if (isEmptySchema(config.schema)) {
-      map[status] = (options?: ResponseOptions): HandlerResponse => ({
+      map[status] = (_data?: unknown, options?: ResponseOptions): HandlerResponse => ({
         status,
         body: undefined,
         headers: options?.headers,
       });
       continue;
     }
-    map[status] = (data: unknown, options?: ResponseOptions): HandlerResponse => {
+    map[status] = (data?: unknown, options?: ResponseOptions): HandlerResponse => {
       const validated = config.schema.parse(data);
       return { status, body: validated, headers: options?.headers };
     };

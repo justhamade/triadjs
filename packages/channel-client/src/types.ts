@@ -1,5 +1,5 @@
 /**
- * Public types for `@triad/channel-client`.
+ * Public types for `@triadjs/channel-client`.
  *
  * The generator is a pure function: it takes a Triad `Router` and a
  * small options bag and returns a list of `GeneratedFile`s. The CLI

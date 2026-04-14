@@ -17,7 +17,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { WebSocket } from 'ws';
-import { channel, createRouter, t } from '@triad/core';
+import { channel, createRouter, t } from '@triadjs/core';
 import { triadPlugin } from '../src/plugin.js';
 
 // ---------------------------------------------------------------------------

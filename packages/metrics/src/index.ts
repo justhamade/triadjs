@@ -1,5 +1,5 @@
 /**
- * @triad/metrics — Prometheus metrics instrumentation for Triad routers.
+ * @triadjs/metrics — Prometheus metrics instrumentation for Triad routers.
  *
  * Exposes a zero-dependency in-memory collector plus a router wrapper
  * that mutates endpoint handlers to measure per-request latency and

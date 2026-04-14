@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 import { describeEndpoint } from '../src/schema-reader.js';
 import {
   generateMissingFieldScenarios,
@@ -10,7 +10,7 @@ import {
   buildBaseline,
 } from '../src/auto-generators.js';
 import type { AutoScenario } from '../src/auto-generators.js';
-import { endpoint } from '@triad/core';
+import { endpoint } from '@triadjs/core';
 
 // ---------------------------------------------------------------------------
 // Fixture endpoint

@@ -1,5 +1,5 @@
 /**
- * `@triad/svelte-query` — generate fully-typed Svelte Query store
+ * `@triadjs/svelte-query` — generate fully-typed Svelte Query store
  * factories from a Triad router.
  */
 

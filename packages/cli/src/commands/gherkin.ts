@@ -4,7 +4,7 @@
 
 import * as path from 'node:path';
 import pc from 'picocolors';
-import { generateGherkin, writeGherkinFiles } from '@triad/gherkin';
+import { generateGherkin, writeGherkinFiles } from '@triadjs/gherkin';
 import { loadConfig } from '../load-config.js';
 import { loadRouter } from '../load-router.js';
 import { CliError } from '../errors.js';

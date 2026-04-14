@@ -39,13 +39,13 @@ import { type Channel, isChannel } from './channel.js';
 
 /**
  * Process-global brand used to identify `Router` instances even when the
- * `@triad/core` module has been loaded twice (e.g. the CLI uses jiti to
- * import the user's router file, which may resolve `@triad/core` through
+ * `@triadjs/core` module has been loaded twice (e.g. the CLI uses jiti to
+ * import the user's router file, which may resolve `@triadjs/core` through
  * Node's resolver, while the calling code uses a different copy via a
  * bundler or test-runner alias). `Symbol.for` makes this work across
  * duplicate module graphs.
  */
-const ROUTER_BRAND: unique symbol = Symbol.for('@triad/core/Router') as never;
+const ROUTER_BRAND: unique symbol = Symbol.for('@triadjs/core/Router') as never;
 
 // ---------------------------------------------------------------------------
 // Router configuration
@@ -110,9 +110,9 @@ export class Router {
   }
 
   /**
-   * Identity check that works across duplicate `@triad/core` module graphs.
+   * Identity check that works across duplicate `@triadjs/core` module graphs.
    * Use this instead of `instanceof Router` when the router may have been
-   * constructed by a different copy of `@triad/core` (e.g. one loaded via
+   * constructed by a different copy of `@triadjs/core` (e.g. one loaded via
    * `jiti` and another via a bundler alias).
    */
   static isRouter(value: unknown): value is Router {

@@ -6,7 +6,7 @@ Triad is built in phases. Each phase has a single commit boundary. Phases land i
 
 **Status:** Shipped (`8439b6d`).
 
-`@triad/core/schema` — immutable schema builders, runtime validation, OpenAPI 3.1 emission.
+`@triadjs/core/schema` — immutable schema builders, runtime validation, OpenAPI 3.1 emission.
 
 - Primitives: string (typed `.format()`), int32/int64/float32/float64, boolean, datetime, enum, literal, unknown
 - Collections: array, record, tuple, union
@@ -19,7 +19,7 @@ Triad is built in phases. Each phase has a single commit boundary. Phases land i
 
 **Status:** Shipped.
 
-`@triad/core` additions:
+`@triadjs/core` additions:
 
 - `behavior.ts` — `scenario(description).given(...).when(...).then(...).and(...)` builder
 - `context.ts` — `HandlerContext<TParams, TQuery, TBody, THeaders, TResponses>` + `ctx.respond` type-safe response map
@@ -30,7 +30,7 @@ Triad is built in phases. Each phase has a single commit boundary. Phases land i
 
 **Status:** Shipped.
 
-`@triad/openapi` package.
+`@triadjs/openapi` package.
 
 - Router → full OpenAPI 3.1 document
 - Named models → `components/schemas` with `$ref`
@@ -42,7 +42,7 @@ Triad is built in phases. Each phase has a single commit boundary. Phases land i
 
 **Status:** Shipped.
 
-`@triad/gherkin` package.
+`@triadjs/gherkin` package.
 
 - Behaviors → Gherkin `.feature` text
 - Feature grouping: bounded context (first) → first tag → `Other`
@@ -54,7 +54,7 @@ Triad is built in phases. Each phase has a single commit boundary. Phases land i
 
 **Status:** Shipped.
 
-`@triad/test-runner` package.
+`@triadjs/test-runner` package.
 
 - `runBehaviors(router, options)` — in-process runner, no HTTP server
 - Per-scenario isolation via `servicesFactory` + `teardown`
@@ -68,7 +68,7 @@ Triad is built in phases. Each phase has a single commit boundary. Phases land i
 
 **Status:** Shipped.
 
-`@triad/fastify` — mount a Triad `Router` onto a Fastify app.
+`@triadjs/fastify` — mount a Triad `Router` onto a Fastify app.
 
 - `triadPlugin` Fastify plugin registers one Fastify route per Triad endpoint
 - Automatic scalar coercion for query/params/headers (`'42'` → `42`, `'true'` → `true`) before validation
@@ -80,15 +80,15 @@ Triad is built in phases. Each phase has a single commit boundary. Phases land i
 
 ### Additional adapters
 
-- **`@triad/express`** ✅ — Shipped. Full HTTP parity with Fastify, byte-for-byte identical error envelopes. No channel support in v1.
-- **`@triad/hono`** ✅ — Shipped. Runs on Node (via `@hono/node-server`), Cloudflare Workers, Bun, Deno, and Fastly. No channel support in v1.
+- **`@triadjs/express`** ✅ — Shipped. Full HTTP parity with Fastify, byte-for-byte identical error envelopes. No channel support in v1.
+- **`@triadjs/hono`** ✅ — Shipped. Runs on Node (via `@hono/node-server`), Cloudflare Workers, Bun, Deno, and Fastly. No channel support in v1.
 - **Koa / NestJS / `node:http`** — Not planned as first-party packages. The router is data (`router.allEndpoints()`) and each adapter is ~300 lines; rolling your own is viable. See the three existing adapters as reference implementations.
 
 ## Phase 6 — CLI ✅
 
 **Status:** Shipped.
 
-`@triad/cli` — the `triad` command.
+`@triadjs/cli` — the `triad` command.
 
 - `triad docs` — generate OpenAPI (YAML/JSON)
 - `triad gherkin` — export `.feature` files
@@ -110,7 +110,7 @@ Triad is built in phases. Each phase has a single commit boundary. Phases land i
 - In-memory repositories (Drizzle integration is Phase 8)
 - Fastify server entry with graceful shutdown
 - All four CLI commands work against it (`validate`, `docs`, `gherkin`, `test`)
-- End-to-end regression test in `@triad/cli` verifies the whole pipeline on every `npm test` run
+- End-to-end regression test in `@triadjs/cli` verifies the whole pipeline on every `npm test` run
 
 ### Runner bug caught during Phase 7
 
@@ -124,7 +124,7 @@ The test runner was not validating request parts (params/query/body/headers) thr
 
 **Status:** Shipped.
 
-`@triad/drizzle` — type helpers and runtime utilities for pairing Triad schemas with Drizzle tables.
+`@triadjs/drizzle` — type helpers and runtime utilities for pairing Triad schemas with Drizzle tables.
 
 - `.storage()` metadata on every `SchemaNode` — `primaryKey`, `unique`, `indexed`, `defaultNow`, `defaultRandom`, `references`, `columnName`, `custom`
 - Type helpers `InferRow<table>` / `InferInsert<table>` that extract Drizzle row types without importing Drizzle directly in every file
@@ -139,7 +139,7 @@ See [`docs/drizzle-integration.md`](docs/drizzle-integration.md) and the working
 
 **Status:** Shipped.
 
-- New codegen module in `@triad/drizzle`: `walkRouter` → `TableDescriptor[]`, `emitSqlite` → TypeScript source, `generateDrizzleSchema` as the high-level entry.
+- New codegen module in `@triadjs/drizzle`: `walkRouter` → `TableDescriptor[]`, `emitSqlite` → TypeScript source, `generateDrizzleSchema` as the high-level entry.
 - Walker identifies table models by looking for fields with `.storage({ primaryKey: true })`. Derived models (`CreatePet`, `UpdatePet`), input DTOs, and error shapes are automatically excluded.
 - Value objects (`Money`) are flattened into prefixed columns (`adoptionFee` + `amount`/`currency` → `adoption_fee_amount`, `adoption_fee_currency`).
 - Column types mapped via the schema `kind` discriminator: string→text, int32/int64→integer, float32/float64→real, boolean→integer(boolean), datetime→text, enum→text with enum values, arrays/records/tuples/unions→text (JSON-serialized).
@@ -189,8 +189,8 @@ See [`docs/phase-9-websockets.md`](docs/phase-9-websockets.md) for the full desi
 
 **Status:** Shipped.
 
-- `@triad/core/channel-context.ts` — `ChannelConnectContext`, `ChannelMessageContext`, `BroadcastMap`, `SendMap`, `DefaultChannelState`, `ChannelReject`. Type-safe `ctx.broadcast.*` / `ctx.send.*` derived from the `serverMessages` declaration, mirroring the `ctx.respond[status]` pattern used by HTTP endpoints.
-- `@triad/core/channel.ts` — `channel()` declarative function. Normalizes inline `connection.params/query/headers` into anonymous `ModelSchema`s the same way `endpoint()` does. Carries a `kind: 'channel'` discriminant and a `Symbol.for('@triad/core/Channel')` brand for cross-module-graph identity checks. Exposes `isChannel(value)` as the canonical identity check.
+- `@triadjs/core/channel-context.ts` — `ChannelConnectContext`, `ChannelMessageContext`, `BroadcastMap`, `SendMap`, `DefaultChannelState`, `ChannelReject`. Type-safe `ctx.broadcast.*` / `ctx.send.*` derived from the `serverMessages` declaration, mirroring the `ctx.respond[status]` pattern used by HTTP endpoints.
+- `@triadjs/core/channel.ts` — `channel()` declarative function. Normalizes inline `connection.params/query/headers` into anonymous `ModelSchema`s the same way `endpoint()` does. Carries a `kind: 'channel'` discriminant and a `Symbol.for('@triadjs/core/Channel')` brand for cross-module-graph identity checks. Exposes `isChannel(value)` as the canonical identity check.
 - **Phantom state witness pattern** — `ChannelConfig<TState, ...>` uses a phantom `state?: TState` field rather than requiring `channel<ChatState>({...})`. This sidesteps TypeScript's partial-inference limitation: providing `<MyState>` explicitly would block inference of `TParams`, `TQuery`, and other generics, forcing users to annotate everything manually. Inferring `TState` from a witness value (`state: {} as ChatState`) keeps every generic inferrable at the same time.
 - Router extended — `router.add()` dispatches on `isChannel()` to route items into `rootEndpoints` or `rootChannels`. New methods: `allChannels()`, `findChannel(name)`, `rootChannels`. `contextOf()` now accepts `Endpoint | Channel`. `BoundedContext` gained a `channels: Channel[]` field so a single context can own both HTTP endpoints and WebSocket channels.
 - 18 new channel tests + 7 new router tests covering construction, brand checks, structural discrimination, handler type inference (params, data, broadcast, broadcastOthers, send), typed state via the phantom witness, router integration across root and contexts.
@@ -199,19 +199,19 @@ See [`docs/phase-9-websockets.md`](docs/phase-9-websockets.md) for the full desi
 
 **Status:** Shipped.
 
-`@triad/fastify` extended with `createChannelHandler` + `ChannelHub`. The existing `triadPlugin` now lazily imports `@fastify/websocket` only when the router declares channels, so HTTP-only routers keep working with no new required peer dependency. Handshake validation reuses the existing `coerceByShape` + `RequestValidationError` pipeline. Broadcast scoping is by resolved path parameters (same-room clients share a group). Outgoing messages validate via `.parse()` so the "no undeclared payload can leak" guarantee extends across the WebSocket boundary. 13 new integration tests with a real Fastify server + `ws` client.
+`@triadjs/fastify` extended with `createChannelHandler` + `ChannelHub`. The existing `triadPlugin` now lazily imports `@fastify/websocket` only when the router declares channels, so HTTP-only routers keep working with no new required peer dependency. Handshake validation reuses the existing `coerceByShape` + `RequestValidationError` pipeline. Broadcast scoping is by resolved path parameters (same-room clients share a group). Outgoing messages validate via `.parse()` so the "no undeclared payload can leak" guarantee extends across the WebSocket boundary. 13 new integration tests with a real Fastify server + `ws` client.
 
 ### Phase 9.3 — AsyncAPI 3.0 generator ✅
 
 **Status:** Shipped.
 
-New package `@triad/asyncapi` — the real-time counterpart to `@triad/openapi`. Walks a router's channels and emits a complete AsyncAPI 3.0 document with channels, operations (keyed by `<channelName>.<client|server>.<messageType>` to disambiguate same-named messages across directions), components/schemas (shared with the OpenAPI generator so models appear identically in both docs), WebSocket bindings for header/query declarations, and bounded-context tagging. Channel-local message maps suffix the server entry with `_server` when there's a client/server naming collision. 32 tests.
+New package `@triadjs/asyncapi` — the real-time counterpart to `@triadjs/openapi`. Walks a router's channels and emits a complete AsyncAPI 3.0 document with channels, operations (keyed by `<channelName>.<client|server>.<messageType>` to disambiguate same-named messages across directions), components/schemas (shared with the OpenAPI generator so models appear identically in both docs), WebSocket bindings for header/query declarations, and bounded-context tagging. Channel-local message maps suffix the server entry with `_server` when there's a client/server naming collision. 32 tests.
 
 ### Phase 9.4 — Test runner channel support ✅
 
 **Status:** Shipped.
 
-`@triad/core/behavior.ts` extended with four new `Assertion` variants (`channel_receives`, `channel_not_receives`, `connection_rejected`, `channel_message_has`) and matching natural-language parser patterns. `@triad/test-runner` now has `ChannelTestClient`, `ChannelHarness` (in-memory multi-client simulator that mirrors Phase 9.2's `ChannelHub` semantics), and `runChannelBehaviors` / `runOneChannelBehavior`. A heuristic `when` interpreter recognizes "`<name>` connects", "`<name>` sends `<type>`", "`<name>` disconnects", and falls back to sending the first declared clientMessage with `given.body`. 23 new tests.
+`@triadjs/core/behavior.ts` extended with four new `Assertion` variants (`channel_receives`, `channel_not_receives`, `connection_rejected`, `channel_message_has`) and matching natural-language parser patterns. `@triadjs/test-runner` now has `ChannelTestClient`, `ChannelHarness` (in-memory multi-client simulator that mirrors Phase 9.2's `ChannelHub` semantics), and `runChannelBehaviors` / `runOneChannelBehavior`. A heuristic `when` interpreter recognizes "`<name>` connects", "`<name>` sends `<type>`", "`<name>` disconnects", and falls back to sending the first declared clientMessage with `given.body`. 23 new tests.
 
 ### Phase 9.5 — Example chat room + CLI integration ✅
 
@@ -219,7 +219,7 @@ New package `@triad/asyncapi` — the real-time counterpart to `@triad/openapi`.
 
 `examples/petstore` gained a real `chatRoom` channel. New files: `src/schemas/chat.ts`, `src/channels/chat-room.ts`, `src/repositories/message.ts`. The example's router registers the channel inside a new `Chat` bounded context.
 
-`@triad/cli`:
+`@triadjs/cli`:
 - **`runTest`** now runs both `runBehaviors` (HTTP) and `runChannelBehaviors` (WebSocket) and merges their summaries. The example's `triad test` reports 16 scenarios (14 HTTP + 2 channel).
 - **`runDocs`** detects `router.allChannels().length > 0` and emits `asyncapi.yaml` as a sibling of `openapi.yaml` with the same format. Users get both protocol docs from one command.
 
@@ -255,8 +255,8 @@ Previously shipped in Phase 10.5:
 1. **Channel `when`-parser fallback preserves rejection** — `ensureConnected` now returns the client from `harness.connect()` directly, skipping subsequent sends if the client is `.rejected`. `connection_rejected` assertions work regardless of `when` phrasing.
 2. **`validateBeforeConnect` option on channels** — when `false`, handshake validation failures attach to `ctx.validationError` and `onConnect` runs anyway, letting users render custom rejections. Default (`true`) is unchanged.
 3. **`response body is empty` assertion phrase** — new `body_is_empty` variant targeting 204/205/304 scenarios paired with `t.empty()`.
-4. **`isUniqueViolation` predicate in `@triad/drizzle`** — duck-typed detection of unique-constraint errors from better-sqlite3, pg, and mysql2. Eliminates the `existsByEmail` race window pattern used in multiple examples.
-5. **`wrapBeforeHandler` across `@triad/otel`, `@triad/metrics`, `@triad/logging`** — all three observability wrappers now instrument the beforeHandler phase separately from the main handler, so auth failures are traced, timed, and logged correctly. `getLogger()` works inside a beforeHandler.
+4. **`isUniqueViolation` predicate in `@triadjs/drizzle`** — duck-typed detection of unique-constraint errors from better-sqlite3, pg, and mysql2. Eliminates the `existsByEmail` race window pattern used in multiple examples.
+5. **`wrapBeforeHandler` across `@triadjs/otel`, `@triadjs/metrics`, `@triadjs/logging`** — all three observability wrappers now instrument the beforeHandler phase separately from the main handler, so auth failures are traced, timed, and logged correctly. `getLogger()` works inside a beforeHandler.
 
 +37 tests. Zero existing tests broken — all changes additive or behind new flags.
 
@@ -269,17 +269,17 @@ Previously shipped in Phase 10.5:
 - **Phase 10.1** — `null` literal support in the behavior assertion parser
 - **Phase 10.2** — `t.empty()` first-class primitive for 204/205/304 responses. OpenAPI omits `content`, adapters omit `Content-Type`, `ctx.respond[204]()` takes zero args
 - **Phase 10.3** — `beforeHandler` extension point on `endpoint()`. Singular (not an array), runs before request validation, short-circuit or typed `ctx.state`. Tasktracker refactored to use it; ~35 lines of auth boilerplate deleted
-- **Phase 10.4** — `checkOwnership` helper in `@triad/core` with discriminated `not_found | forbidden` result. Shared ownership pattern documented in `docs/ddd-patterns.md §7`
+- **Phase 10.4** — `checkOwnership` helper in `@triadjs/core` with discriminated `not_found | forbidden` result. Shared ownership pattern documented in `docs/ddd-patterns.md §7`
 
 ---
 
 ## Phase 11 — Frontend codegen ✅
 
-**Status:** Shipped. `@triad/tanstack-query` walks a Triad router and emits fully-typed TanStack Query hooks, closing the single-source-of-truth loop from backend to frontend.
+**Status:** Shipped. `@triadjs/tanstack-query` walks a Triad router and emits fully-typed TanStack Query hooks, closing the single-source-of-truth loop from backend to frontend.
 
 The goal is to close the loop: a Triad router on the backend should generate ready-to-use TypeScript code on the frontend with zero manual API client work. Every schema, endpoint, and response type flows through — change a field on the server, the frontend compile errors point exactly where.
 
-### `@triad/tanstack-query` — React Query / TanStack Query codegen
+### `@triadjs/tanstack-query` — React Query / TanStack Query codegen
 
 Generate fully-typed TanStack Query hooks from a Triad router. For each endpoint:
 
@@ -318,12 +318,12 @@ Scope for later:
 - Prefetch helpers for SSR / Next.js
 - Mutation optimistic update helpers
 
-Reference implementation: likely a new package `@triad/tanstack-query` with a generator module plus a small runtime, mirroring the `@triad/drizzle` bridge pattern.
+Reference implementation: likely a new package `@triadjs/tanstack-query` with a generator module plus a small runtime, mirroring the `@triadjs/drizzle` bridge pattern.
 
 ### Future frontend targets
 
-- **`@triad/trpc`-ish vanilla client** — just typed fetch wrappers, no framework dependency
-- **`@triad/openapi-ts`** — integration with `openapi-ts` for users who want a classical OpenAPI client instead of Triad-native
+- **`@triadjs/trpc`-ish vanilla client** — just typed fetch wrappers, no framework dependency
+- **`@triadjs/openapi-ts`** — integration with `openapi-ts` for users who want a classical OpenAPI client instead of Triad-native
 - **GraphQL schema generator** — optional; lets Triad APIs double as GraphQL backends via schema stitching
 
 ---
@@ -334,7 +334,7 @@ Reference implementation: likely a new package `@triad/tanstack-query` with a ge
 
 Goals:
 
-1. **Example: `examples/supabase-edge`** — a Triad API deployed as a Supabase Edge Function running on Deno Deploy. Uses the existing `@triad/hono` adapter (Hono runs on Deno natively) plus Supabase's Deno runtime.
+1. **Example: `examples/supabase-edge`** — a Triad API deployed as a Supabase Edge Function running on Deno Deploy. Uses the existing `@triadjs/hono` adapter (Hono runs on Deno natively) plus Supabase's Deno runtime.
 2. **Docs: `docs/guides/supabase.md`** — how to wire Triad into a Supabase project:
    - Service injection receives the Supabase client (`createClient(supabaseUrl, supabaseKey)`) instead of a Drizzle connection
    - Repositories use `supabase.from('books').select(...)` instead of `db.select().from(books)`
@@ -347,16 +347,16 @@ Goals:
    - Scheduling with Supabase Cron + Triad endpoints
 
 Non-goals:
-- **No `@triad/supabase` package** — Supabase isn't an ORM, and the existing repository pattern already accommodates it. Ship docs + an example, not a new package.
+- **No `@triadjs/supabase` package** — Supabase isn't an ORM, and the existing repository pattern already accommodates it. Ship docs + an example, not a new package.
 - **No automatic RLS policy generation from Triad schemas** — interesting idea for a later phase, but out of scope for v1.
 
-Why Deno specifically: Supabase Edge Functions run on Deno, and the `@triad/hono` adapter already supports Deno. Triad's ESM-only output and lack of Node built-ins (except where adapters pull them in) means core + hono work on Deno unchanged. The example validates that claim.
+Why Deno specifically: Supabase Edge Functions run on Deno, and the `@triadjs/hono` adapter already supports Deno. Triad's ESM-only output and lack of Node built-ins (except where adapters pull them in) means core + hono work on Deno unchanged. The example validates that claim.
 
 ---
 
 ## Phase 13 — Client-side channels ✅
 
-**Status:** All sub-phases shipped. `@triad/channel-client` walks `router.allChannels()` and emits typed clients for vanilla TypeScript, React, Solid, Vue, and Svelte. The Fastify channel adapter supports first-message auth for browser clients that can't set custom WebSocket headers. The runtime supports shared connections (multiple subscribers to the same channel share one underlying WebSocket) and offline send queueing (buffered FIFO flush on reconnect).
+**Status:** All sub-phases shipped. `@triadjs/channel-client` walks `router.allChannels()` and emits typed clients for vanilla TypeScript, React, Solid, Vue, and Svelte. The Fastify channel adapter supports first-message auth for browser clients that can't set custom WebSocket headers. The runtime supports shared connections (multiple subscribers to the same channel share one underlying WebSocket) and offline send queueing (buffered FIFO flush on reconnect).
 
 ### Phase 13.0 — Server-side first-message auth
 
@@ -368,7 +368,7 @@ Scope:
 - Timeout on unauthenticated connections (reject after N seconds if no auth message)
 - Documentation update in `docs/guides/choosing-an-adapter.md` and the AI agent guide
 
-### Phase 13.1 — `@triad/channel-client` — vanilla TypeScript client generator
+### Phase 13.1 — `@triadjs/channel-client` — vanilla TypeScript client generator
 
 New package. `triad frontend generate --target channel-client --output ./client` walks every `channel()` in the router and emits one file per channel plus a shared types file:
 
@@ -391,7 +391,7 @@ client.send.submitReview({ rating: 5, comment: '!' });  // typed send
 await client.close();
 ```
 
-The generator reuses the `schema-to-ts.ts` emitter from `@triad/tanstack-query` (extract into a shared codegen module or duplicate — decide during implementation). No React dependency; this is pure TypeScript.
+The generator reuses the `schema-to-ts.ts` emitter from `@triadjs/tanstack-query` (extract into a shared codegen module or duplicate — decide during implementation). No React dependency; this is pure TypeScript.
 
 Scope:
 - Path param interpolation (`/ws/books/:bookId/reviews` → URL construction)
@@ -427,7 +427,7 @@ Built on `useSyncExternalStore` for clean React 18+ integration. Auto-disconnect
 
 ### Phase 13.3 — Additional framework variants
 
-`@triad/channel-client-solid`, `@triad/channel-client-vue`, `@triad/channel-client-svelte`. Each one is ~200 lines wrapping the vanilla client from 13.1 in the framework's primitive (signal / ref / store).
+`@triadjs/channel-client-solid`, `@triadjs/channel-client-vue`, `@triadjs/channel-client-svelte`. Each one is ~200 lines wrapping the vanilla client from 13.1 in the framework's primitive (signal / ref / store).
 
 ### Phase 13.4 — Shared connections and offline queueing (v-later)
 
@@ -439,9 +439,9 @@ Built on `useSyncExternalStore` for clean React 18+ integration. Auto-disconnect
 
 ## Phase 14 — Observability ✅
 
-**Status:** Phases 14.1, 14.2, and 14.3 shipped. `@triad/otel` provides the OpenTelemetry tracing wrapper. `@triad/metrics` adds a zero-dependency Prometheus collector with automatic histograms per declared endpoint and cardinality protection. `@triad/logging` ships structured logging with AsyncLocalStorage-backed `getLogger()` and adapters for pino, winston, and a built-in JSON console logger. All three packages follow the same opt-in router-wrapper pattern and work uniformly across every HTTP adapter without adapter modifications. `docs/guides/observability.md` is the consolidated cookbook. Phase 14.4 (integration cookbook) lives inside that guide.
+**Status:** Phases 14.1, 14.2, and 14.3 shipped. `@triadjs/otel` provides the OpenTelemetry tracing wrapper. `@triadjs/metrics` adds a zero-dependency Prometheus collector with automatic histograms per declared endpoint and cardinality protection. `@triadjs/logging` ships structured logging with AsyncLocalStorage-backed `getLogger()` and adapters for pino, winston, and a built-in JSON console logger. All three packages follow the same opt-in router-wrapper pattern and work uniformly across every HTTP adapter without adapter modifications. `docs/guides/observability.md` is the consolidated cookbook. Phase 14.4 (integration cookbook) lives inside that guide.
 
-### Phase 14.1 — `@triad/otel` — OpenTelemetry integration
+### Phase 14.1 — `@triadjs/otel` — OpenTelemetry integration
 
 New package. Automatic OpenTelemetry spans per endpoint and per channel message, tagged with structured metadata the router already has:
 
@@ -453,7 +453,7 @@ New package. Automatic OpenTelemetry spans per endpoint and per channel message,
 
 Unique angle: because Triad knows the declared response statuses, error rates can be tagged correctly by category (expected 4xx vs unexpected 5xx). Generic HTTP instrumentation can't do this without guesswork.
 
-### Phase 14.2 — `@triad/metrics` — Prometheus endpoint
+### Phase 14.2 — `@triadjs/metrics` — Prometheus endpoint
 
 Emit a `/metrics` endpoint returning p50/p95/p99 latency per declared endpoint plus request counts bucketed by declared response status. The Triad router already knows every declared status, so the histogram buckets are fully automatic.
 
@@ -471,9 +471,9 @@ A small wrapper that auto-decorates every log line with `{ endpoint, requestId, 
 
 ## Phase 15 — AWS Lambda adapter ✅
 
-**Status:** Shipped. `@triad/lambda` runs a Triad router as an AWS Lambda handler — supports API Gateway v1 (REST), v2 (HTTP), Function URLs, and ALB events, all detected automatically from the event shape. Zero runtime dependencies beyond `@triad/core`, ~10.5 KB bundle, estimated ~180-250 ms cold start on ARM64 + 512 MB. Error envelope is byte-identical to the other adapters. `docs/guides/deploying-to-aws.md` is the full deployment cookbook covering Lambda, Fargate, App Runner, Beanstalk, and EC2 with SAM + CDK snippets.
+**Status:** Shipped. `@triadjs/lambda` runs a Triad router as an AWS Lambda handler — supports API Gateway v1 (REST), v2 (HTTP), Function URLs, and ALB events, all detected automatically from the event shape. Zero runtime dependencies beyond `@triadjs/core`, ~10.5 KB bundle, estimated ~180-250 ms cold start on ARM64 + 512 MB. Error envelope is byte-identical to the other adapters. `docs/guides/deploying-to-aws.md` is the full deployment cookbook covering Lambda, Fargate, App Runner, Beanstalk, and EC2 with SAM + CDK snippets.
 
-### `@triad/lambda`
+### `@triadjs/lambda`
 
 New package. Takes a Triad router and emits an AWS Lambda handler that accepts API Gateway v1/v2 events and ALB target events, normalizes them into the internal context shape, and runs the same validation/handler/respond pipeline as the other adapters.
 
@@ -491,12 +491,12 @@ Deployment targets this unlocks:
 - Lambda behind ALB (VPC-attached compute)
 - Lambda via SST, Serverless Framework, AWS CDK, SAM
 
-Reference implementation mirrors `@triad/express` and `@triad/hono`. ~300 lines. Adapter error envelope stays byte-identical.
+Reference implementation mirrors `@triadjs/express` and `@triadjs/hono`. ~300 lines. Adapter error envelope stays byte-identical.
 
 ### Deployment cookbook
 
 `docs/guides/deploying-to-aws.md`:
-- Lambda (via `@triad/lambda`)
+- Lambda (via `@triadjs/lambda`)
 - ECS Fargate (container, any HTTP adapter)
 - App Runner (container, any HTTP adapter)
 - Elastic Beanstalk (container, any HTTP adapter)
@@ -547,7 +547,7 @@ Ship sensible defaults (10MB max file, 10 files max) and let users override per 
 
 ## Phase 17 — Developer tooling sprint ✅
 
-**Status:** Shipped. Three new CLI commands in `@triad/cli`:
+**Status:** Shipped. Three new CLI commands in `@triadjs/cli`:
 - `triad new <project> --template <name>` scaffolds from one of four templates (fastify-petstore, express-tasktracker, fastify-bookshelf, hono-supabase), rewrites the copied `package.json`, and initializes git.
 - `triad mock` starts a zero-dependency HTTP server (using only `node:http`) that returns schema-generated fake data for every router endpoint. Honors `.example()`/`.default()` metadata first, then deterministic LCG generation. `--latency`, `--error-rate`, and `--seed` flags for chaos testing and reproducibility.
 - `triad docs check --against <ref|file>` diffs OpenAPI against a baseline, classifies changes as safe / risky / breaking, exits non-zero on breakages. Triad-unique capability — the router as a typed source means API drift is detectable from the source code alone.
@@ -599,18 +599,18 @@ Exits non-zero on breaking changes unless `--allow-breaking` is passed. In CI, t
 
 ## Phase 18 — Auth cookbook ✅
 
-**Status:** Shipped. `@triad/jwt` wraps `jose` (peer dep, not runtime) with a typed `requireJWT` BeforeHandler factory. Supports JWKS via `jwksUri` or shared secret via `secret`, checks issuer/audience/algorithms/clock-skew, projects verified claims into a user-defined `TUser` via `extractUser`. `docs/guides/auth.md` is the consolidated 881-line cookbook covering Auth0, Clerk, WorkOS, Firebase, Supabase (pointer), NextAuth, session cookies, API keys, multi-tenancy, and RBAC patterns.
+**Status:** Shipped. `@triadjs/jwt` wraps `jose` (peer dep, not runtime) with a typed `requireJWT` BeforeHandler factory. Supports JWKS via `jwksUri` or shared secret via `secret`, checks issuer/audience/algorithms/clock-skew, projects verified claims into a user-defined `TUser` via `extractUser`. `docs/guides/auth.md` is the consolidated 881-line cookbook covering Auth0, Clerk, WorkOS, Firebase, Supabase (pointer), NextAuth, session cookies, API keys, multi-tenancy, and RBAC patterns.
 
 
 
 **Status:** Not started. `beforeHandler` is the mechanism; users need concrete integrations for the common identity providers.
 
-### Phase 18.1 — `@triad/jwt`
+### Phase 18.1 — `@triadjs/jwt`
 
 Tiny package wrapping `jose` or `jsonwebtoken` with a `requireJWT` BeforeHandler factory:
 
 ```ts
-import { requireJWT } from '@triad/jwt';
+import { requireJWT } from '@triadjs/jwt';
 
 const auth = requireJWT({
   issuer: 'https://my-auth.example.com',
@@ -637,7 +637,7 @@ Scope:
 
 `docs/guides/auth.md` — the consolidated auth playbook:
 
-- `@triad/jwt` basic usage
+- `@triadjs/jwt` basic usage
 - Auth0 integration (JWT + JWKS)
 - Clerk integration
 - WorkOS integration
@@ -654,25 +654,25 @@ Docs only, no additional packages. Each integration is 30-50 lines of wiring.
 
 ## Phase 19 — Additional frontend targets ✅
 
-**Status:** Shipped. Four new codegen packages extending Phase 11's TanStack Query work to the rest of the frontend ecosystem: `@triad/solid-query`, `@triad/vue-query`, `@triad/svelte-query`, `@triad/forms`. Each walks `router.allEndpoints()` and emits framework-idiomatic bindings — Solid's accessor thunks, Vue's `MaybeRefOrGetter` + `toValue`, Svelte's `createXxxQuery` store factories. `@triad/forms` is structurally different: it emits a compact JSON descriptor per request body plus a ~140-line self-contained runtime validator, with optional resolver wrappers for `react-hook-form` and `@tanstack/form`. All four packages pass strict-mode `tsc --noEmit` against framework stubs in their bookshelf integration tests. +59 tests across the four. CLI targets `solid-query`, `vue-query`, `svelte-query`, `forms` are registered in `triad frontend generate --target`.
+**Status:** Shipped. Four new codegen packages extending Phase 11's TanStack Query work to the rest of the frontend ecosystem: `@triadjs/solid-query`, `@triadjs/vue-query`, `@triadjs/svelte-query`, `@triadjs/forms`. Each walks `router.allEndpoints()` and emits framework-idiomatic bindings — Solid's accessor thunks, Vue's `MaybeRefOrGetter` + `toValue`, Svelte's `createXxxQuery` store factories. `@triadjs/forms` is structurally different: it emits a compact JSON descriptor per request body plus a ~140-line self-contained runtime validator, with optional resolver wrappers for `react-hook-form` and `@tanstack/form`. All four packages pass strict-mode `tsc --noEmit` against framework stubs in their bookshelf integration tests. +59 tests across the four. CLI targets `solid-query`, `vue-query`, `svelte-query`, `forms` are registered in `triad frontend generate --target`.
 
 
 
 **Status:** Not started. Extends Phase 11 beyond React.
 
-### Phase 19.1 — `@triad/solid-query`
+### Phase 19.1 — `@triadjs/solid-query`
 
 Solid Query variant of Phase 11. Shares the schema-to-ts emitter. Emits `createQuery` / `createMutation` calls matching Solid Query's API. ~400 lines.
 
-### Phase 19.2 — `@triad/vue-query`
+### Phase 19.2 — `@triadjs/vue-query`
 
 Same story for Vue Query. ~400 lines.
 
-### Phase 19.3 — `@triad/svelte-query`
+### Phase 19.3 — `@triadjs/svelte-query`
 
 Same story for Svelte Query. ~400 lines.
 
-### Phase 19.4 — `@triad/forms` — form resolvers
+### Phase 19.4 — `@triadjs/forms` — form resolvers
 
 Generate `react-hook-form` or `@tanstack/form` resolvers from Triad request body schemas. The schemas already have min/max/pattern/required/enum — this is a direct text emit. Ships one package with multiple emit targets behind flags.
 
@@ -684,7 +684,7 @@ For users who don't want a query library at all — just typed fetch wrappers wi
 
 ## Phase 20 — Security helpers ✅
 
-**Status:** Shipped. `@triad/security-headers` ships per-adapter middleware for Fastify, Express, and Hono backed by a shared `computeHeaders()` function that produces the standard security header set (CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, COOP/COEP/CORP) with sensible opinionated defaults. CSP nonce support via a per-request factory — static configs cache the frozen header map at plugin-load time, nonce configs generate a fresh 16-byte base64 nonce per request and inject it into `script-src`/`style-src`. `docs/guides/security.md` (578 lines, 12 sections) is the consolidated security cookbook covering threat modeling, rate limiting, CORS, CSRF, input sanitization, secrets management, dependency security, observability-as-security, OWASP Top 10 coverage audit, and a pre-production checklist.
+**Status:** Shipped. `@triadjs/security-headers` ships per-adapter middleware for Fastify, Express, and Hono backed by a shared `computeHeaders()` function that produces the standard security header set (CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, COOP/COEP/CORP) with sensible opinionated defaults. CSP nonce support via a per-request factory — static configs cache the frozen header map at plugin-load time, nonce configs generate a fresh 16-byte base64 nonce per request and inject it into `script-src`/`style-src`. `docs/guides/security.md` (578 lines, 12 sections) is the consolidated security cookbook covering threat modeling, rate limiting, CORS, CSRF, input sanitization, secrets management, dependency security, observability-as-security, OWASP Top 10 coverage audit, and a pre-production checklist.
 
 ---
 
@@ -696,7 +696,7 @@ For users who don't want a query library at all — just typed fetch wrappers wi
 
 ## Phase 24 — Behavior coverage audit ✅
 
-**Status:** Shipped. 148 new tests across 9 packages filling in error-branch gaps that existing happy-path tests didn't cover. Zero source modifications, zero bugs discovered — every branch behaved as the source intended, which is a strong signal that the error paths are genuinely defensive. Focused on `@triad/core` schema/router, `@triad/openapi`, `@triad/asyncapi`, `@triad/drizzle`, `@triad/cli`, and adapter coerce logic. Deliberately avoided padding (variant tests that only change one value), testing JavaScript (assertions on Triad codes, not JS semantics), and testing private APIs.
+**Status:** Shipped. 148 new tests across 9 packages filling in error-branch gaps that existing happy-path tests didn't cover. Zero source modifications, zero bugs discovered — every branch behaved as the source intended, which is a strong signal that the error paths are genuinely defensive. Focused on `@triadjs/core` schema/router, `@triadjs/openapi`, `@triadjs/asyncapi`, `@triadjs/drizzle`, `@triadjs/cli`, and adapter coerce logic. Deliberately avoided padding (variant tests that only change one value), testing JavaScript (assertions on Triad codes, not JS semantics), and testing private APIs.
 
 ---
 
@@ -724,7 +724,7 @@ For users who don't want a query library at all — just typed fetch wrappers wi
 
 Items that have been mentioned or requested but are NOT on the committed roadmap. Each is listed with the reason it's deprioritized. These may or may not ever ship — listing them here so the decision is explicit rather than forgotten.
 
-- **~~GraphQL bridge (`@triad/graphql`)~~** — Out of scope. Dropped from the roadmap.
+- **~~GraphQL bridge (`@triadjs/graphql`)~~** — Out of scope. Dropped from the roadmap.
 - **~~Playwright-based frontend codegen verification (Phase 23.2)~~** — Out of scope. Dropped from the roadmap.
 - **VS Code extension** — Hover docs for assertion phrases, autocomplete for schema fields, inline OpenAPI preview. Valuable but a huge maintenance burden for uncertain payoff. Wait for concrete user demand.
 - **IntelliJ plugin** — Same reasoning as VS Code.

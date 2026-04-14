@@ -25,7 +25,7 @@
  * This dev server is intentionally simple — no auth caching, no
  * graceful shutdown wiring, no structured logging. Everything you'd
  * want for a production Node deployment belongs in a wrapper around
- * `@triad/hono`, not here.
+ * `@triadjs/hono`, not here.
  *
  * ## createApp factory
  *
@@ -38,7 +38,7 @@
 
 import { pathToFileURL } from 'node:url';
 import { serve } from '@hono/node-server';
-import { createTriadApp } from '@triad/hono';
+import { createTriadApp } from '@triadjs/hono';
 
 import router from './app.js';
 import { createServices, type SupabaseEdgeServices } from './services.js';

@@ -26,7 +26,7 @@
  * refactoring them out would cost more than it saves.
  */
 
-import { endpoint, scenario, t } from '@triad/core';
+import { endpoint, scenario, t } from '@triadjs/core';
 import { CreateTask, Task, TaskPage, UpdateTask } from '../schemas/task.js';
 import { ApiError } from '../schemas/common.js';
 import { requireAuth } from '../auth.js';

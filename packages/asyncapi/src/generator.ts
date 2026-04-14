@@ -3,7 +3,7 @@
  *
  * Walks a Triad `Router` and produces a complete AsyncAPI 3.0 document
  * from its WebSocket channels — the real-time counterpart to what
- * `@triad/openapi` produces for HTTP endpoints:
+ * `@triadjs/openapi` produces for HTTP endpoints:
  *
  *   - Channels → `channels[<channelName>]` with converted `{param}`
  *     address, `parameters`, and optional WebSocket `bindings`
@@ -46,7 +46,7 @@ import {
   type ModelShape,
   type SchemaNode,
   createOpenAPIContext,
-} from '@triad/core';
+} from '@triadjs/core';
 
 // ---------------------------------------------------------------------------
 // AsyncAPI 3.0 document types (the subset Triad produces)
@@ -380,7 +380,7 @@ function resolveChannelTags(channel: Channel, router: Router): string[] {
   return tags;
 }
 
-/** Fastify-style `:id` → AsyncAPI `{id}`. Same algorithm as `@triad/openapi`. */
+/** Fastify-style `:id` → AsyncAPI `{id}`. Same algorithm as `@triadjs/openapi`. */
 export function convertPath(path: string): string {
   return path.replace(/:([A-Za-z0-9_]+)/g, '{$1}');
 }

@@ -26,7 +26,7 @@ import type {
   ValueSchema,
   RecordSchema,
   ModelShape,
-} from '@triad/core';
+} from '@triadjs/core';
 
 export interface FakeDataOptions {
   /** Seed the deterministic RNG. Same seed → same output. */

@@ -5,9 +5,9 @@
  * have `scenario.auto()` in their behaviors), runs them, and reports results.
  */
 
-import type { Router, Behavior } from '@triad/core';
-import { runOneBehavior, collectModels } from '@triad/test-runner';
-import type { TestResult } from '@triad/test-runner';
+import type { Router, Behavior } from '@triadjs/core';
+import { runOneBehavior, collectModels } from '@triadjs/test-runner';
+import type { TestResult } from '@triadjs/test-runner';
 import { expandAutoMarker } from '../../../test-runner/src/auto-expand.js';
 
 // ---------------------------------------------------------------------------

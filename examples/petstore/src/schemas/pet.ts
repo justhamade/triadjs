@@ -7,7 +7,7 @@
  * the derived schemas (unless you explicitly exclude it).
  */
 
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 import { Money } from './common.js';
 
 export const Pet = t.model('Pet', {

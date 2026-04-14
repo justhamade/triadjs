@@ -6,12 +6,12 @@
  * module walks a model shape and coerces each incoming string value to
  * the target scalar type before validation runs.
  *
- * Duplicated verbatim from `@triad/express` / `@triad/fastify` /
- * `@triad/hono` on purpose: every adapter needs identical semantics, and
+ * Duplicated verbatim from `@triadjs/express` / `@triadjs/fastify` /
+ * `@triadjs/hono` on purpose: every adapter needs identical semantics, and
  * v1 prefers small duplication over a shared internal package.
  */
 
-import type { ModelShape, SchemaNode } from '@triad/core';
+import type { ModelShape, SchemaNode } from '@triadjs/core';
 
 export function coerceByShape(
   shape: ModelShape,

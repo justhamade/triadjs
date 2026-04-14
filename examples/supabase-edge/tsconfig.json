@@ -1,6 +1,6 @@
 {
   // The `supabase/` subtree is compiled and run by Deno, not Node.
-  // It uses `npm:@triad/*` specifiers, `https://esm.sh/...` imports,
+  // It uses `npm:@triadjs/*` specifiers, `https://esm.sh/...` imports,
   // `.ts` extensions in import paths, and the global `Deno` object —
   // none of which tsc can resolve under a Node-targeted config. It
   // is excluded here so `npm run typecheck` stays green.

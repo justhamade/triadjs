@@ -4,7 +4,7 @@
  *
  * ```ts
  * import { Hono } from 'hono';
- * import { securityHeadersHono } from '@triad/security-headers';
+ * import { securityHeadersHono } from '@triadjs/security-headers';
  *
  * const app = new Hono();
  * app.use('*', securityHeadersHono({ frameOptions: 'SAMEORIGIN' }));

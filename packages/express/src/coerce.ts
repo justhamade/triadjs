@@ -11,12 +11,12 @@
  * before the route handler runs, so values already have the right JS
  * types.
  *
- * Duplicated verbatim from `@triad/fastify` on purpose: both adapters
+ * Duplicated verbatim from `@triadjs/fastify` on purpose: both adapters
  * need identical semantics, and v1 prefers duplication over a shared
  * internal package.
  */
 
-import type { ModelShape, SchemaNode } from '@triad/core';
+import type { ModelShape, SchemaNode } from '@triadjs/core';
 
 /**
  * Coerce every field in `raw` using the target schema's kind. Returns a

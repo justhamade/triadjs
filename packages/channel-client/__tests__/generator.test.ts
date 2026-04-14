@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { channel, createRouter, t } from '@triad/core';
+import { channel, createRouter, t } from '@triadjs/core';
 import { generateChannelClient } from '../src/generator.js';
 
 const ChatMessage = t.model('ChatMessage', {

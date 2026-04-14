@@ -6,7 +6,7 @@
  * uncovered categories as warnings.
  */
 
-import type { Router, Endpoint, Behavior } from '@triad/core';
+import type { Router, Endpoint, Behavior } from '@triadjs/core';
 import {
   describeEndpoint,
   type EndpointDescriptor,

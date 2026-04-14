@@ -1,6 +1,6 @@
 {
-  "name": "@triad/jwt",
-  "version": "0.1.0",
+  "name": "@triadjs/jwt",
+  "version": "0.2.0",
   "type": "module",
   "private": false,
   "main": "./dist/index.js",
@@ -23,14 +23,35 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@triad/core": "*",
+    "@triadjs/core": "0.2.0",
     "jose": "^5.0.0 || ^6.0.0"
   },
   "devDependencies": {
-    "@triad/core": "*",
+    "@triadjs/core": "0.2.0",
     "jose": "^6.2.2",
     "tsup": "^8.3.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
-  }
+  },
+  "description": "JWT authentication BeforeHandler factory for Triad endpoints wrapping jose",
+  "license": "MIT",
+  "author": "Justin Hamade",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justhamade/triad.git",
+    "directory": "packages/jwt"
+  },
+  "homepage": "https://github.com/justhamade/triad/tree/main/packages/jwt",
+  "bugs": {
+    "url": "https://github.com/justhamade/triad/issues"
+  },
+  "keywords": [
+    "triad",
+    "api",
+    "typescript",
+    "jwt",
+    "auth",
+    "authentication",
+    "jose"
+  ]
 }

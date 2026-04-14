@@ -16,7 +16,7 @@
  * back". That is the single-source-of-truth payoff.
  */
 
-import { endpoint, scenario, t } from '@triad/core';
+import { endpoint, scenario, t } from '@triadjs/core';
 import { Pet, CreatePet, UpdatePet } from '../schemas/pet.js';
 import { ApiError } from '../schemas/common.js';
 

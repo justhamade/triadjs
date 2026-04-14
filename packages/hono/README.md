@@ -1,19 +1,19 @@
-# @triad/hono
+# @triadjs/hono
 
 First-party Hono adapter for Triad — mount a Triad router onto [Hono](https://hono.dev) and run it anywhere Hono runs: Cloudflare Workers, Deno, Bun, Node.js, Fastly, Lagon.
 
-Use this adapter when you want Triad on an edge runtime. For a traditional Node server with WebSocket / channel support, use [`@triad/fastify`](../fastify). For a middleware-style integration into an existing Express app, use [`@triad/express`](../express).
+Use this adapter when you want Triad on an edge runtime. For a traditional Node server with WebSocket / channel support, use [`@triadjs/fastify`](../fastify). For a middleware-style integration into an existing Express app, use [`@triadjs/express`](../express).
 
 ## Install
 
 ```bash
-npm install @triad/core @triad/hono hono
+npm install @triadjs/core @triadjs/hono hono
 ```
 
 ## Basic usage
 
 ```ts
-import { createTriadApp } from '@triad/hono';
+import { createTriadApp } from '@triadjs/hono';
 import router from './src/app.js';
 
 const app = createTriadApp(router, {
@@ -80,7 +80,7 @@ The returned app is a standard `Hono` instance, so compose it with `parent.route
 
 ```ts
 import { Hono } from 'hono';
-import { createTriadApp } from '@triad/hono';
+import { createTriadApp } from '@triadjs/hono';
 
 const triadApp = createTriadApp(router, { services });
 
@@ -93,7 +93,7 @@ export default app;
 
 ## Error envelope
 
-Request validation failures return a 400 with the same envelope as `@triad/express` and `@triad/fastify`:
+Request validation failures return a 400 with the same envelope as `@triadjs/express` and `@triadjs/fastify`:
 
 ```json
 {
@@ -144,7 +144,7 @@ file uploads work out of the box on every Hono-supported runtime (Node,
 Bun, Deno, Cloudflare Workers).
 
 ```ts
-import { t, endpoint, type TriadFile } from '@triad/core';
+import { t, endpoint, type TriadFile } from '@triadjs/core';
 
 const AvatarUpload = t.model('AvatarUpload', {
   name: t.string(),
@@ -180,10 +180,10 @@ Fastify, Express, and Hono adapters.
 
 ## WebSocket / channels
 
-**Not supported in v1.** Hono has runtime-specific websocket helpers (`hono/bun`, `hono/cloudflare-workers`, etc), but Triad's channel model requires a consistent server-side socket abstraction across runtimes. Use [`@triad/fastify`](../fastify) for channel support. Tracked in the roadmap.
+**Not supported in v1.** Hono has runtime-specific websocket helpers (`hono/bun`, `hono/cloudflare-workers`, etc), but Triad's channel model requires a consistent server-side socket abstraction across runtimes. Use [`@triadjs/fastify`](../fastify) for channel support. Tracked in the roadmap.
 
 ## Comparison with other adapters
 
-- **`@triad/hono`** — use when you want edge runtime support (Cloudflare, Deno, Bun) or the minimal Web Fetch API surface.
-- **`@triad/fastify`** — use for traditional Node servers that need channels/WebSockets, plugins, or Fastify's schema compiler.
-- **`@triad/express`** — use when integrating Triad into an existing Express app as middleware.
+- **`@triadjs/hono`** — use when you want edge runtime support (Cloudflare, Deno, Bun) or the minimal Web Fetch API surface.
+- **`@triadjs/fastify`** — use for traditional Node servers that need channels/WebSockets, plugins, or Fastify's schema compiler.
+- **`@triadjs/express`** — use when integrating Triad into an existing Express app as middleware.

@@ -1,4 +1,4 @@
-import { defineConfig } from '@triad/test-runner';
+import { defineConfig } from '@triadjs/test-runner';
 
 export default defineConfig({
   router: './src/app.ts',

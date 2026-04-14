@@ -32,18 +32,18 @@ Everything downstream (docs, tests, db schema) is regenerated from the router. T
 
 | Package | What it exports |
 |---|---|
-| `@triad/core` | `t`, `endpoint`, `channel`, `scenario`, `createRouter`, `Router`, `SchemaNode`, types `Infer`, `HandlerContext`, `ServiceContainer` |
-| `@triad/test-runner` | `runBehaviors`, `runChannelBehaviors`, `defineConfig`, `TriadConfig` |
-| `@triad/openapi` | `generateOpenAPI`, `toYaml`, `toJson` |
-| `@triad/asyncapi` | `generateAsyncAPI`, `toYaml`, `toJson` |
-| `@triad/gherkin` | `generateGherkin`, `writeGherkinFiles` |
-| `@triad/fastify` | `triadPlugin` (HTTP + WebSocket) |
-| `@triad/express` | `createTriadRouter`, `triadErrorHandler` (HTTP only — no channels) |
-| `@triad/drizzle` | `generateDrizzleSchema`, `CodegenError`, `isUniqueViolation`, `DbError` |
-| `@triad/otel` | `withOtelInstrumentation` — spans for `handler`, `beforeHandler`, channel connect + message handlers |
-| `@triad/metrics` | `createMetricsCollector`, `withMetricsInstrumentation` — Prometheus histograms for requests + `beforeHandler` phase |
-| `@triad/logging` | `withLoggingInstrumentation`, `getLogger`, `tryGetLogger` — AsyncLocalStorage-scoped child loggers covering `handler` and `beforeHandler` |
-| `@triad/cli` | the `triad` binary (`triad test`, `triad docs`, `triad gherkin`, `triad db generate`, `triad validate`) |
+| `@triadjs/core` | `t`, `endpoint`, `channel`, `scenario`, `createRouter`, `Router`, `SchemaNode`, types `Infer`, `HandlerContext`, `ServiceContainer` |
+| `@triadjs/test-runner` | `runBehaviors`, `runChannelBehaviors`, `defineConfig`, `TriadConfig` |
+| `@triadjs/openapi` | `generateOpenAPI`, `toYaml`, `toJson` |
+| `@triadjs/asyncapi` | `generateAsyncAPI`, `toYaml`, `toJson` |
+| `@triadjs/gherkin` | `generateGherkin`, `writeGherkinFiles` |
+| `@triadjs/fastify` | `triadPlugin` (HTTP + WebSocket) |
+| `@triadjs/express` | `createTriadRouter`, `triadErrorHandler` (HTTP only — no channels) |
+| `@triadjs/drizzle` | `generateDrizzleSchema`, `CodegenError`, `isUniqueViolation`, `DbError` |
+| `@triadjs/otel` | `withOtelInstrumentation` — spans for `handler`, `beforeHandler`, channel connect + message handlers |
+| `@triadjs/metrics` | `createMetricsCollector`, `withMetricsInstrumentation` — Prometheus histograms for requests + `beforeHandler` phase |
+| `@triadjs/logging` | `withLoggingInstrumentation`, `getLogger`, `tryGetLogger` — AsyncLocalStorage-scoped child loggers covering `handler` and `beforeHandler` |
+| `@triadjs/cli` | the `triad` binary (`triad test`, `triad docs`, `triad gherkin`, `triad db generate`, `triad validate`) |
 
 ### Golden rules (memorize these)
 
@@ -53,7 +53,7 @@ Everything downstream (docs, tests, db schema) is regenerated from the router. T
 4. **Always use `ctx.respond[status](body)`.** Never `return { status, body }` — the runtime validates outgoing payloads only through `ctx.respond`.
 5. **Every endpoint must have behaviors.** A scenario is documentation, a test, and a Gherkin line in one. Writing an endpoint without behaviors defeats the framework.
 6. **Tests run in-process.** `triad test` invokes the handler directly, not through HTTP. Behaviors must not depend on adapter middleware.
-7. **Module-augment `ServiceContainer`.** Put your repositories/clients on `ctx.services` by `declare module '@triad/core' { interface ServiceContainer { ... } }` — never cast in handlers.
+7. **Module-augment `ServiceContainer`.** Put your repositories/clients on `ctx.services` by `declare module '@triadjs/core' { interface ServiceContainer { ... } }` — never cast in handlers.
 8. **Behaviors use a heuristic assertion parser.** If your `then` text doesn't match a supported pattern exactly, the assertion fails as "unrecognized." See §5 for the phrase table.
 9. **`.identity()` and `.storage({ primary: true })` are different.** `.identity()` is DDD (the entity's identity). `.storage()` is persistence hints for the Drizzle bridge. Real fields usually need both.
 
@@ -72,7 +72,7 @@ Every schema builder is a subclass of `SchemaNode<TOutput>`. Chainable methods r
 | `.optional()` | Field may be `undefined` — returns a new schema with the output type `T \| undefined` |
 | `.nullable()` | Value may be `null` — output type `T \| null` |
 | `.identity(flag?)` | DDD identity marker (used for `x-triad-identity` in OpenAPI) |
-| `.storage(meta)` | Persistence hints consumed by `@triad/drizzle`. Accumulates across calls. |
+| `.storage(meta)` | Persistence hints consumed by `@triadjs/drizzle`. Accumulates across calls. |
 
 Plus runtime methods: `.validate(data)` (→ `{ success, data } \| { success, errors }`), `.parse(data)` (throws `ValidationException`), `.toOpenAPI(ctx?)`.
 
@@ -83,7 +83,7 @@ Type inference: `type Pet = t.infer<typeof Pet>` (or import `Infer` and use `Inf
 #### `t.string()`
 
 ```ts
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 const email = t.string().format('email').minLength(3).maxLength(255);
 const uuid = t.string().format('uuid');
@@ -166,7 +166,7 @@ The validated value is a `TriadFile` object carrying client-reported metadata
 plus the file contents as a Node `Buffer`.
 
 ```ts
-import { t, type TriadFile } from '@triad/core';
+import { t, type TriadFile } from '@triadjs/core';
 
 const AvatarUpload = t.model('AvatarUpload', {
   name: t.string().minLength(1),
@@ -314,7 +314,7 @@ export const Money = t.value('Money', {
 ### 3.1 The `endpoint()` signature
 
 ```ts
-import { endpoint, scenario, t } from '@triad/core';
+import { endpoint, scenario, t } from '@triadjs/core';
 
 export const createPet = endpoint({
   name: 'createPet',            // operationId in OpenAPI — must be unique
@@ -387,7 +387,7 @@ Pass an **inline plain object of SchemaNodes** for one-off shapes; use a named `
 ### 3.4 Router + bounded contexts
 
 ```ts
-import { createRouter } from '@triad/core';
+import { createRouter } from '@triadjs/core';
 
 const router = createRouter({
   title: 'Petstore API',
@@ -466,7 +466,7 @@ Key properties:
 
 ```ts
 // auth.ts — a reusable hook
-import type { BeforeHandler } from '@triad/core';
+import type { BeforeHandler } from '@triadjs/core';
 
 export type AuthState = { user: User };
 
@@ -518,7 +518,7 @@ switch to multipart parsing, the OpenAPI generator will emit
 `multipart/form-data`, and handlers will receive typed `TriadFile` values.
 
 ```ts
-import { t, endpoint, type TriadFile } from '@triad/core';
+import { t, endpoint, type TriadFile } from '@triadjs/core';
 
 const AvatarUpload = t.model('AvatarUpload', {
   name: t.string().minLength(1),
@@ -599,7 +599,7 @@ Channels are the real-time counterpart to endpoints. Same schema DSL, same behav
 ### 4.1 The `channel()` signature
 
 ```ts
-import { channel, t } from '@triad/core';
+import { channel, t } from '@triadjs/core';
 
 interface ChatRoomState {
   userId: string;
@@ -805,7 +805,7 @@ Channel scenarios use the **same** `scenario().given().when().then()` builder as
 ### 5.1 The builder
 
 ```ts
-import { scenario } from '@triad/core';
+import { scenario } from '@triadjs/core';
 
 scenario('Pets can be created with valid data')  // the Scenario: line in Gherkin
   .given('a valid pet payload')                  // narrative (string only)
@@ -1000,7 +1000,7 @@ export interface PetstoreServices {
   adopterRepo: AdopterRepository;
 }
 
-declare module '@triad/core' {
+declare module '@triadjs/core' {
   interface ServiceContainer extends PetstoreServices {}
 }
 
@@ -1065,10 +1065,10 @@ handler: async (ctx) => {
 }
 ```
 
-**Detecting unique-constraint violations.** `@triad/drizzle` exports `isUniqueViolation(err)` so repositories can map driver-specific duplicate-key errors into domain-level conflicts without a race-prone pre-check `SELECT`. Supported drivers: `better-sqlite3` (`SQLITE_CONSTRAINT_UNIQUE`), `pg` (SQLSTATE `23505`), `mysql2` (`ER_DUP_ENTRY`). The helper returns a structured `{ table?, column?, constraint? }` descriptor on match (possibly empty if the parser can't extract details) or `null` otherwise:
+**Detecting unique-constraint violations.** `@triadjs/drizzle` exports `isUniqueViolation(err)` so repositories can map driver-specific duplicate-key errors into domain-level conflicts without a race-prone pre-check `SELECT`. Supported drivers: `better-sqlite3` (`SQLITE_CONSTRAINT_UNIQUE`), `pg` (SQLSTATE `23505`), `mysql2` (`ER_DUP_ENTRY`). The helper returns a structured `{ table?, column?, constraint? }` descriptor on match (possibly empty if the parser can't extract details) or `null` otherwise:
 
 ```ts
-import { isUniqueViolation } from '@triad/drizzle';
+import { isUniqueViolation } from '@triadjs/drizzle';
 
 async create(input: NewUser): Promise<User> {
   try {
@@ -1179,7 +1179,7 @@ triad validate --strict   # treat warnings as errors
 ## 8. `triad.config.ts`
 
 ```ts
-import { defineConfig } from '@triad/test-runner';
+import { defineConfig } from '@triadjs/test-runner';
 
 export default defineConfig({
   router: './src/app.ts',       // path to the module default-exporting a Router
@@ -1222,7 +1222,7 @@ Supports HTTP endpoints **and** WebSocket channels.
 ```ts
 // src/server.ts
 import Fastify from 'fastify';
-import { triadPlugin } from '@triad/fastify';
+import { triadPlugin } from '@triadjs/fastify';
 import router from './app.js';
 import { createServices } from './services.js';
 import { createDatabase } from './db/client.js';
@@ -1255,7 +1255,7 @@ HTTP endpoints only — **no channels in v1**.
 ```ts
 // src/server.ts
 import express from 'express';
-import { createTriadRouter, triadErrorHandler } from '@triad/express';
+import { createTriadRouter, triadErrorHandler } from '@triadjs/express';
 import router from './app.js';
 import { createServices } from './services.js';
 
@@ -1270,7 +1270,7 @@ app.listen(3000);
 
 ### 9.3 Hono
 
-A `@triad/hono` adapter package exists in the repository but may not be complete at the time you read this guide. Check `packages/hono/src/` for the current state before importing from it.
+A `@triadjs/hono` adapter package exists in the repository but may not be complete at the time you read this guide. Check `packages/hono/src/` for the current state before importing from it.
 
 ---
 
@@ -1358,9 +1358,9 @@ Each wrapper covers the `beforeHandler` phase in addition to the main handler so
 
 | Package | What `beforeHandler` produces |
 |---|---|
-| `@triad/otel` | A sibling span named `<endpoint.name>.beforeHandler` with `triad.beforeHandler.outcome = 'ok' \| 'shortcircuit'` and, for short-circuits, `http.status_code`. |
-| `@triad/metrics` | A new histogram family `triad_http_before_handler_duration_seconds` labeled by `method`, `route`, `context`, and `outcome = 'ok' \| 'shortcircuit' \| 'error'`. |
-| `@triad/logging` | `getLogger()` inside a `beforeHandler` returns a child logger with endpoint context **and** `triad.phase: 'beforeHandler'`. `autoLog: true` additionally emits `beforeHandler.start`, `beforeHandler.end`, `beforeHandler.shortcircuit`, and `beforeHandler.error` lines. |
+| `@triadjs/otel` | A sibling span named `<endpoint.name>.beforeHandler` with `triad.beforeHandler.outcome = 'ok' \| 'shortcircuit'` and, for short-circuits, `http.status_code`. |
+| `@triadjs/metrics` | A new histogram family `triad_http_before_handler_duration_seconds` labeled by `method`, `route`, `context`, and `outcome = 'ok' \| 'shortcircuit' \| 'error'`. |
+| `@triadjs/logging` | `getLogger()` inside a `beforeHandler` returns a child logger with endpoint context **and** `triad.phase: 'beforeHandler'`. `autoLog: true` additionally emits `beforeHandler.start`, `beforeHandler.end`, `beforeHandler.shortcircuit`, and `beforeHandler.error` lines. |
 
 Endpoints without a `beforeHandler` are unchanged.
 
@@ -1380,7 +1380,7 @@ Triad is intentionally DDD-flavored. The key mappings:
 | **Domain service** | Plain class in `src/services/` injected through `createServices()` |
 | **Domain event** | User-defined; publish from repository/service using an injected event bus |
 | **Authentication** | `beforeHandler: requireAuth` (see §6) — typed `ctx.state.user` |
-| **Authorization / ownership** | `checkOwnership(entity, ownerId, getOwnerId)` from `@triad/core` — returns `{ ok, reason }` for the handler to render |
+| **Authorization / ownership** | `checkOwnership(entity, ownerId, getOwnerId)` from `@triadjs/core` — returns `{ ok, reason }` for the handler to render |
 
 Handlers stay **thin** — they parse `ctx.params`/`ctx.query`/`ctx.body`, call a repository or service, and map the result to `ctx.respond[...]`. Business logic lives in aggregates and services, not in endpoint handlers.
 
@@ -1400,7 +1400,7 @@ These are the mistakes most likely to trip up an AI coding assistant writing Tri
 
 4. **Using single quotes inside assertion literals.** Only `"double quotes"` are recognized for string values.
 
-5. **Conflating 404 and 403 on ownership checks.** Triad ships `checkOwnership` (from `@triad/core`) which returns a discriminated `{ ok: false, reason: 'not_found' | 'forbidden' }`. Use it and pick the rendering that fits your product — distinguish them (honest), collapse both to 404 (anti-enumeration), or return 403 always (public existence, private ownership). Don't silently pick one in a helper; make the handler decide. See `docs/ddd-patterns.md §7` and `examples/tasktracker/src/access.ts` for the pattern.
+5. **Conflating 404 and 403 on ownership checks.** Triad ships `checkOwnership` (from `@triadjs/core`) which returns a discriminated `{ ok: false, reason: 'not_found' | 'forbidden' }`. Use it and pick the rendering that fits your product — distinguish them (honest), collapse both to 404 (anti-enumeration), or return 403 always (public existence, private ownership). Don't silently pick one in a helper; make the handler decide. See `docs/ddd-patterns.md §7` and `examples/tasktracker/src/access.ts` for the pattern.
 
 6. **Declaring the `authorization` header on the endpoint's `request.headers`** — don't. Use `beforeHandler: requireAuth` (see §6). The beforeHandler reads `ctx.rawHeaders['authorization']` before validation runs, so the header does not belong in the declared request shape at all. The old "declare it `.optional()` so missing-auth reaches the handler" workaround is obsolete.
 
@@ -1441,13 +1441,13 @@ A minimal Triad app in one pass.
     "db:generate": "triad db generate"
   },
   "dependencies": {
-    "@triad/core": "*",
-    "@triad/fastify": "*",
+    "@triadjs/core": "*",
+    "@triadjs/fastify": "*",
     "fastify": "^5.0.0"
   },
   "devDependencies": {
-    "@triad/cli": "*",
-    "@triad/test-runner": "*",
+    "@triadjs/cli": "*",
+    "@triadjs/test-runner": "*",
     "tsx": "^4.0.0",
     "typescript": "^5.4.0"
   }
@@ -1457,7 +1457,7 @@ A minimal Triad app in one pass.
 ### 13.2 `src/schemas/pet.ts`
 
 ```ts
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 export const Pet = t.model('Pet', {
   id:   t.string().format('uuid').identity().storage({ primaryKey: true }),
@@ -1485,7 +1485,7 @@ export interface AppServices {
   petRepo: PetRepository;
 }
 
-declare module '@triad/core' {
+declare module '@triadjs/core' {
   interface ServiceContainer extends AppServices {}
 }
 
@@ -1507,7 +1507,7 @@ export function createServices(): AppServices {
 ### 13.4 `src/endpoints/pets.ts`
 
 ```ts
-import { endpoint, scenario } from '@triad/core';
+import { endpoint, scenario } from '@triadjs/core';
 import { Pet, CreatePet, ApiError } from '../schemas/pet.js';
 
 export const createPet = endpoint({
@@ -1540,7 +1540,7 @@ export const createPet = endpoint({
 ### 13.5 `src/app.ts`
 
 ```ts
-import { createRouter } from '@triad/core';
+import { createRouter } from '@triadjs/core';
 import { createPet } from './endpoints/pets.js';
 import { Pet, CreatePet, ApiError } from './schemas/pet.js';
 
@@ -1562,7 +1562,7 @@ export default router;
 
 ```ts
 import Fastify from 'fastify';
-import { triadPlugin } from '@triad/fastify';
+import { triadPlugin } from '@triadjs/fastify';
 import router from './app.js';
 import { createServices } from './services.js';
 
@@ -1584,7 +1584,7 @@ export default function createTestServices() {
 ### 13.8 `triad.config.ts`
 
 ```ts
-import { defineConfig } from '@triad/test-runner';
+import { defineConfig } from '@triadjs/test-runner';
 
 export default defineConfig({
   router: './src/app.ts',
@@ -1615,7 +1615,7 @@ When this guide is ambiguous or you need ground truth, read these files.
 
 | Question | Source file |
 |---|---|
-| Public exports of `@triad/core` | `packages/core/src/index.ts` |
+| Public exports of `@triadjs/core` | `packages/core/src/index.ts` |
 | The `t` namespace | `packages/core/src/schema/index.ts` |
 | `SchemaNode`, `.doc/.example/.default/.identity/.storage`, validation flow | `packages/core/src/schema/types.ts` |
 | String `.format()` values | `packages/core/src/schema/string.ts` |

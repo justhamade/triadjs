@@ -46,7 +46,7 @@ import {
   isEmptySchema,
   invokeBeforeHandler,
   hasFileFields,
-} from '@triad/core';
+} from '@triadjs/core';
 
 import { RequestValidationError, type RequestPart } from './errors.js';
 import { coerceByShape } from './coerce.js';

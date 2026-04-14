@@ -1,7 +1,7 @@
 /**
  * Tiny Express-style path matcher.
  *
- * `@triad/lambda` is not mounted inside an Express or Hono router, so it
+ * `@triadjs/lambda` is not mounted inside an Express or Hono router, so it
  * has to do its own path matching against the list of endpoints. We
  * compile each endpoint's path pattern (e.g. `/pets/:id/toys/:toyId`)
  * once at router-build time into a regex + ordered list of param keys.

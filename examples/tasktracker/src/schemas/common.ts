@@ -20,7 +20,7 @@
  * DELETE endpoints in the projects/tasks modules.
  */
 
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 
 export const ApiError = t.model('ApiError', {
   code: t.string().doc('Machine-readable error code').example('UNAUTHENTICATED'),

@@ -9,7 +9,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { createJiti } from 'jiti';
-import { Router } from '@triad/core';
+import { Router } from '@triadjs/core';
 import { CliError } from './errors.js';
 import type { LoadedConfig } from './load-config.js';
 

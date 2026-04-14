@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { t } from '@triad/core';
+import { t } from '@triadjs/core';
 import { fakeFromSchema } from '../src/schema-fake.js';
 
 describe('fakeFromSchema', () => {
