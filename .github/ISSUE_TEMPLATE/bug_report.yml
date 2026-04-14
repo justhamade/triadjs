@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to file a bug report. Before submitting, please search existing issues to avoid duplicates. For questions or design discussions, please use [Discussions](https://github.com/justhamade/triad/discussions) instead.
+        Thanks for taking the time to file a bug report. Before submitting, please search existing issues to avoid duplicates. For questions or design discussions, please use [Discussions](https://github.com/justhamade/triadjs/discussions) instead.
   - type: dropdown
     id: package
     attributes:

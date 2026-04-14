@@ -16,7 +16,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "tsup",
@@ -35,12 +36,12 @@
   "author": "Justin Hamade",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/justhamade/triad.git",
+    "url": "git+https://github.com/justhamade/triadjs.git",
     "directory": "packages/core"
   },
-  "homepage": "https://github.com/justhamade/triad/tree/main/packages/core",
+  "homepage": "https://github.com/justhamade/triadjs/tree/main/packages/core",
   "bugs": {
-    "url": "https://github.com/justhamade/triad/issues"
+    "url": "https://github.com/justhamade/triadjs/issues"
   },
   "keywords": [
     "triad",

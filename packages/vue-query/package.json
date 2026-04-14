@@ -12,7 +12,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "tsup",
@@ -34,12 +35,12 @@
   "author": "Justin Hamade",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/justhamade/triad.git",
+    "url": "git+https://github.com/justhamade/triadjs.git",
     "directory": "packages/vue-query"
   },
-  "homepage": "https://github.com/justhamade/triad/tree/main/packages/vue-query",
+  "homepage": "https://github.com/justhamade/triadjs/tree/main/packages/vue-query",
   "bugs": {
-    "url": "https://github.com/justhamade/triad/issues"
+    "url": "https://github.com/justhamade/triadjs/issues"
   },
   "keywords": [
     "triad",

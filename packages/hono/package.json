@@ -37,12 +37,12 @@
   "author": "Justin Hamade",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/justhamade/triad.git",
+    "url": "git+https://github.com/justhamade/triadjs.git",
     "directory": "packages/hono"
   },
-  "homepage": "https://github.com/justhamade/triad/tree/main/packages/hono",
+  "homepage": "https://github.com/justhamade/triadjs/tree/main/packages/hono",
   "bugs": {
-    "url": "https://github.com/justhamade/triad/issues"
+    "url": "https://github.com/justhamade/triadjs/issues"
   },
   "keywords": [
     "triad",

@@ -48,12 +48,12 @@
   "author": "Justin Hamade",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/justhamade/triad.git",
+    "url": "git+https://github.com/justhamade/triadjs.git",
     "directory": "packages/express"
   },
-  "homepage": "https://github.com/justhamade/triad/tree/main/packages/express",
+  "homepage": "https://github.com/justhamade/triadjs/tree/main/packages/express",
   "bugs": {
-    "url": "https://github.com/justhamade/triad/issues"
+    "url": "https://github.com/justhamade/triadjs/issues"
   },
   "keywords": [
     "triad",

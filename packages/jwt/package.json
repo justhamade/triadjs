@@ -38,12 +38,12 @@
   "author": "Justin Hamade",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/justhamade/triad.git",
+    "url": "git+https://github.com/justhamade/triadjs.git",
     "directory": "packages/jwt"
   },
-  "homepage": "https://github.com/justhamade/triad/tree/main/packages/jwt",
+  "homepage": "https://github.com/justhamade/triadjs/tree/main/packages/jwt",
   "bugs": {
-    "url": "https://github.com/justhamade/triad/issues"
+    "url": "https://github.com/justhamade/triadjs/issues"
   },
   "keywords": [
     "triad",
