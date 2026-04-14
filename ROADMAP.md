@@ -179,9 +179,9 @@ These items have clear designs but are not urgent. Any one of them is a good con
 - **Composite primary keys** — `walkRouter` picks up the first primary-key field. Composite keys need a separate representation on `TableDescriptor` and a different emission path.
 - **Migration generation** — diff two `TableDescriptor[]` snapshots and emit ALTER statements. The IR is fully dialect-neutral, so a migration tool can walk both sides once and produce dialect-specific SQL.
 
-## Phase 9 — WebSocket Channels 🚧
+## Phase 9 — WebSocket Channels ✅
 
-**Status:** In progress. Core `channel()` function and router integration shipped in Phase 9.1. WebSocket adapter, AsyncAPI generator, test runner extensions, and example chat room are queued as sub-phases.
+**Status:** Shipped. Core `channel()` function and router integration shipped in Phase 9.1. WebSocket adapter, AsyncAPI generator, test runner extensions, and example chat room completed through Phase 9.5. All follow-ups shipped in Phase 9.6.
 
 See [`docs/phase-9-websockets.md`](docs/phase-9-websockets.md) for the full design.
 
@@ -230,17 +230,21 @@ End-to-end verified with a live two-client WebSocket smoke test:
 
 459 tests across 8 packages passing.
 
-### Deferred (Phase 9 follow-ups backlog)
+### Phase 9.6 — Channel follow-ups ✅
 
+**Status:** Shipped.
+
+- **`triad validate` channel checks** ✅ — 5 new checks: duplicate channel names, duplicate channel paths, handler completeness (every `clientMessages` key has a handler), assertion message type references (verify `channel_receives`/`channel_not_receives`/`channel_message_has` reference declared `serverMessages`), and bounded-context model leakage for channels.
+- **`beforeHandler` for channels** ✅ — `ChannelBeforeHandler` runs before schema validation, can populate `ctx.state` or reject the connection. Works in the test harness and Fastify adapter. Enables auth patterns that were previously impossible (missing header → 401 before schema validation rejects with 4400).
+- **Multi-client scenarios (`.andWhen()`)** ✅ — `whenSteps` field on `Behavior`, `AndWhenStage` interface. Channel runner executes steps sequentially. `scenario('...').given('...').when('alice connects').andWhen('bob connects').andWhen('alice sends message').then('bob receives message')`.
+- **`channel.withState<T>()`** ✅ — Ergonomic helper that eliminates the phantom witness pattern. `const withState = channel.withState<MyState>(); withState({ ... })` infers all other generics while fixing the state type.
+
+Previously shipped in Phase 10.5:
 - **Gherkin output for channels** ✅ — Shipped in Phase 10.
-- **`triad validate` channel checks** — cross-reference `clientMessages` handlers, check that `channel_receives` / `channel_message_has` assertions reference declared server message types, warn on bounded-context leakage for channels.
-- **Multi-client scenarios in a single behavior** — the test runner's heuristic `when` parser can already recognize named clients ("`alice sends typing`"), but the fluent BDD builder doesn't have a way to express "first alice connects, then bob connects, then alice sends..." as a single scenario. A future API extension could add chained `.andThen()` steps.
-- **Typed state without the phantom witness** — the `state: {} as ChatRoomState` pattern works but is a little awkward. A TypeScript improvement to partial generic inference (or a future Triad helper like `channel.withState<T>()`) could clean this up.
-- **`beforeHandler` for channels** — channels in v1 do auth inside `onConnect`. Lifting the `beforeHandler` extension point to channels would let the same `requireAuth` helper work for both HTTP and WebSocket.
-- **Channel `when` fallback hides rejection outcomes** — when the `when` description doesn't match the runner's heuristic parser (`<name> connects`, `<name> sends <type>`, `<name> disconnects`), the fallback path returns `harness.getClient(DEFAULT_CLIENT)`, which is `undefined` for rejected clients. Making the fallback return the connected client directly would let rejection assertions work regardless of phrasing. Surfaced during the bookshelf build.
-- **Channel handshake validation fires before `onConnect`** — writing a "missing authorization header → 401" scenario is impossible if the header is declared as `t.string()` on `connection.headers`, because the schema validator rejects the handshake before onConnect runs. Workaround: declare the header `optional()` OR send a structurally valid but semantically unknown token. A future option would be to let `onConnect` fire even on validation failure so it can render a custom rejection.
-- **No `response body is empty` assertion phrase** — 204 responses verify "status is 204" but there's no explicit phrase for asserting the body is empty. The schema validator enforces it, so this is cosmetic, but it came up during the bookshelf channel tests.
-- **Drizzle unique-violation predicate** — repositories that want to "catch duplicate email and return 409" can't, because `better-sqlite3` integrity errors surface as synchronous throws with no stable discriminator. Both tasktracker and bookshelf use a `existsByEmail` pre-check with a documented race window. A helper exported from `@triad/drizzle` like `isUniqueViolation(err, { table, column })` would let repositories drop the pre-check.
+- **Channel `when` fallback preserves rejection** ✅ — Shipped in Phase 10.5.
+- **`validateBeforeConnect` option** ✅ — Shipped in Phase 10.5.
+- **`response body is empty` assertion** ✅ — Shipped in Phase 10.5.
+- **`isUniqueViolation` predicate** ✅ — Shipped in Phase 10.5.
 
 ---
 
@@ -686,7 +690,7 @@ For users who don't want a query library at all — just typed fetch wrappers wi
 
 ## Phase 23 — End-to-end integration tests ✅
 
-**Status:** Phase 23.1 shipped. Each of the four reference examples (petstore, tasktracker, bookshelf, supabase-edge) gained an `e2e/` test suite that starts the example's server in-process on an ephemeral port, makes real HTTP (`fetch`) and real WebSocket (`ws`) calls, and asserts on wire responses. Complements the existing in-process `triad test` suites rather than replacing them. +74 tests across 17 files. Each example exports a `createApp()` factory from `src/server.ts` so tests can start a server without binding to a fixed port, with an entry-guard that preserves the existing `npm start` path. Phase 23.2 (Playwright-based frontend codegen runtime verification — build a React app with generated hooks, render in headless Chrome) remains on the backlog.
+**Status:** Shipped. Each of the four reference examples (petstore, tasktracker, bookshelf, supabase-edge) gained an `e2e/` test suite that starts the example's server in-process on an ephemeral port, makes real HTTP (`fetch`) and real WebSocket (`ws`) calls, and asserts on wire responses. Complements the existing in-process `triad test` suites rather than replacing them. +74 tests across 17 files. Each example exports a `createApp()` factory from `src/server.ts` so tests can start a server without binding to a fixed port, with an entry-guard that preserves the existing `npm start` path.
 
 ---
 
@@ -702,11 +706,26 @@ For users who don't want a query library at all — just typed fetch wrappers wi
 
 ---
 
+## Phase 27 — Adapter parity + HandlerResponse.headers ✅
+
+**Status:** Shipped. All four HTTP adapters (Fastify, Express, Hono, Lambda) now produce byte-identical error envelopes for every failure mode. Three divergences fixed:
+
+1. **JSON parse errors** — Fastify and Express previously leaked framework-native parse error formats. Now all four wrap malformed JSON into `{ code: "VALIDATION_ERROR", errors: [{ code: "invalid_json", ... }] }`.
+2. **Handler throws** — All four previously re-threw unexpected errors to framework defaults (Fastify's error handler, Express's `next(err)`, Hono's `onError`). Now all four catch unexpected throws and return `{ code: "INTERNAL_ERROR", message: "The server produced an unexpected error." }` with status 500.
+3. **Wrong content-type** — All four now check that the request's `Content-Type` is `application/json` (or `+json` variant) before parsing body, returning `{ code: "VALIDATION_ERROR", errors: [{ code: "invalid_content_type", ... }] }` on mismatch.
+
+**`HandlerResponse.headers`** — Added optional `headers?: Record<string, string>` to the core `HandlerResponse` type plus `ResponseOptions` for `ctx.respond[status](data, { headers })`. All four adapters apply response headers to the outgoing HTTP response. This unblocks future work to make security headers a router wrapper instead of per-adapter middleware.
+
++32 adapter tests.
+
+---
+
 ## Under consideration (not committed)
 
 Items that have been mentioned or requested but are NOT on the committed roadmap. Each is listed with the reason it's deprioritized. These may or may not ever ship — listing them here so the decision is explicit rather than forgotten.
 
-- **GraphQL bridge (`@triad/graphql`)** — Lowest priority. Would walk a Triad router and emit a GraphQL schema (queries from GETs, mutations from POST/PATCH/DELETE). Real complexity in the schema mapping, GraphQL adoption has softened in the ecosystem, and teams that want GraphQL can hand-maintain it or use existing REST-to-GraphQL tools. **May not be built at all.**
+- **~~GraphQL bridge (`@triad/graphql`)~~** — Out of scope. Dropped from the roadmap.
+- **~~Playwright-based frontend codegen verification (Phase 23.2)~~** — Out of scope. Dropped from the roadmap.
 - **VS Code extension** — Hover docs for assertion phrases, autocomplete for schema fields, inline OpenAPI preview. Valuable but a huge maintenance burden for uncertain payoff. Wait for concrete user demand.
 - **IntelliJ plugin** — Same reasoning as VS Code.
 - **Browser playground / REPL** — Run Triad in a browser sandbox for marketing. Cool but not engineering-critical.
