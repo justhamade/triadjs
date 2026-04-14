@@ -35,10 +35,19 @@ PUBLISHED=()
 
 for pkg in "${PACKAGES[@]}"; do
   echo ""
-  echo "=== Publishing @triadjs/$pkg ==="
+  LOCAL_VERSION=$(node -p "require('$BASEDIR/packages/$pkg/package.json').version")
+  REMOTE_VERSION=$(npm view "@triadjs/$pkg" version 2>/dev/null || echo "")
+
+  if [ "$LOCAL_VERSION" = "$REMOTE_VERSION" ]; then
+    echo "=== Skipping @triadjs/$pkg@$LOCAL_VERSION (already published) ==="
+    PUBLISHED+=("$pkg")
+    continue
+  fi
+
+  echo "=== Publishing @triadjs/$pkg@$LOCAL_VERSION ==="
   if npm publish --access public "$BASEDIR/packages/$pkg"; then
     PUBLISHED+=("$pkg")
-    echo "Published @triadjs/$pkg"
+    echo "Published @triadjs/$pkg@$LOCAL_VERSION"
   else
     FAILED+=("$pkg")
     echo "FAILED @triadjs/$pkg"

@@ -1,6 +1,6 @@
 {
   "name": "@triadjs/otel",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -23,13 +23,13 @@
   },
   "peerDependencies": {
     "@opentelemetry/api": "^1.9.0",
-    "@triadjs/core": "0.2.0"
+    "@triadjs/core": "0.2.1"
   },
   "devDependencies": {
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/sdk-trace-base": "^1.26.0",
     "@opentelemetry/sdk-trace-node": "^1.26.0",
-    "@triadjs/core": "0.2.0",
+    "@triadjs/core": "0.2.1",
     "tsup": "^8.3.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"

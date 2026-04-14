@@ -1,6 +1,6 @@
 {
   "name": "@triadjs/drizzle",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -22,11 +22,11 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@triadjs/core": "0.2.0",
+    "@triadjs/core": "0.2.1",
     "drizzle-orm": ">=0.30.0"
   },
   "devDependencies": {
-    "@triadjs/core": "0.2.0",
+    "@triadjs/core": "0.2.1",
     "@types/better-sqlite3": "^7.6.0",
     "better-sqlite3": "^11.0.0",
     "drizzle-orm": "^0.36.0",

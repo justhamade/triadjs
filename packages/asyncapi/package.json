@@ -1,6 +1,6 @@
 {
   "name": "@triadjs/asyncapi",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -22,7 +22,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@triadjs/core": "0.2.0",
+    "@triadjs/core": "0.2.1",
     "yaml": "^2.6.0"
   },
   "devDependencies": {
