@@ -25,7 +25,7 @@
  */
 
 import pc from 'picocolors';
-import type { Endpoint, Router, SchemaNode, ModelShape } from '@triad/core';
+import type { Endpoint, Router, SchemaNode, ModelShape, Channel } from '@triad/core';
 import { loadConfig } from '../load-config.js';
 import { loadRouter } from '../load-router.js';
 import { CliError } from '../errors.js';
@@ -128,6 +128,12 @@ export function validateRouter(router: Router): ValidationIssue[] {
   const modelRegistry = collectAllModels(router);
   issues.push(...checkBodyMatchesReferences(router, modelRegistry));
   issues.push(...checkContextModelLeakage(router));
+
+  issues.push(...checkDuplicateChannelNames(router));
+  issues.push(...checkDuplicateChannelPaths(router));
+  issues.push(...checkChannelHandlerCompleteness(router));
+  issues.push(...checkChannelAssertionMessageTypes(router));
+  issues.push(...checkChannelContextModelLeakage(router));
 
   return issues;
 }
@@ -239,6 +245,141 @@ function checkContextModelLeakage(router: Router): ValidationIssue[] {
   }
 
   return issues;
+}
+
+// ---------------------------------------------------------------------------
+// Channel-specific checks
+// ---------------------------------------------------------------------------
+
+function checkDuplicateChannelNames(router: Router): ValidationIssue[] {
+  const seen = new Map<string, Channel>();
+  const issues: ValidationIssue[] = [];
+  for (const ch of router.allChannels()) {
+    const prev = seen.get(ch.name);
+    if (prev) {
+      issues.push({
+        severity: 'error',
+        code: 'DUPLICATE_CHANNEL_NAME',
+        message: `Two channels share the name "${ch.name}". Channel names must be unique.`,
+        context: `${ch.path} vs ${prev.path}`,
+      });
+    } else {
+      seen.set(ch.name, ch);
+    }
+  }
+  return issues;
+}
+
+function checkDuplicateChannelPaths(router: Router): ValidationIssue[] {
+  const seen = new Map<string, Channel>();
+  const issues: ValidationIssue[] = [];
+  for (const ch of router.allChannels()) {
+    const prev = seen.get(ch.path);
+    if (prev) {
+      issues.push({
+        severity: 'error',
+        code: 'DUPLICATE_CHANNEL_PATH',
+        message: `Two channels share the same path: ${ch.path}`,
+        context: `${ch.name} vs ${prev.name}`,
+      });
+    } else {
+      seen.set(ch.path, ch);
+    }
+  }
+  return issues;
+}
+
+function checkChannelHandlerCompleteness(router: Router): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  for (const ch of router.allChannels()) {
+    for (const messageType of Object.keys(ch.clientMessages)) {
+      if (!(messageType in ch.handlers)) {
+        issues.push({
+          severity: 'warning',
+          code: 'MISSING_CHANNEL_HANDLER',
+          message: `Channel "${ch.name}" declares client message type "${messageType}" but has no matching handler.`,
+          context: ch.path,
+        });
+      }
+    }
+  }
+  return issues;
+}
+
+function checkChannelAssertionMessageTypes(router: Router): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  for (const ch of router.allChannels()) {
+    const serverMsgTypes = new Set(Object.keys(ch.serverMessages));
+    for (const behavior of ch.behaviors) {
+      for (const assertion of behavior.then) {
+        if (
+          assertion.type === 'channel_receives' ||
+          assertion.type === 'channel_not_receives' ||
+          assertion.type === 'channel_message_has'
+        ) {
+          if (
+            assertion.messageType !== '*' &&
+            !serverMsgTypes.has(assertion.messageType)
+          ) {
+            issues.push({
+              severity: 'warning',
+              code: 'UNKNOWN_CHANNEL_MESSAGE_TYPE',
+              message: `Behavior asserts on message type "${assertion.messageType}" but channel "${ch.name}" does not declare it in serverMessages. Check for typos.`,
+              context: `${ch.name} / "${behavior.scenario}"`,
+            });
+          }
+        }
+      }
+    }
+  }
+  return issues;
+}
+
+function checkChannelContextModelLeakage(router: Router): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  for (const context of router.contexts) {
+    if (context.models.length === 0) continue;
+
+    const allowed = new Set<string>();
+    for (const model of context.models) {
+      collectNestedModelNames(model, allowed);
+    }
+
+    for (const ch of context.channels) {
+      const used = new Set<string>();
+      collectChannelModelNames(ch, used);
+
+      for (const modelName of used) {
+        if (!allowed.has(modelName)) {
+          issues.push({
+            severity: 'warning',
+            code: 'CHANNEL_CONTEXT_MODEL_LEAKAGE',
+            message: `Channel "${ch.name}" uses model "${modelName}" which is not declared in the "${context.name}" bounded context's models list. Either add it to the context or move the channel to a different context.`,
+            context: ch.path,
+          });
+        }
+      }
+    }
+  }
+
+  return issues;
+}
+
+function collectChannelModelNames(ch: Channel, out: Set<string>): void {
+  const walk = (schema: SchemaNode | undefined): void => {
+    walkSchema(schema, (m) => {
+      if (out.has(m.name)) return 'stop';
+      out.add(m.name);
+      return 'continue';
+    });
+  };
+  for (const msg of Object.values(ch.clientMessages)) {
+    walk(msg.schema);
+  }
+  for (const msg of Object.values(ch.serverMessages)) {
+    walk(msg.schema);
+  }
 }
 
 // ---------------------------------------------------------------------------

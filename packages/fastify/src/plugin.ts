@@ -122,6 +122,62 @@ export const triadPlugin: FastifyPluginAsync<TriadPluginOptions> = async (
     }
   }
 
+  // Intercept Fastify's built-in JSON parse errors and content-type
+  // rejections, wrapping them in the standard Triad VALIDATION_ERROR
+  // envelope for parity with Hono and Express adapters.
+  fastify.setErrorHandler((error, _request, reply) => {
+    const statusCode =
+      'statusCode' in error ? (error as { statusCode: number }).statusCode : 0;
+    const errorCode =
+      'code' in error ? (error as { code: string }).code : '';
+
+    // JSON parse error: SyntaxError with statusCode 400, or Fastify's
+    // FST_ERR_CTP_INVALID_JSON_BODY error code in newer versions.
+    if (
+      (error instanceof SyntaxError && statusCode === 400) ||
+      errorCode === 'FST_ERR_CTP_INVALID_JSON_BODY'
+    ) {
+      reply.code(400).send({
+        code: 'VALIDATION_ERROR',
+        message:
+          'Request body failed validation: Request body is not valid JSON',
+        errors: [
+          {
+            path: '',
+            message: 'Request body is not valid JSON',
+            code: 'invalid_json',
+          },
+        ],
+      });
+      return;
+    }
+
+    // Content-type rejection: Fastify rejects unsupported media types
+    // before the route handler runs. Wrap as VALIDATION_ERROR.
+    if (
+      statusCode === 415 ||
+      errorCode === 'FST_ERR_CTP_INVALID_MEDIA_TYPE' ||
+      errorCode === 'FST_ERR_CTP_EMPTY_TYPE'
+    ) {
+      reply.code(400).send({
+        code: 'VALIDATION_ERROR',
+        message:
+          'Request body failed validation: Expected application/json content-type',
+        errors: [
+          {
+            path: '',
+            message: 'Expected application/json content-type',
+            code: 'invalid_content_type',
+          },
+        ],
+      });
+      return;
+    }
+
+    // Non-Triad errors: re-throw so Fastify's default behavior continues.
+    throw error;
+  });
+
   // Fastify's `register(plugin, { prefix: '/api/v1' })` automatically
   // prefixes every route registered inside the plugin scope. We do NOT
   // apply an additional prefix here — doing so would produce routes like

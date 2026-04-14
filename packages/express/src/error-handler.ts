@@ -69,6 +69,34 @@ export function triadErrorHandler(
       return;
     }
 
-    next(err);
+    // JSON parse errors from express.json() arrive as SyntaxError with
+    // type === 'entity.parse.failed'. Wrap them in the standard envelope.
+    if (
+      err instanceof SyntaxError &&
+      'type' in err &&
+      (err as SyntaxError & { type?: string }).type === 'entity.parse.failed'
+    ) {
+      res.status(400).json({
+        code: 'VALIDATION_ERROR',
+        message:
+          'Request body failed validation: Request body is not valid JSON',
+        errors: [
+          {
+            path: '',
+            message: 'Request body is not valid JSON',
+            code: 'invalid_json',
+          },
+        ],
+      });
+      return;
+    }
+
+    // Unknown errors: respond with INTERNAL_ERROR envelope to match
+    // Hono and Fastify adapter behavior.
+    logError(err, req);
+    res.status(500).json({
+      code: 'INTERNAL_ERROR',
+      message: 'The server produced an unexpected error.',
+    });
   };
 }

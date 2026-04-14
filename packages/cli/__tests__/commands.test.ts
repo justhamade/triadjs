@@ -308,7 +308,7 @@ describe('runValidate', () => {
 // validateRouter unit tests (pure logic, no fixture needed)
 // ---------------------------------------------------------------------------
 
-import { createRouter, endpoint, scenario, t } from '@triad/core';
+import { createRouter, endpoint, scenario, t, channel, type Behavior } from '@triad/core';
 import { validateRouter } from '../src/commands/validate.js';
 
 describe('validateRouter — cross-artifact checks', () => {
@@ -443,5 +443,265 @@ describe('validateRouter — cross-artifact checks', () => {
     const router = createRouter({ title: 'x', version: '1' });
     router.add(ep);
     expect(validateRouter(router)).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Channel-specific validation checks
+// ---------------------------------------------------------------------------
+
+describe('validateRouter — channel checks', () => {
+  const ChatMessage = t.model('ChatMessage', {
+    text: t.string(),
+    sender: t.string(),
+  });
+
+  const JoinPayload = t.model('JoinPayload', {
+    roomId: t.string(),
+  });
+
+  function makeChannel(overrides: Partial<{
+    name: string;
+    path: string;
+    clientMessages: Record<string, { schema: ReturnType<typeof t.model>; description: string }>;
+    serverMessages: Record<string, { schema: ReturnType<typeof t.model>; description: string }>;
+    handlers: Record<string, () => void>;
+    behaviors: Behavior[];
+  }> = {}) {
+    return channel({
+      name: overrides.name ?? 'chat',
+      path: overrides.path ?? '/ws/chat',
+      summary: 'Chat channel',
+      clientMessages: overrides.clientMessages ?? {
+        sendMessage: { schema: ChatMessage, description: 'Send a message' },
+      },
+      serverMessages: overrides.serverMessages ?? {
+        newMessage: { schema: ChatMessage, description: 'New message' },
+      },
+      handlers: overrides.handlers ?? {
+        sendMessage: () => {},
+      },
+      behaviors: overrides.behaviors ?? [],
+    });
+  }
+
+  it('reports duplicate channel names', () => {
+    const ch1 = makeChannel({ name: 'chat', path: '/ws/chat' });
+    const ch2 = makeChannel({ name: 'chat', path: '/ws/chat2' });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ch1, ch2);
+    const issues = validateRouter(router);
+    expect(
+      issues.some((i) => i.code === 'DUPLICATE_CHANNEL_NAME'),
+    ).toBe(true);
+  });
+
+  it('reports duplicate channel paths', () => {
+    const ch1 = makeChannel({ name: 'chatA', path: '/ws/chat' });
+    const ch2 = makeChannel({ name: 'chatB', path: '/ws/chat' });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ch1, ch2);
+    const issues = validateRouter(router);
+    expect(
+      issues.some((i) => i.code === 'DUPLICATE_CHANNEL_PATH'),
+    ).toBe(true);
+  });
+
+  it('warns when a client message type has no handler', () => {
+    const ch = channel({
+      name: 'chat',
+      path: '/ws/chat',
+      summary: 'Chat',
+      clientMessages: {
+        sendMessage: { schema: ChatMessage, description: 'Send' },
+        joinRoom: { schema: JoinPayload, description: 'Join' },
+      },
+      serverMessages: {
+        newMessage: { schema: ChatMessage, description: 'New' },
+      },
+      handlers: {
+        sendMessage: () => {},
+        joinRoom: () => {},
+      },
+      behaviors: [],
+    });
+    // Simulate a missing handler by removing one after construction
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete (ch.handlers as Record<string, unknown>)['joinRoom'];
+
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ch);
+    const issues = validateRouter(router);
+    expect(
+      issues.some((i) => i.code === 'MISSING_CHANNEL_HANDLER'),
+    ).toBe(true);
+  });
+
+  it('warns when a channel assertion references a nonexistent server message type', () => {
+    const ch = makeChannel({
+      behaviors: [
+        scenario('sends a message')
+          .given('connected')
+          .when('client sends a message')
+          .then('alice receives a ghostMessage event'),
+      ],
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ch);
+    const issues = validateRouter(router);
+    expect(
+      issues.some((i) => i.code === 'UNKNOWN_CHANNEL_MESSAGE_TYPE'),
+    ).toBe(true);
+  });
+
+  it('does not warn when assertion references a valid server message type', () => {
+    const ch = makeChannel({
+      behaviors: [
+        scenario('sends a message')
+          .given('connected')
+          .when('client sends a message')
+          .then('alice receives a newMessage event'),
+      ],
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ch);
+    const issues = validateRouter(router);
+    expect(
+      issues.some((i) => i.code === 'UNKNOWN_CHANNEL_MESSAGE_TYPE'),
+    ).toBe(false);
+  });
+
+  it('warns on channel context model leakage from serverMessages', () => {
+    const Pet = t.model('Pet', { id: t.string(), name: t.string() });
+    const Stranger = t.model('Stranger', { id: t.string() });
+    const ch = channel({
+      name: 'petChat',
+      path: '/ws/pet-chat',
+      summary: 'Pet chat',
+      clientMessages: {
+        send: { schema: Pet, description: 'Send' },
+      },
+      serverMessages: {
+        notify: { schema: Stranger, description: 'Notify' },
+      },
+      handlers: { send: () => {} },
+      behaviors: [],
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.context(
+      'PetContext',
+      { models: [Pet] },
+      (ctx) => ctx.add(ch),
+    );
+    const issues = validateRouter(router);
+    expect(
+      issues.some(
+        (i) =>
+          i.code === 'CHANNEL_CONTEXT_MODEL_LEAKAGE' &&
+          i.severity === 'warning',
+      ),
+    ).toBe(true);
+  });
+
+  it('warns on channel context model leakage from clientMessages', () => {
+    const Pet = t.model('Pet', { id: t.string(), name: t.string() });
+    const Stranger = t.model('Stranger', { id: t.string() });
+    const ch = channel({
+      name: 'petChat',
+      path: '/ws/pet-chat',
+      summary: 'Pet chat',
+      clientMessages: {
+        send: { schema: Stranger, description: 'Send' },
+      },
+      serverMessages: {
+        notify: { schema: Pet, description: 'Notify' },
+      },
+      handlers: { send: () => {} },
+      behaviors: [],
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.context(
+      'PetContext',
+      { models: [Pet] },
+      (ctx) => ctx.add(ch),
+    );
+    const issues = validateRouter(router);
+    expect(
+      issues.some(
+        (i) =>
+          i.code === 'CHANNEL_CONTEXT_MODEL_LEAKAGE' &&
+          i.severity === 'warning',
+      ),
+    ).toBe(true);
+  });
+
+  it('does not warn when channel models match the bounded context', () => {
+    const Pet = t.model('Pet', { id: t.string(), name: t.string() });
+    const ch = channel({
+      name: 'petChat',
+      path: '/ws/pet-chat',
+      summary: 'Pet chat',
+      clientMessages: {
+        send: { schema: Pet, description: 'Send' },
+      },
+      serverMessages: {
+        notify: { schema: Pet, description: 'Notify' },
+      },
+      handlers: { send: () => {} },
+      behaviors: [],
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.context(
+      'PetContext',
+      { models: [Pet] },
+      (ctx) => ctx.add(ch),
+    );
+    const issues = validateRouter(router);
+    expect(
+      issues.some((i) => i.code === 'CHANNEL_CONTEXT_MODEL_LEAKAGE'),
+    ).toBe(false);
+  });
+
+  it('returns no issues for a clean channel', () => {
+    const ch = makeChannel();
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ch);
+    const issues = validateRouter(router);
+    const channelIssues = issues.filter((i) => i.code.startsWith('DUPLICATE_CHANNEL') || i.code.startsWith('MISSING_CHANNEL') || i.code.startsWith('UNKNOWN_CHANNEL') || i.code.startsWith('CHANNEL_CONTEXT'));
+    expect(channelIssues).toEqual([]);
+  });
+
+  it('catches channel_not_receives referencing nonexistent server message', () => {
+    const ch = makeChannel({
+      behaviors: [
+        scenario('sender does not get echo')
+          .given('connected')
+          .when('client sends')
+          .then('alice does NOT receive a phantom event'),
+      ],
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ch);
+    const issues = validateRouter(router);
+    expect(
+      issues.some((i) => i.code === 'UNKNOWN_CHANNEL_MESSAGE_TYPE'),
+    ).toBe(true);
+  });
+
+  it('catches channel_message_has referencing nonexistent server message', () => {
+    const ch = makeChannel({
+      behaviors: [
+        scenario('message content check')
+          .given('connected')
+          .when('client sends')
+          .then('alice receives a phantom with text "hello"'),
+      ],
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ch);
+    const issues = validateRouter(router);
+    expect(
+      issues.some((i) => i.code === 'UNKNOWN_CHANNEL_MESSAGE_TYPE'),
+    ).toBe(true);
   });
 });

@@ -183,6 +183,169 @@ describe('ChannelHarness — outgoing validation', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// beforeHandler support
+// ---------------------------------------------------------------------------
+
+describe('ChannelHarness — beforeHandler', () => {
+  it('populates ctx.state from beforeHandler return value', async () => {
+    const ch = channel({
+      name: 'bhState',
+      path: '/ws/bh',
+      summary: 'bh',
+      beforeHandler: async () => ({
+        ok: true as const,
+        state: { userId: 'alice-from-before' } as Record<string, unknown>,
+      }),
+      clientMessages: {
+        ping: { schema: t.model('BHPing', {}), description: 'p' },
+      },
+      serverMessages: {
+        pong: { schema: t.model('BHPong', { who: t.string() }), description: 'p' },
+      },
+      onConnect: (ctx) => {
+        ctx.state.verified = true;
+      },
+      handlers: {
+        ping: (ctx) => {
+          ctx.send.pong({ who: ctx.state.userId as string });
+        },
+      },
+    });
+    const harness = new ChannelHarness(ch, {});
+    const client = await harness.connect('alice', {});
+    expect(client.rejected).toBe(false);
+    expect(client.state.userId).toBe('alice-from-before');
+    expect(client.state.verified).toBe(true);
+    await harness.send('alice', 'ping', {});
+    expect(client.receivedOf('pong')[0]?.data).toEqual({ who: 'alice-from-before' });
+  });
+
+  it('rejects the connection when beforeHandler returns ok: false', async () => {
+    const ch = channel({
+      name: 'bhReject',
+      path: '/ws/bhr',
+      summary: 'bhr',
+      beforeHandler: async () => ({
+        ok: false as const,
+        code: 401,
+        message: 'bad token',
+      }),
+      clientMessages: {
+        ping: { schema: t.model('BHRPing', {}), description: 'p' },
+      },
+      serverMessages: {
+        pong: { schema: t.model('BHRPong', {}), description: 'p' },
+      },
+      handlers: { ping: () => {} },
+    });
+    const harness = new ChannelHarness(ch, {});
+    const client = await harness.connect('alice', {});
+    expect(client.rejected).toBe(true);
+    expect(client.rejectedCode).toBe(401);
+    expect(client.rejectedMessage).toBe('bad token');
+    expect(harness.getClient('alice')).toBeUndefined();
+  });
+
+  it('rejects the connection when beforeHandler throws', async () => {
+    const ch = channel({
+      name: 'bhThrow',
+      path: '/ws/bht',
+      summary: 'bht',
+      beforeHandler: async () => {
+        throw new Error('auth service down');
+      },
+      clientMessages: {
+        ping: { schema: t.model('BHTPing', {}), description: 'p' },
+      },
+      serverMessages: {
+        pong: { schema: t.model('BHTPong', {}), description: 'p' },
+      },
+      handlers: { ping: () => {} },
+    });
+    const harness = new ChannelHarness(ch, {});
+    const client = await harness.connect('alice', {});
+    expect(client.rejected).toBe(true);
+    expect(client.rejectedCode).toBe(4500);
+    expect(harness.getClient('alice')).toBeUndefined();
+  });
+
+  it('passes raw params, query, headers and services to beforeHandler', async () => {
+    let captured: Record<string, unknown> = {};
+    const ch = channel({
+      name: 'bhCtx',
+      path: '/ws/bhc',
+      summary: 'bhc',
+      beforeHandler: async (ctx) => {
+        captured = {
+          rawParams: ctx.rawParams,
+          rawQuery: ctx.rawQuery,
+          rawHeaders: ctx.rawHeaders,
+          hasServices: ctx.services !== undefined,
+        };
+        return { ok: true as const, state: {} };
+      },
+      clientMessages: {
+        ping: { schema: t.model('BHCPing', {}), description: 'p' },
+      },
+      serverMessages: {
+        pong: { schema: t.model('BHCPong', {}), description: 'p' },
+      },
+      handlers: { ping: () => {} },
+    });
+    const harness = new ChannelHarness(ch, {});
+    await harness.connect('alice', {
+      params: { roomId: 'r1' },
+      query: { token: 'abc' },
+      headers: { authorization: 'Bearer xyz' },
+    });
+    expect(captured.rawParams).toEqual({ roomId: 'r1' });
+    expect(captured.rawQuery).toEqual({ token: 'abc' });
+    expect(captured.rawHeaders).toEqual({ authorization: 'Bearer xyz' });
+    expect(captured.hasServices).toBe(true);
+  });
+
+  it('runs beforeHandler BEFORE schema validation so auth can reject first', async () => {
+    const callOrder: string[] = [];
+    const ch = channel({
+      name: 'bhOrder',
+      path: '/ws/bho',
+      summary: 'bho',
+      connection: {
+        headers: { authorization: t.string() },
+      },
+      beforeHandler: async () => {
+        callOrder.push('beforeHandler');
+        return { ok: false as const, code: 401, message: 'no auth' };
+      },
+      onConnect: () => {
+        callOrder.push('onConnect');
+      },
+      clientMessages: {
+        ping: { schema: t.model('BHOPing', {}), description: 'p' },
+      },
+      serverMessages: {
+        pong: { schema: t.model('BHOPong', {}), description: 'p' },
+      },
+      handlers: { ping: () => {} },
+    });
+    const harness = new ChannelHarness(ch, {});
+    // No authorization header — would normally fail validation with 4400
+    const client = await harness.connect('alice', {});
+    // beforeHandler should have rejected with 401 BEFORE validation ran
+    expect(client.rejected).toBe(true);
+    expect(client.rejectedCode).toBe(401);
+    expect(callOrder).toEqual(['beforeHandler']);
+  });
+
+  it('existing behavior unchanged when no beforeHandler is present', async () => {
+    const harness = new ChannelHarness(makeRoomChannel(), {});
+    const client = await harness.connect('alice', { params: { roomId: 'r1' } });
+    expect(client.rejected).toBe(false);
+    expect(client.state.user).toBe('anon');
+  });
+});
+
 describe('ChannelHarness — disconnect', () => {
   it('removes the client from its group and calls onDisconnect', async () => {
     let disconnectedFor: string | undefined;

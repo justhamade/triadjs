@@ -279,6 +279,87 @@ describe('runChannelBehaviors — fallback when parser preserves rejection', () 
   });
 });
 
+// ---------------------------------------------------------------------------
+// Multi-step scenarios (andWhen)
+// ---------------------------------------------------------------------------
+
+describe('runChannelBehaviors — multi-step andWhen scenarios', () => {
+  it('alice connects, bob connects, alice sends, bob receives', async () => {
+    const Presence = t.model('Presence', { user: t.string() });
+    const ch = channel({
+      name: 'multiStep',
+      path: '/ws/multi',
+      summary: 'multi-step test',
+      clientMessages: {
+        sendMessage: { schema: ChatMessage, description: 'Send chat' },
+      },
+      serverMessages: {
+        message: { schema: ChatMessage, description: 'Message fan-out' },
+        presence: { schema: Presence, description: 'Presence' },
+      },
+      onConnect: (ctx) => {
+        ctx.broadcast.presence({ user: 'someone' });
+      },
+      handlers: {
+        sendMessage: (ctx, data) => {
+          ctx.broadcast.message(data);
+        },
+      },
+      behaviors: [
+        scenario('Bob sees alice message')
+          .given('a room')
+          .body({ from: 'alice', text: 'hello' })
+          .when('alice connects')
+          .andWhen('bob connects')
+          .andWhen('alice sends sendMessage')
+          .then('bob receives a message event')
+          .and('message has text "hello"'),
+      ],
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ch);
+    const summary = await runChannelBehaviors(router);
+    expect(summary.passed).toBe(1);
+    expect(summary.failed).toBe(0);
+    expect(summary.errored).toBe(0);
+  });
+
+  it('multi-step with disconnect: alice connects, bob connects, alice disconnects, bob receives presence', async () => {
+    const Presence = t.model('Presence2', { user: t.string(), action: t.string() });
+    const ch = channel({
+      name: 'multiDisconnect',
+      path: '/ws/disc',
+      summary: 'disconnect test',
+      clientMessages: {
+        ping: { schema: t.model('Ping2', { n: t.string() }), description: 'p' },
+      },
+      serverMessages: {
+        presence: { schema: Presence, description: 'Presence' },
+      },
+      onDisconnect: (ctx) => {
+        ctx.broadcast.presence({ user: 'alice', action: 'left' });
+      },
+      handlers: {
+        ping: () => {},
+      },
+      behaviors: [
+        scenario('Bob sees alice leave')
+          .given('a room')
+          .when('alice connects')
+          .andWhen('bob connects')
+          .andWhen('alice disconnects')
+          .then('bob receives a presence event'),
+      ],
+    });
+    const router = createRouter({ title: 'x', version: '1' });
+    router.add(ch);
+    const summary = await runChannelBehaviors(router);
+    expect(summary.passed).toBe(1);
+    expect(summary.failed).toBe(0);
+    expect(summary.errored).toBe(0);
+  });
+});
+
 describe('runChannelBehaviors — teardown', () => {
   it('calls teardown for every scenario even on failure', async () => {
     const teardown = vi.fn();

@@ -29,6 +29,49 @@ import type { ServiceContainer } from './context.js';
 import type { InferRequestPart } from './context.js';
 
 // ---------------------------------------------------------------------------
+// Channel beforeHandler — runs before schema validation on connect
+// ---------------------------------------------------------------------------
+
+/**
+ * The context a channel `beforeHandler` receives. Everything here is the
+ * RAW connection data — params/query/headers have NOT been coerced or
+ * validated against the channel's declared schemas. This mirrors the
+ * HTTP `BeforeHandlerContext` pattern: auth code can reject raw requests
+ * before the validation pipeline 4400s them.
+ */
+export type ChannelBeforeHandlerContext = {
+  readonly rawParams: Readonly<Record<string, unknown>>;
+  readonly rawQuery: Readonly<Record<string, unknown>>;
+  readonly rawHeaders: Readonly<Record<string, unknown>>;
+  readonly services: ServiceContainer;
+};
+
+/** Success: the beforeHandler produced state for onConnect and handlers. */
+export type ChannelBeforeHandlerSuccess<TState> = {
+  readonly ok: true;
+  readonly state: TState;
+};
+
+/** Rejection: the beforeHandler wants to refuse the connection. */
+export type ChannelBeforeHandlerRejection = {
+  readonly ok: false;
+  readonly code: number;
+  readonly message: string;
+};
+
+export type ChannelBeforeHandlerResult<TState> =
+  | ChannelBeforeHandlerSuccess<TState>
+  | ChannelBeforeHandlerRejection;
+
+/**
+ * The `beforeHandler` function type for channels. Runs before schema
+ * validation so auth can reject before 4400 errors.
+ */
+export type ChannelBeforeHandler<TState> = (
+  ctx: ChannelBeforeHandlerContext,
+) => Promise<ChannelBeforeHandlerResult<TState>> | ChannelBeforeHandlerResult<TState>;
+
+// ---------------------------------------------------------------------------
 // Message maps
 // ---------------------------------------------------------------------------
 

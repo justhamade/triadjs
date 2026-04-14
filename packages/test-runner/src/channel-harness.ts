@@ -172,6 +172,9 @@ export class ChannelHarness {
   /** Groups by params key. Same data model as the Fastify hub. */
   private readonly groups = new Map<string, Set<ChannelTestClient>>();
 
+  /** Temporary storage for beforeHandler state between steps of connect. */
+  private _pendingBeforeState: Record<string, unknown> | undefined;
+
   constructor(channel: Channel, services: ServiceContainer) {
     this.channel = channel;
     this.services = services;
@@ -187,6 +190,35 @@ export class ChannelHarness {
     clientId: string,
     opts: ConnectOptions = {},
   ): Promise<ChannelTestClient> {
+    // ---- 0. beforeHandler -----------------------------------------------
+    // Runs BEFORE schema validation so auth can reject before 4400.
+    if (this.channel.beforeHandler) {
+      try {
+        const beforeResult = await this.channel.beforeHandler({
+          rawParams: opts.params ?? {},
+          rawQuery: opts.query ?? {},
+          rawHeaders: opts.headers ?? {},
+          services: this.services,
+        });
+        if (!beforeResult.ok) {
+          const client = new ChannelTestClient(clientId, opts);
+          client.rejected = true;
+          client.rejectedCode = beforeResult.code;
+          client.rejectedMessage = beforeResult.message;
+          return client;
+        }
+        // Merge beforeHandler state into the client state below.
+        this._pendingBeforeState = beforeResult.state as Record<string, unknown>;
+      } catch (err) {
+        const client = new ChannelTestClient(clientId, opts);
+        client.rejected = true;
+        client.rejectedCode = 4500;
+        client.rejectedMessage =
+          err instanceof Error ? err.message : String(err);
+        return client;
+      }
+    }
+
     // ---- 1. Handshake validation ----------------------------------------
     // Mirrors the adapter: validate params, then query, then headers.
     // A validation failure becomes a synthetic 4400 rejection (the
@@ -212,6 +244,7 @@ export class ChannelHarness {
         'headers',
       );
     } catch (err) {
+      this._pendingBeforeState = undefined;
       const client = new ChannelTestClient(clientId, opts);
       client.rejected = true;
       client.rejectedCode = 4400;
@@ -221,6 +254,12 @@ export class ChannelHarness {
     }
 
     const client = new ChannelTestClient(clientId, { params, query, headers });
+
+    // Merge beforeHandler state into the client's state bag.
+    if (this._pendingBeforeState) {
+      Object.assign(client.state, this._pendingBeforeState);
+      this._pendingBeforeState = undefined;
+    }
 
     // ---- 2. Build connect context ---------------------------------------
     // `broadcast` here is pre-registration — matches adapter behavior

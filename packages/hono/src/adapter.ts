@@ -188,11 +188,14 @@ function validationErrorResponse(
   );
 }
 
-function internalErrorResponse(c: AnyContext): Response {
+function internalErrorResponse(
+  c: AnyContext,
+  message = 'The server produced an invalid response.',
+): Response {
   return c.json(
     {
       code: 'INTERNAL_ERROR',
-      message: 'The server produced an invalid response.',
+      message,
     },
     500,
   );
@@ -272,6 +275,24 @@ function bufferToStream(buffer: Buffer): ReadableStream<Uint8Array> {
   });
 }
 
+function isJsonCompatible(contentType: string): boolean {
+  const lower = contentType.toLowerCase().split(';')[0]!.trim();
+  return lower === 'application/json' || lower.endsWith('+json');
+}
+
+function assertJsonContentType(c: AnyContext): void {
+  const ct = c.req.header('content-type') ?? '';
+  if (!isJsonCompatible(ct)) {
+    throw new RequestValidationError('body', [
+      {
+        path: '',
+        code: 'invalid_content_type',
+        message: 'Expected application/json content type',
+      },
+    ]);
+  }
+}
+
 const METHODS_WITH_BODY: ReadonlySet<string> = new Set([
   'POST',
   'PUT',
@@ -340,10 +361,12 @@ export function createRouteHandler(
 
       let body: unknown = undefined;
       if (hasBody && endpoint.request.body) {
-        const raw = bodyIsMultipart
-          ? await readMultipartBody(c)
-          : await readJsonBody(c);
-        body = validatePart(endpoint, 'body', raw);
+        if (bodyIsMultipart) {
+          body = validatePart(endpoint, 'body', await readMultipartBody(c));
+        } else {
+          assertJsonContentType(c);
+          body = validatePart(endpoint, 'body', await readJsonBody(c));
+        }
       }
 
       // 4: build context.
@@ -363,6 +386,12 @@ export function createRouteHandler(
         ctx as HandlerContext<any, any, any, any, ResponsesConfig>,
       );
 
+      if (response.headers) {
+        for (const [key, value] of Object.entries(response.headers)) {
+          c.header(key, value);
+        }
+      }
+
       return dispatch(c, endpoint, response);
     } catch (err) {
       if (err instanceof RequestValidationError) {
@@ -372,8 +401,8 @@ export function createRouteHandler(
         logError(err, c.req.raw);
         return internalErrorResponse(c);
       }
-      // Unknown errors: let Hono's onError handle it.
-      throw err;
+      logError(err, c.req.raw);
+      return internalErrorResponse(c, 'The server produced an unexpected error.');
     }
   };
 }

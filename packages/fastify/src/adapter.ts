@@ -213,6 +213,18 @@ export function createRouteHandler(
         unknown
       >;
       let rawBody: unknown = request.body;
+      if (!bodyIsMultipart && endpoint.request.body !== undefined) {
+        const ct = (request.headers['content-type'] ?? '').toLowerCase();
+        if (ct && !ct.includes('application/json') && !ct.match(/application\/[a-z0-9.-]+\+json/)) {
+          throw new RequestValidationError('body', [
+            {
+              path: '',
+              code: 'invalid_content_type',
+              message: 'Expected application/json content-type',
+            },
+          ]);
+        }
+      }
       if (bodyIsMultipart) {
         if (!request.isMultipart || !request.isMultipart()) {
           throw new RequestValidationError('body', [
@@ -247,6 +259,13 @@ export function createRouteHandler(
         ctx as HandlerContext<any, any, any, any, ResponsesConfig>,
       );
 
+      // Apply custom response headers from the handler.
+      if (response.headers) {
+        for (const [key, value] of Object.entries(response.headers)) {
+          reply.header(key, value);
+        }
+      }
+
       // If the response schema for this status is `t.empty()`, send with
       // no body so Fastify omits `Content-Type: application/json`. This
       // is how 204/205/304 ought to travel over the wire.
@@ -275,8 +294,15 @@ export function createRouteHandler(
         });
         return;
       }
-      // Unknown errors: let Fastify's default error handler deal with them.
-      throw err;
+      // Unknown errors: catch and return INTERNAL_ERROR envelope for parity
+      // with Hono and Express, rather than letting Fastify's native error
+      // handler produce its own non-standard envelope.
+      logError(err, request);
+      reply.code(500).send({
+        code: 'INTERNAL_ERROR',
+        message: 'The server produced an unexpected error.',
+      });
+      return;
     }
   };
 }

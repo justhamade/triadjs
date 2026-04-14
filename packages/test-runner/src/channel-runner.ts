@@ -173,7 +173,7 @@ export async function runOneChannelBehavior(
     // ---- 3. Harness -----------------------------------------------------
     const harness = new ChannelHarness(channel, services);
 
-    // ---- 4. Execute `when` ----------------------------------------------
+    // ---- 4. Execute `when` + `whenSteps` ---------------------------------
     let lastClient: ChannelTestClient | undefined;
     try {
       lastClient = await executeWhen(harness, behavior.when.description, {
@@ -183,6 +183,18 @@ export async function runOneChannelBehavior(
         headers,
         channel,
       });
+      if (behavior.whenSteps) {
+        for (const step of behavior.whenSteps) {
+          const stepClient = await executeWhen(harness, step, {
+            body,
+            params,
+            query,
+            headers,
+            channel,
+          });
+          if (stepClient) lastClient = stepClient;
+        }
+      }
     } catch (err) {
       if (err instanceof ValidationException) {
         return {

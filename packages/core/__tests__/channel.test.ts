@@ -401,6 +401,93 @@ describe('channel() — type inference', () => {
     });
   });
 
+  it('channel.withState<T>() returns a function', () => {
+    interface ChatState {
+      user: string;
+    }
+    const withChatState = channel.withState<ChatState>();
+    expect(typeof withChatState).toBe('function');
+  });
+
+  it('channel.withState<T>() creates a valid channel', () => {
+    interface ChatState {
+      user: string;
+    }
+    const withChatState = channel.withState<ChatState>();
+    const ch = withChatState({
+      name: 'withStateTest',
+      path: '/ws/state',
+      summary: 'state test',
+      clientMessages: {
+        ping: { schema: t.model('WsP', {}), description: 'p' },
+      },
+      serverMessages: {
+        pong: { schema: t.model('WsQ', {}), description: 'q' },
+      },
+      handlers: {
+        ping: async () => {},
+      },
+    });
+    expect(isChannel(ch)).toBe(true);
+    expect(ch.name).toBe('withStateTest');
+  });
+
+  it('channel.withState<T>() types state correctly in onConnect', () => {
+    interface RoomState {
+      userId: string;
+      roomName: string;
+    }
+    const withRoomState = channel.withState<RoomState>();
+    withRoomState({
+      name: 'typedStateChannel',
+      path: '/ws/room',
+      summary: 'typed state',
+      clientMessages: {
+        msg: { schema: t.model('WsMsg', {}), description: 'm' },
+      },
+      serverMessages: {
+        ack: { schema: t.model('WsAck', {}), description: 'a' },
+      },
+      onConnect: async (ctx) => {
+        expectTypeOf(ctx.state).toMatchTypeOf<RoomState>();
+        ctx.state.userId = '123';
+        ctx.state.roomName = 'lobby';
+      },
+      handlers: {
+        msg: async (ctx) => {
+          expectTypeOf(ctx.state).toMatchTypeOf<RoomState>();
+        },
+      },
+    });
+  });
+
+  it('existing state: {} as T pattern still works (backwards compat)', () => {
+    interface LegacyState {
+      count: number;
+    }
+    const ch = channel({
+      name: 'legacyPattern',
+      path: '/ws/legacy',
+      summary: 'legacy',
+      state: {} as LegacyState,
+      clientMessages: {
+        x: { schema: t.model('LX', {}), description: 'x' },
+      },
+      serverMessages: {
+        y: { schema: t.model('LY', {}), description: 'y' },
+      },
+      onConnect: async (ctx) => {
+        expectTypeOf(ctx.state).toMatchTypeOf<LegacyState>();
+      },
+      handlers: {
+        x: async (ctx) => {
+          expectTypeOf(ctx.state).toMatchTypeOf<LegacyState>();
+        },
+      },
+    });
+    expect(isChannel(ch)).toBe(true);
+  });
+
   it('default ctx.state is a permissive record when TState is omitted', () => {
     channel({
       name: 'typecheck5',
@@ -420,5 +507,50 @@ describe('channel() — type inference', () => {
         },
       },
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// beforeHandler support
+// ---------------------------------------------------------------------------
+
+describe('channel() — beforeHandler', () => {
+  it('stores beforeHandler on the runtime Channel when provided', () => {
+    const ch = channel({
+      name: 'withBefore',
+      path: '/ws/rooms/:roomId',
+      summary: 'x',
+      beforeHandler: async () => ({
+        ok: true as const,
+        state: {},
+      }),
+      clientMessages: {
+        ping: { schema: t.model('PBH', {}), description: 'p' },
+      },
+      serverMessages: {
+        pong: { schema: t.model('QBH', {}), description: 'q' },
+      },
+      handlers: { ping: async () => {} },
+    });
+
+    expect(ch.beforeHandler).toBeDefined();
+    expect(typeof ch.beforeHandler).toBe('function');
+  });
+
+  it('omits beforeHandler from the runtime Channel when not provided', () => {
+    const ch = channel({
+      name: 'noBefore',
+      path: '/ws/no',
+      summary: 'x',
+      clientMessages: {
+        ping: { schema: t.model('PNB', {}), description: 'p' },
+      },
+      serverMessages: {
+        pong: { schema: t.model('QNB', {}), description: 'q' },
+      },
+      handlers: { ping: async () => {} },
+    });
+
+    expect(ch.beforeHandler).toBeUndefined();
   });
 });

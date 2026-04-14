@@ -272,6 +272,52 @@ describe('scenario builder', () => {
   });
 });
 
+describe('scenario builder — .andWhen() for multi-step scenarios', () => {
+  it('adds a single whenStep to the behavior', () => {
+    const b = scenario('Alice sees Bob join')
+      .given('alice is connected')
+      .when('alice connects')
+      .andWhen('bob connects')
+      .then('alice receives a presence event');
+
+    expect(b.when.description).toBe('alice connects');
+    expect(b.whenSteps).toEqual(['bob connects']);
+  });
+
+  it('chains multiple .andWhen() calls correctly', () => {
+    const b = scenario('Multi-step chat')
+      .given('a room exists')
+      .when('alice connects')
+      .andWhen('bob connects')
+      .andWhen('alice sends chat')
+      .then('bob receives a message event');
+
+    expect(b.when.description).toBe('alice connects');
+    expect(b.whenSteps).toEqual(['bob connects', 'alice sends chat']);
+  });
+
+  it('allows .and() after .andWhen().then()', () => {
+    const b = scenario('Multi-step with multiple assertions')
+      .given('a room')
+      .when('alice connects')
+      .andWhen('bob connects')
+      .then('alice receives a presence event')
+      .and('bob receives a presence event');
+
+    expect(b.whenSteps).toEqual(['bob connects']);
+    expect(b.then).toHaveLength(2);
+  });
+
+  it('produces an empty whenSteps array when andWhen is not used', () => {
+    const b = scenario('Single when')
+      .given('some state')
+      .when('client connects')
+      .then('response status is 200');
+
+    expect(b.whenSteps).toBeUndefined();
+  });
+});
+
 describe('hasStatusAssertion helper', () => {
   it('extracts the status code when present', () => {
     const b = scenario('s').given('g').when('w').then('response status is 201');

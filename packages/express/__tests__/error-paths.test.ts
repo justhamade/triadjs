@@ -194,6 +194,21 @@ const bookEp = endpoint({
   handler: async (ctx) => ctx.respond[200]({ id: ctx.params.id }),
 });
 
+const responseHeadersEp = endpoint({
+  name: 'responseHeadersEP',
+  method: 'GET',
+  path: '/with-headers',
+  summary: 'Returns custom response headers',
+  responses: {
+    200: {
+      schema: t.model('HeadersOk', { ok: t.boolean() }),
+      description: 'ok',
+    },
+  },
+  handler: async (ctx) =>
+    ctx.respond[200]({ ok: true }, { headers: { 'x-custom': 'hello', 'x-request-id': 'req-123' } }),
+});
+
 // ---------------------------------------------------------------------------
 // Router + App setup
 // ---------------------------------------------------------------------------
@@ -211,6 +226,7 @@ function buildRouter() {
     headerRequiredEp,
     listEp,
     bookEp,
+    responseHeadersEp,
   );
   return r;
 }
@@ -239,31 +255,36 @@ type ErrorEnvelope = {
 // ---------------------------------------------------------------------------
 
 describe('Express error paths — body parsing failures', () => {
-  it('returns 400 for truncated JSON body', async () => {
+  it('returns 400 VALIDATION_ERROR with invalid_json code for truncated JSON body', async () => {
     const res = await request(app)
       .post('/pets')
       .set('Content-Type', 'application/json')
       .send('{ "name": "Rex"');
     expect(res.status).toBe(400);
-    // express.json() catches the parse error and passes it to the error
-    // handler middleware. The triadErrorHandler does not handle SyntaxError,
-    // so Express's default handler produces an HTML or text error.
-    // DIVERGENCE: Express returns the express.json() SyntaxError, not
-    // VALIDATION_ERROR. The triadErrorHandler does not catch SyntaxError.
-    expect(res.headers['content-type']).toBeDefined();
+    const body: ErrorEnvelope = res.body;
+    expect(body.code).toBe('VALIDATION_ERROR');
+    expect(body.message).toBe(
+      'Request body failed validation: Request body is not valid JSON',
+    );
+    expect(body.errors).toBeInstanceOf(Array);
+    expect(body.errors![0]).toEqual({
+      path: '',
+      message: 'Request body is not valid JSON',
+      code: 'invalid_json',
+    });
+    expect(res.headers['content-type']).toMatch(/application\/json/);
   });
 
-  it('returns 400 for wrong content-type (text/plain) on a JSON endpoint', async () => {
+  it('returns 400 VALIDATION_ERROR with invalid_content_type for wrong content-type', async () => {
     const res = await request(app)
       .post('/pets')
       .set('Content-Type', 'text/plain')
       .send(JSON.stringify({ name: 'Rex', species: 'dog', age: 3 }));
-    // express.json() ignores text/plain bodies, so req.body is undefined.
-    // The body schema then fails validation because undefined is not
-    // { name, species, age }.
     expect(res.status).toBe(400);
     const body: ErrorEnvelope = res.body;
     expect(body.code).toBe('VALIDATION_ERROR');
+    expect(body.errors).toBeInstanceOf(Array);
+    expect(body.errors![0].code).toBe('invalid_content_type');
   });
 
   it('returns 400 for empty body on a required-body endpoint', async () => {
@@ -312,21 +333,22 @@ describe('Express error paths — response validation', () => {
     expect(res.headers['content-type']).toBeUndefined();
   });
 
-  it('returns 500 when handler throws an unexpected error', async () => {
+  it('returns 500 INTERNAL_ERROR when handler throws an unexpected error', async () => {
     const res = await request(app).get('/boom');
-    // Unknown errors go through next(err) -> triadErrorHandler, which
-    // does not handle generic Error, then falls through to Express default.
-    // Express default handler returns HTML for errors.
     expect(res.status).toBe(500);
-    // DIVERGENCE: Express returns its default HTML error page for
-    // unknown errors, not a JSON INTERNAL_ERROR envelope.
+    const body: ErrorEnvelope = res.body;
+    expect(body.code).toBe('INTERNAL_ERROR');
+    expect(body.message).toBe('The server produced an unexpected error.');
+    expect(res.headers['content-type']).toMatch(/application\/json/);
+    expect(body.errors).toBeUndefined();
   });
 
-  it('returns 500 when beforeHandler throws an unexpected error', async () => {
+  it('returns 500 INTERNAL_ERROR when beforeHandler throws an unexpected error', async () => {
     const res = await request(app).get('/before-boom');
     expect(res.status).toBe(500);
-    // Same divergence as above — unknown errors are not caught by the
-    // Triad adapter, so Express's default handler runs.
+    const body: ErrorEnvelope = res.body;
+    expect(body.code).toBe('INTERNAL_ERROR');
+    expect(body.message).toBe('The server produced an unexpected error.');
   });
 });
 
@@ -390,5 +412,19 @@ describe('Express error paths — envelope parity', () => {
     // Verify no extra keys.
     const keys = Object.keys(body).sort();
     expect(keys).toEqual(['code', 'errors', 'message']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Category 5: HandlerResponse.headers support
+// ---------------------------------------------------------------------------
+
+describe('Express error paths — response headers', () => {
+  it('applies custom headers from HandlerResponse to the HTTP response', async () => {
+    const res = await request(app).get('/with-headers');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+    expect(res.headers['x-custom']).toBe('hello');
+    expect(res.headers['x-request-id']).toBe('req-123');
   });
 });

@@ -63,6 +63,7 @@ export {
   type WhenData,
   type Assertion,
   type ScenarioStage,
+  type AndWhenStage,
 } from './behavior.js';
 
 // --- Context ---------------------------------------------------------------
@@ -73,6 +74,7 @@ export {
   type ResponseConfig,
   type ResponsesConfig,
   type HandlerResponse,
+  type ResponseOptions,
   type HandlerContext,
   type RespondFn,
   type RespondMap,
@@ -156,4 +158,9 @@ export type {
   SendMap,
   DefaultChannelState,
   ChannelReject,
+  ChannelBeforeHandler,
+  ChannelBeforeHandlerContext,
+  ChannelBeforeHandlerResult,
+  ChannelBeforeHandlerSuccess,
+  ChannelBeforeHandlerRejection,
 } from './channel-context.js';

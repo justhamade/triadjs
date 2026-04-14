@@ -211,6 +211,23 @@ export function createRouteHandler(
           ]);
         }
         rawBody = buildTriadBodyFromExpress(req);
+      } else if (endpoint.request.body && !isEmptySchema(endpoint.request.body)) {
+        // For non-multipart endpoints with a body schema, verify the
+        // content-type is JSON-compatible. Express's `express.json()`
+        // silently passes through with `req.body = undefined` when the
+        // content-type doesn't match, which would produce a confusing
+        // validation error downstream. Catch it early with a clear message.
+        const ct = (req.headers['content-type'] ?? '').toLowerCase();
+        if (ct && !ct.includes('application/json') && !ct.includes('+json')) {
+          throw new RequestValidationError('body', [
+            {
+              path: '',
+              code: 'invalid_content_type',
+              message:
+                'Expected application/json content-type for JSON body endpoint',
+            },
+          ]);
+        }
       }
       const body = validatePart(endpoint, 'body', rawBody);
 
@@ -230,6 +247,13 @@ export function createRouteHandler(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ctx as HandlerContext<any, any, any, any, ResponsesConfig>,
       );
+
+      // Apply any custom response headers from the handler.
+      if (response.headers) {
+        for (const [key, value] of Object.entries(response.headers)) {
+          res.set(key, value);
+        }
+      }
 
       // `t.empty()` responses send no body and no `Content-Type` header —
       // `res.end()` explicitly avoids the JSON content-type that
@@ -258,9 +282,37 @@ export function createRouteHandler(
         });
         return;
       }
-      // Unknown errors: defer to the next error-handling middleware
-      // (usually `triadErrorHandler()` or express's default).
-      next(err);
+      // JSON parse errors from express.json() arrive as SyntaxError with
+      // type === 'entity.parse.failed'. Wrap them into the standard
+      // VALIDATION_ERROR envelope so the response matches Hono/Fastify.
+      if (
+        err instanceof SyntaxError &&
+        'type' in err &&
+        (err as SyntaxError & { type?: string }).type ===
+          'entity.parse.failed'
+      ) {
+        res.status(400).json({
+          code: 'VALIDATION_ERROR',
+          message:
+            'Request body failed validation: Request body is not valid JSON',
+          errors: [
+            {
+              path: '',
+              message: 'Request body is not valid JSON',
+              code: 'invalid_json',
+            },
+          ],
+        });
+        return;
+      }
+      // Unknown errors: respond with a generic INTERNAL_ERROR envelope
+      // instead of deferring to next(err) so the response shape is
+      // guaranteed to match Hono and Fastify adapters.
+      logError(err, req);
+      res.status(500).json({
+        code: 'INTERNAL_ERROR',
+        message: 'The server produced an unexpected error.',
+      });
     }
   };
 }

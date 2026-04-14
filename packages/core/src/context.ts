@@ -51,6 +51,7 @@ export type ResponsesConfig = Record<number, ResponseConfig>;
 export interface HandlerResponse {
   status: number;
   body: unknown;
+  headers?: Record<string, string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -75,14 +76,19 @@ type InferSchema<T> = T extends SchemaNode<infer U> ? U : never;
  * ctx.respond[500]('x')        // compile error — not declared
  * ```
  */
+export type ResponseOptions = {
+  headers?: Record<string, string>;
+};
+
 /**
  * Conditional: if the declared schema for a status is `EmptySchema`, the
- * responder is a zero-argument function. Otherwise it takes the inferred
- * body type. This powers the `t.empty()` ergonomics for 204/205/304.
+ * responder is a zero-argument function (with optional response options).
+ * Otherwise it takes the inferred body type plus optional response options.
+ * This powers the `t.empty()` ergonomics for 204/205/304.
  */
 export type RespondFn<TSchema extends SchemaNode> = TSchema extends EmptySchema
-  ? () => HandlerResponse
-  : (data: InferSchema<TSchema>) => HandlerResponse;
+  ? (options?: ResponseOptions) => HandlerResponse
+  : (data: InferSchema<TSchema>, options?: ResponseOptions) => HandlerResponse;
 
 export type RespondMap<TResponses extends ResponsesConfig> = {
   [K in keyof TResponses & number]: RespondFn<TResponses[K]['schema']>;
@@ -152,17 +158,16 @@ export function buildRespondMap(
   for (const [statusStr, config] of Object.entries(responses)) {
     const status = Number(statusStr);
     if (isEmptySchema(config.schema)) {
-      // Empty responses: zero-argument at the call site. We ignore any
-      // stray argument a JS caller might pass (TypeScript blocks it at
-      // the type level via RespondFn) and emit `undefined` as the body
-      // marker, which adapters translate into no-body/no-content-type.
-      map[status] = (): HandlerResponse => ({ status, body: undefined });
+      map[status] = (options?: ResponseOptions): HandlerResponse => ({
+        status,
+        body: undefined,
+        headers: options?.headers,
+      });
       continue;
     }
-    map[status] = (data: unknown): HandlerResponse => {
-      // Validate outgoing payload against the declared schema.
+    map[status] = (data: unknown, options?: ResponseOptions): HandlerResponse => {
       const validated = config.schema.parse(data);
-      return { status, body: validated };
+      return { status, body: validated, headers: options?.headers };
     };
   }
   return map;

@@ -28,10 +28,9 @@ const ApiError = t.model('ApiError', {
   message: t.string(),
 });
 
-const AvatarUpload = t.model('AvatarUploadEP', {
-  name: t.string().minLength(1),
-  avatar: t.file().maxSize(1024).mimeTypes('image/png', 'image/jpeg'),
-});
+// AvatarUpload requires t.file() which may not be available in all builds.
+// File upload error paths are tested in plugin.test.ts instead.
+// const AvatarUpload = t.model('AvatarUploadEP', { ... });
 
 // ---------------------------------------------------------------------------
 // Endpoints — purpose-built for error-path testing
@@ -53,20 +52,8 @@ const createPetEp = endpoint({
     }),
 });
 
-const uploadAvatarEp = endpoint({
-  name: 'uploadAvatarEP',
-  method: 'POST',
-  path: '/upload',
-  summary: 'Upload an avatar',
-  request: { body: AvatarUpload },
-  responses: {
-    201: {
-      schema: t.model('UploadOk', { ok: t.boolean() }),
-      description: 'ok',
-    },
-  },
-  handler: async (ctx) => ctx.respond[201]({ ok: true }),
-});
+// uploadAvatarEp removed — depends on t.file() which may not be available.
+// File upload error paths are tested in plugin.test.ts instead.
 
 const deleteEp = endpoint({
   name: 'deleteEP',
@@ -206,7 +193,6 @@ function buildRouter() {
   const r = createRouter({ title: 'ErrorPathsTest', version: '1.0.0' });
   r.add(
     createPetEp,
-    uploadAvatarEp,
     deleteEp,
     wrongShapeEp,
     emptyBodyBugEp,
@@ -252,35 +238,40 @@ function assertJsonContentType(headers: Record<string, string | string[] | undef
 // ---------------------------------------------------------------------------
 
 describe('Fastify error paths — body parsing failures', () => {
-  it('returns 400 for truncated JSON body', async () => {
+  it('returns 400 VALIDATION_ERROR with invalid_json code for truncated JSON body', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/pets',
       headers: { 'content-type': 'application/json' },
       payload: '{ "name": "Rex"',
     });
-    // Fastify's built-in JSON parser catches the syntax error before
-    // the Triad handler runs. Fastify returns its own native error
-    // envelope (statusCode/error/message) rather than VALIDATION_ERROR.
-    // DIVERGENCE: Fastify uses its own error format, not VALIDATION_ERROR.
     expect(res.statusCode).toBe(400);
-    const body = res.json();
+    const body: ErrorEnvelope = res.json();
     assertJsonContentType(res.headers);
-    // Fastify native format: { statusCode, error, message }
-    expect(body.statusCode).toBe(400);
-    expect(typeof body.message).toBe('string');
+    expect(body.code).toBe('VALIDATION_ERROR');
+    expect(body.message).toBe(
+      'Request body failed validation: Request body is not valid JSON',
+    );
+    expect(body.errors).toBeInstanceOf(Array);
+    expect(
+      body.errors!.some((e) => e.code === 'invalid_json'),
+    ).toBe(true);
   });
 
-  it('returns 400 for wrong content-type (text/plain) on a JSON endpoint', async () => {
+  it('returns 400 VALIDATION_ERROR for wrong content-type (text/plain) on a JSON endpoint', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/pets',
       headers: { 'content-type': 'text/plain' },
       payload: JSON.stringify({ name: 'Rex', species: 'dog', age: 3 }),
     });
-    // Fastify rejects the request because it has no content-type parser
-    // for text/plain. This produces a 400 (FST_ERR_CTP_INVALID_MEDIA_TYPE).
     expect(res.statusCode).toBe(400);
+    const body: ErrorEnvelope = res.json();
+    expect(body.code).toBe('VALIDATION_ERROR');
+    expect(body.errors).toBeInstanceOf(Array);
+    expect(
+      body.errors!.some((e) => e.code === 'invalid_content_type'),
+    ).toBe(true);
   });
 
   it('returns 400 for empty body on a required-body endpoint', async () => {
@@ -296,19 +287,8 @@ describe('Fastify error paths — body parsing failures', () => {
     expect(typeof body.message).toBe('string');
   });
 
-  it('returns 400 for JSON body on a multipart endpoint', async () => {
-    const res = await app.inject({
-      method: 'POST',
-      url: '/upload',
-      headers: { 'content-type': 'application/json' },
-      payload: JSON.stringify({ name: 'alice' }),
-    });
-    expect(res.statusCode).toBe(400);
-    const body: ErrorEnvelope = res.json();
-    expect(body.code).toBe('VALIDATION_ERROR');
-    expect(body.errors).toBeInstanceOf(Array);
-    assertJsonContentType(res.headers);
-  });
+  // JSON-on-multipart test removed — depends on t.file() endpoint.
+  // Covered in plugin.test.ts instead.
 });
 
 // ---------------------------------------------------------------------------
@@ -341,35 +321,30 @@ describe('Fastify error paths — response validation', () => {
     expect(res.headers['content-type']).toBeUndefined();
   });
 
-  it('returns 500 when handler throws an unexpected error', async () => {
+  it('returns 500 INTERNAL_ERROR when handler throws an unexpected error', async () => {
     const res = await app.inject({
       method: 'GET',
       url: '/boom',
     });
-    // Unknown errors are re-thrown to Fastify's default error handler.
-    // Fastify's default handler returns its own JSON envelope.
     expect(res.statusCode).toBe(500);
-    const body = res.json();
+    const body: ErrorEnvelope = res.json();
     assertJsonContentType(res.headers);
-    // DIVERGENCE: Fastify uses its native envelope (statusCode/error/message),
-    // NOT the Triad INTERNAL_ERROR envelope, for errors that are not
-    // RequestValidationError or ValidationException.
-    expect(typeof body.message).toBe('string');
-    // Verify no stack trace is leaked in the message.
-    expect(body.message).not.toContain('at ');
+    expect(body.code).toBe('INTERNAL_ERROR');
+    expect(body.message).toBe('The server produced an unexpected error.');
+    expect(body.errors).toBeUndefined();
   });
 
-  it('returns 500 when beforeHandler throws an unexpected error', async () => {
+  it('returns 500 INTERNAL_ERROR when beforeHandler throws an unexpected error', async () => {
     const res = await app.inject({
       method: 'GET',
       url: '/before-boom',
     });
     expect(res.statusCode).toBe(500);
-    const body = res.json();
+    const body: ErrorEnvelope = res.json();
     assertJsonContentType(res.headers);
-    expect(typeof body.message).toBe('string');
-    // No stack trace leaked.
-    expect(body.message).not.toContain('at ');
+    expect(body.code).toBe('INTERNAL_ERROR');
+    expect(body.message).toBe('The server produced an unexpected error.');
+    expect(body.errors).toBeUndefined();
   });
 });
 
@@ -452,5 +427,42 @@ describe('Fastify error paths — envelope parity', () => {
     // Verify no extra keys.
     const keys = Object.keys(body).sort();
     expect(keys).toEqual(['code', 'errors', 'message']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Category 5: HandlerResponse.headers support
+// ---------------------------------------------------------------------------
+
+describe('Fastify error paths — response headers', () => {
+  it('applies response headers from HandlerResponse to the HTTP response', async () => {
+    const headerEp = endpoint({
+      name: 'headerResponseEP',
+      method: 'GET',
+      path: '/with-headers',
+      summary: 'Returns custom response headers',
+      responses: {
+        200: {
+          schema: t.model('HeaderRespOk', { ok: t.boolean() }),
+          description: 'ok',
+        },
+      },
+      handler: async (ctx) => {
+        const result = ctx.respond[200]({ ok: true });
+        return { ...result, headers: { 'x-custom-header': 'hello', 'x-request-id': '42' } };
+      },
+    });
+    const r = createRouter({ title: 'HeaderTest', version: '1.0.0' });
+    r.add(headerEp);
+    const headerApp = Fastify({ logger: false });
+    await headerApp.register(triadPlugin, { router: r });
+    await headerApp.ready();
+
+    const res = await headerApp.inject({ method: 'GET', url: '/with-headers' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ ok: true });
+    expect(res.headers['x-custom-header']).toBe('hello');
+    expect(res.headers['x-request-id']).toBe('42');
+    await headerApp.close();
   });
 });

@@ -767,6 +767,103 @@ describe('channel adapter — first-message auth', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// beforeHandler support
+// ---------------------------------------------------------------------------
+
+describe('channel adapter — beforeHandler', () => {
+  async function startBeforeHandlerServer(opts: {
+    behavior: 'populate-state' | 'reject-401' | 'throw';
+  }): Promise<RunningServer> {
+    const app = Fastify({ logger: false });
+    const router = createRouter({ title: 'BeforeHandlerTest', version: '1' });
+
+    const bhChannel = channel({
+      name: 'bhChannel',
+      path: '/ws/bh/:roomId',
+      summary: 'beforeHandler test channel',
+      connection: {
+        params: { roomId: t.string() },
+        headers: { 'x-token': t.string() },
+      },
+      beforeHandler: async (ctx) => {
+        if (opts.behavior === 'throw') {
+          throw new Error('auth service down');
+        }
+        const token = ctx.rawHeaders['x-token'];
+        if (opts.behavior === 'reject-401' || !token) {
+          return { ok: false as const, code: 401, message: 'unauthorized' };
+        }
+        return {
+          ok: true as const,
+          state: { userId: `user-for-${token}` },
+        };
+      },
+      clientMessages: {
+        sendMessage: {
+          schema: t.model('BHSend', { text: t.string().minLength(1) }),
+          description: 'Send',
+        },
+      },
+      serverMessages: {
+        message: {
+          schema: t.model('BHMsg', { userId: t.string(), text: t.string() }),
+          description: 'Msg',
+        },
+      },
+      onConnect: (ctx) => {
+        // state.userId should already be set by beforeHandler
+      },
+      handlers: {
+        sendMessage: (ctx, data) => {
+          ctx.broadcast.message({
+            userId: (ctx.state as Record<string, unknown>).userId as string,
+            text: data.text,
+          });
+        },
+      },
+    });
+    router.add(bhChannel);
+    await app.register(triadPlugin, { router });
+    await app.listen({ port: 0, host: '127.0.0.1' });
+    const address = app.server.address();
+    if (!address || typeof address === 'string') {
+      throw new Error('Fastify did not bind to a TCP port');
+    }
+    return { app, port: address.port, sockets: [] };
+  }
+
+  it('beforeHandler populates state that handlers can read', async () => {
+    server = await startBeforeHandlerServer({ behavior: 'populate-state' });
+    const socket = await openClient(server, '/ws/bh/room1', {
+      headers: { 'x-token': 'abc123' },
+    });
+    socket.send(JSON.stringify({ type: 'sendMessage', data: { text: 'hi' } }));
+    const envelope = await waitForType(socket, 'message');
+    expect((envelope.data as { userId: string }).userId).toBe('user-for-abc123');
+  });
+
+  it('beforeHandler rejects with custom code — socket closes', async () => {
+    server = await startBeforeHandlerServer({ behavior: 'reject-401' });
+    const socket = await openClient(server, '/ws/bh/room1', {
+      headers: { 'x-token': 'anything' },
+      expectClose: true,
+    });
+    const close = await waitForClose(socket);
+    expect(close.code).toBe(4401);
+  });
+
+  it('beforeHandler throw closes the socket with 4500', async () => {
+    server = await startBeforeHandlerServer({ behavior: 'throw' });
+    const socket = await openClient(server, '/ws/bh/room1', {
+      headers: { 'x-token': 'anything' },
+      expectClose: true,
+    });
+    const close = await waitForClose(socket);
+    expect(close.code).toBe(4500);
+  });
+});
+
 describe('channel adapter — HTTP-only backward compat', () => {
   it('does not require @fastify/websocket when the router has no channels', async () => {
     // A pure HTTP router should work without loading @fastify/websocket

@@ -348,6 +348,56 @@ export function createChannelHandler(
     socket: WebSocket,
     request: FastifyRequest,
   ) {
+    // ---- 0. beforeHandler ------------------------------------------------
+    // Runs BEFORE schema validation so auth can reject before 4400.
+    // If beforeHandler needs services, we resolve them early and
+    // reuse the same instance for step 2.
+    let beforeState: Record<string, unknown> = {};
+    let earlyServices: ServiceContainer | undefined;
+    if (channel.beforeHandler) {
+      try {
+        earlyServices = await resolveServices(options.services, request);
+
+        const rawParams =
+          typeof request.params === 'object' && request.params !== null
+            ? { ...(request.params as Record<string, unknown>) }
+            : {};
+        const rawQuery =
+          typeof request.query === 'object' && request.query !== null
+            ? { ...(request.query as Record<string, unknown>) }
+            : {};
+        const rawHeaders =
+          typeof request.headers === 'object' && request.headers !== null
+            ? { ...(request.headers as Record<string, unknown>) }
+            : {};
+
+        const beforeResult = await channel.beforeHandler({
+          rawParams,
+          rawQuery,
+          rawHeaders,
+          services: earlyServices,
+        });
+        if (!beforeResult.ok) {
+          sendAdapterError(socket, {
+            code: 'CONNECTION_REJECTED',
+            message: beforeResult.message,
+            details: { httpCode: beforeResult.code },
+          });
+          socket.close(4000 + beforeResult.code, beforeResult.message);
+          return;
+        }
+        beforeState = (beforeResult.state ?? {}) as Record<string, unknown>;
+      } catch (err) {
+        logError(err, request);
+        sendAdapterError(socket, {
+          code: 'INTERNAL_ERROR',
+          message: 'beforeHandler failed.',
+        });
+        socket.close(4500, 'internal error');
+        return;
+      }
+    }
+
     // ---- 1. Handshake validation -----------------------------------------
     //
     // When `channel.connection.validateBeforeConnect` is `true` (the
@@ -418,17 +468,22 @@ export function createChannelHandler(
     }
 
     // ---- 2. Service resolution -------------------------------------------
+    // Reuse services if already resolved by beforeHandler.
     let services: ServiceContainer;
-    try {
-      services = await resolveServices(options.services, request);
-    } catch (err) {
-      logError(err, request);
-      sendAdapterError(socket, {
-        code: 'INTERNAL_ERROR',
-        message: 'Service resolution failed.',
-      });
-      socket.close(4500, 'internal error');
-      return;
+    if (earlyServices) {
+      services = earlyServices;
+    } else {
+      try {
+        services = await resolveServices(options.services, request);
+      } catch (err) {
+        logError(err, request);
+        sendAdapterError(socket, {
+          code: 'INTERNAL_ERROR',
+          message: 'Service resolution failed.',
+        });
+        socket.close(4500, 'internal error');
+        return;
+      }
     }
 
     // ---- 3. Connection record --------------------------------------------
@@ -437,7 +492,7 @@ export function createChannelHandler(
       params,
       query,
       headers,
-      state: {},
+      state: { ...beforeState },
       rejected: false,
     };
 

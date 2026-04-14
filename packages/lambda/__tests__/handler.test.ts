@@ -204,9 +204,39 @@ const badResponse = endpoint({
     } as any),
 });
 
+const handlerThrows = endpoint({
+  name: 'handlerThrows',
+  method: 'GET',
+  path: '/boom',
+  summary: 'Handler throws an unexpected error',
+  responses: {
+    200: { schema: t.model('BoomOk', { ok: t.boolean() }), description: 'ok' },
+  },
+  handler: async () => {
+    throw new Error('boom');
+  },
+});
+
+const responseHeaders = endpoint({
+  name: 'responseHeaders',
+  method: 'GET',
+  path: '/with-headers',
+  summary: 'Handler returns custom response headers',
+  responses: {
+    200: { schema: t.model('HeadersOk', { ok: t.boolean() }), description: 'ok' },
+  },
+  handler: async (ctx) => ({
+    ...ctx.respond[200]({ ok: true }),
+    headers: { 'x-custom-header': 'hello', 'x-request-id': 'abc-123' },
+  }),
+});
+
 function buildRouter() {
   const r = createRouter({ title: 'Petstore', version: '1.0.0' });
-  r.add(createPet, getPet, listPets, echoHeader, tenantEcho, deletePet, badResponse);
+  r.add(
+    createPet, getPet, listPets, echoHeader, tenantEcho, deletePet,
+    badResponse, handlerThrows, responseHeaders,
+  );
   return r;
 }
 
@@ -364,6 +394,7 @@ describe('createLambdaHandler — v1 (API Gateway REST)', () => {
       makeV1Event({
         method: 'POST',
         path: '/pets',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ species: 'dog', age: 3 }),
       }),
       makeContext(),
@@ -384,6 +415,7 @@ describe('createLambdaHandler — v1 (API Gateway REST)', () => {
       makeV1Event({
         method: 'POST',
         path: '/pets',
+        headers: { 'content-type': 'application/json' },
         body: '{not-json',
       }),
       makeContext(),
@@ -474,6 +506,7 @@ describe('createLambdaHandler — v1 (API Gateway REST)', () => {
       makeV1Event({
         method: 'POST',
         path: '/pets',
+        headers: { 'content-type': 'application/json' },
         body: Buffer.from(payload).toString('base64'),
         isBase64Encoded: true,
       }),
@@ -516,6 +549,7 @@ describe('createLambdaHandler — v2 (HTTP API / Function URL)', () => {
       makeV2Event({
         method: 'POST',
         path: '/pets',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ name: 'V2', species: 'cat', age: 4 }),
       }),
       makeContext(),
@@ -744,5 +778,114 @@ describe('createLambdaHandler — beforeHandler', () => {
     )) as APIGatewayProxyResultV1;
     expect(result.statusCode).toBe(200);
     expect(bodyJson(result)).toEqual({ userId: 'bob-9' });
+  });
+});
+
+describe('createLambdaHandler — handler throws unexpected error', () => {
+  it('returns 500 INTERNAL_ERROR on v1 when handler throws', async () => {
+    const { handler } = buildHandler();
+    const result = (await handler(
+      makeV1Event({ method: 'GET', path: '/boom' }),
+      makeContext(),
+    )) as APIGatewayProxyResultV1;
+    expect(result.statusCode).toBe(500);
+    expect(bodyJson(result)).toEqual({
+      code: 'INTERNAL_ERROR',
+      message: 'The server produced an unexpected error.',
+    });
+  });
+
+  it('returns 500 INTERNAL_ERROR on v2 when handler throws', async () => {
+    const { handler } = buildHandler();
+    const result = (await handler(
+      makeV2Event({ method: 'GET', path: '/boom' }),
+      makeContext(),
+    )) as APIGatewayProxyResultV2;
+    expect(result.statusCode).toBe(500);
+    expect(bodyJson(result)).toEqual({
+      code: 'INTERNAL_ERROR',
+      message: 'The server produced an unexpected error.',
+    });
+  });
+});
+
+describe('createLambdaHandler — wrong content-type', () => {
+  it('returns 400 VALIDATION_ERROR with invalid_content_type for text/plain on a JSON endpoint (v1)', async () => {
+    const { handler } = buildHandler();
+    const result = (await handler(
+      makeV1Event({
+        method: 'POST',
+        path: '/pets',
+        headers: { 'content-type': 'text/plain' },
+        body: JSON.stringify({ name: 'Rex', species: 'dog', age: 3 }),
+      }),
+      makeContext(),
+    )) as APIGatewayProxyResultV1;
+    expect(result.statusCode).toBe(400);
+    const body = bodyJson(result) as {
+      code: string;
+      errors: Array<{ code: string }>;
+    };
+    expect(body.code).toBe('VALIDATION_ERROR');
+    expect(body.errors.some((e) => e.code === 'invalid_content_type')).toBe(true);
+  });
+
+  it('returns 400 VALIDATION_ERROR with invalid_content_type for text/plain on a JSON endpoint (v2)', async () => {
+    const { handler } = buildHandler();
+    const result = (await handler(
+      makeV2Event({
+        method: 'POST',
+        path: '/pets',
+        headers: { 'content-type': 'text/plain' },
+        body: JSON.stringify({ name: 'Rex', species: 'dog', age: 3 }),
+      }),
+      makeContext(),
+    )) as APIGatewayProxyResultV2;
+    expect(result.statusCode).toBe(400);
+    const body = bodyJson(result) as {
+      code: string;
+      errors: Array<{ code: string }>;
+    };
+    expect(body.code).toBe('VALIDATION_ERROR');
+    expect(body.errors.some((e) => e.code === 'invalid_content_type')).toBe(true);
+  });
+
+  it('accepts application/vnd.api+json as a valid JSON content-type', async () => {
+    const { handler } = buildHandler();
+    const result = (await handler(
+      makeV1Event({
+        method: 'POST',
+        path: '/pets',
+        headers: { 'content-type': 'application/vnd.api+json' },
+        body: JSON.stringify({ name: 'Rex', species: 'dog', age: 3 }),
+      }),
+      makeContext(),
+    )) as APIGatewayProxyResultV1;
+    expect(result.statusCode).toBe(201);
+  });
+});
+
+describe('createLambdaHandler — response headers from handler', () => {
+  it('merges HandlerResponse.headers into the v1 response', async () => {
+    const { handler } = buildHandler();
+    const result = (await handler(
+      makeV1Event({ method: 'GET', path: '/with-headers' }),
+      makeContext(),
+    )) as APIGatewayProxyResultV1;
+    expect(result.statusCode).toBe(200);
+    expect(result.headers?.['x-custom-header']).toBe('hello');
+    expect(result.headers?.['x-request-id']).toBe('abc-123');
+    expect((bodyJson(result) as { ok: boolean }).ok).toBe(true);
+  });
+
+  it('merges HandlerResponse.headers into the v2 response', async () => {
+    const { handler } = buildHandler();
+    const result = (await handler(
+      makeV2Event({ method: 'GET', path: '/with-headers' }),
+      makeContext(),
+    )) as APIGatewayProxyResultV2;
+    expect(result.statusCode).toBe(200);
+    expect(result.headers?.['x-custom-header']).toBe('hello');
+    expect(result.headers?.['x-request-id']).toBe('abc-123');
   });
 });

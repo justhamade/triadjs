@@ -132,6 +132,20 @@ const beforeHandlerThrowsEp = endpoint({
   handler: async (ctx) => ctx.respond[200]({ ok: true }),
 });
 
+const responseHeadersEp = endpoint({
+  name: 'responseHeadersEP',
+  method: 'GET',
+  path: '/with-headers',
+  summary: 'Handler returns custom response headers',
+  responses: {
+    200: { schema: t.model('HeadersOk', { ok: t.boolean() }), description: 'ok' },
+  },
+  handler: async (ctx) => ({
+    ...ctx.respond[200]({ ok: true }),
+    headers: { 'x-custom-header': 'hello', 'x-request-id': 'abc-123' },
+  }),
+});
+
 const headerRequiredEp = endpoint({
   name: 'headerRequiredEP',
   method: 'GET',
@@ -207,6 +221,7 @@ function buildRouter() {
     emptyBodyBugEp,
     handlerThrowsEp,
     beforeHandlerThrowsEp,
+    responseHeadersEp,
     headerRequiredEp,
     listEp,
     bookEp,
@@ -281,7 +296,7 @@ describe('Hono error paths — body parsing failures', () => {
     expect(res.headers.get('content-type')).toMatch(/application\/json/);
   });
 
-  it('returns 400 for wrong content-type (text/plain) on a JSON endpoint', async () => {
+  it('returns 400 VALIDATION_ERROR with invalid_content_type for wrong content-type (text/plain) on a JSON endpoint', async () => {
     const res = await app.fetch(
       new Request('http://localhost/pets', {
         method: 'POST',
@@ -289,11 +304,11 @@ describe('Hono error paths — body parsing failures', () => {
         body: JSON.stringify({ name: 'Rex', species: 'dog', age: 3 }),
       }),
     );
-    // Hono's c.req.json() reads the body regardless of content-type,
-    // so the JSON parses successfully. Then schema validation runs.
-    // The body has all required fields, so it should pass.
-    // BEHAVIOR: Hono parses JSON regardless of content-type.
-    expect([201, 400]).toContain(res.status);
+    expect(res.status).toBe(400);
+    const body: ErrorEnvelope = (await res.json()) as ErrorEnvelope;
+    expect(body.code).toBe('VALIDATION_ERROR');
+    expect(body.errors).toBeInstanceOf(Array);
+    expect(body.errors!.some((e) => e.code === 'invalid_content_type')).toBe(true);
   });
 
   it('returns 400 for empty body on a required-body endpoint', async () => {
@@ -346,20 +361,23 @@ describe('Hono error paths — response validation', () => {
     expect(res.headers.get('content-type')).toBeNull();
   });
 
-  it('returns 500 when handler throws an unexpected error', async () => {
+  it('returns 500 INTERNAL_ERROR when handler throws an unexpected error', async () => {
     const res = await get('/boom');
-    // Unknown errors are re-thrown to Hono's default error handler.
-    // Hono returns its own error response (typically 500).
     expect(res.status).toBe(500);
-    // DIVERGENCE: Hono's default onError produces its own text/plain
-    // "Internal Server Error" response, not a JSON INTERNAL_ERROR envelope.
-    // The exact format depends on Hono version.
+    const body: ErrorEnvelope = (await res.json()) as ErrorEnvelope;
+    expect(body.code).toBe('INTERNAL_ERROR');
+    expect(body.message).toBe('The server produced an unexpected error.');
+    expect(res.headers.get('content-type')).toMatch(/application\/json/);
+    expect(body.errors).toBeUndefined();
   });
 
-  it('returns 500 when beforeHandler throws an unexpected error', async () => {
+  it('returns 500 INTERNAL_ERROR when beforeHandler throws an unexpected error', async () => {
     const res = await get('/before-boom');
     expect(res.status).toBe(500);
-    // Same divergence as above — Hono's default error handler runs.
+    const body: ErrorEnvelope = (await res.json()) as ErrorEnvelope;
+    expect(body.code).toBe('INTERNAL_ERROR');
+    expect(body.message).toBe('The server produced an unexpected error.');
+    expect(body.errors).toBeUndefined();
   });
 });
 
@@ -406,6 +424,25 @@ describe('Hono error paths — coercion and path edge cases', () => {
 
 // ---------------------------------------------------------------------------
 // Category 4: Error envelope parity check
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Category 4: Response headers from handler
+// ---------------------------------------------------------------------------
+
+describe('Hono error paths — response headers from handler', () => {
+  it('applies HandlerResponse.headers to the Hono response', async () => {
+    const res = await get('/with-headers');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-custom-header')).toBe('hello');
+    expect(res.headers.get('x-request-id')).toBe('abc-123');
+    const body = (await res.json()) as { ok: boolean };
+    expect(body.ok).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Category 5: Error envelope parity check
 // ---------------------------------------------------------------------------
 
 describe('Hono error paths — envelope parity', () => {

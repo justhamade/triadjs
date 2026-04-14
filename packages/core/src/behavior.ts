@@ -84,6 +84,7 @@ export interface Behavior {
   scenario: string;
   given: GivenData;
   when: WhenData;
+  whenSteps?: string[];
   then: Assertion[];
 }
 
@@ -94,6 +95,11 @@ export interface Behavior {
  */
 export interface ChainableBehavior extends Behavior {
   and(description: string): ChainableBehavior;
+}
+
+export interface AndWhenStage {
+  andWhen(description: string): AndWhenStage;
+  then(description: string): ChainableBehavior;
 }
 
 // ---------------------------------------------------------------------------
@@ -302,17 +308,24 @@ class GivenBuilder {
     return this;
   }
 
-  when(description: string): WhenBuilder {
+  when(description: string): AndWhenStage {
     return new WhenBuilder(this.scenarioName, this.data, description);
   }
 }
 
-class WhenBuilder {
+class WhenBuilder implements AndWhenStage {
+  private readonly whenSteps: string[] = [];
+
   constructor(
     private readonly scenarioName: string,
     private readonly given: GivenData,
     private readonly description: string,
   ) {}
+
+  andWhen(description: string): AndWhenStage {
+    this.whenSteps.push(description);
+    return this;
+  }
 
   then(description: string): ChainableBehavior {
     const behavior: Behavior = {
@@ -321,6 +334,9 @@ class WhenBuilder {
       when: { description: this.description },
       then: [parseAssertion(description)],
     };
+    if (this.whenSteps.length > 0) {
+      behavior.whenSteps = [...this.whenSteps];
+    }
     return toChainable(behavior);
   }
 }

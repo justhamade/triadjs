@@ -35,6 +35,9 @@ import type {
   ChannelMessageConfig,
   ChannelMessages,
   DefaultChannelState,
+  ChannelBeforeHandler,
+  ChannelBeforeHandlerContext,
+  ChannelBeforeHandlerResult,
 } from './channel-context.js';
 
 // ---------------------------------------------------------------------------
@@ -191,6 +194,20 @@ export interface ChannelConfig<
   /** Messages the server may push to the client. */
   serverMessages: TServerMessages;
   /**
+   * Optional connection-lifecycle hook that runs BEFORE handshake schema
+   * validation. Use this for auth, tenant resolution, feature flags,
+   * and any other cross-cutting concern that should be able to reject
+   * raw connections without the validation pipeline 4400-ing first.
+   *
+   * Returns `{ ok: true, state }` to populate `ctx.state` for
+   * `onConnect` and subsequent handlers, or `{ ok: false, code,
+   * message }` to reject the connection before validation runs.
+   *
+   * This is a SINGLE function, not an array — same rationale as the
+   * HTTP endpoint's `beforeHandler`. See `before-handler.ts`.
+   */
+  beforeHandler?: ChannelBeforeHandler<TState>;
+  /**
    * Called once when a client successfully connects. Use it to
    * authenticate, seed `ctx.state`, register the connection with a
    * pubsub hub, and broadcast presence. Call `ctx.reject(code, msg)`
@@ -292,6 +309,13 @@ export interface Channel {
     timeoutMs: number;
   };
 
+  /**
+   * Optional connection-lifecycle hook that runs BEFORE handshake
+   * schema validation. See `ChannelConfig.beforeHandler`.
+   */
+  beforeHandler?: (
+    ctx: ChannelBeforeHandlerContext,
+  ) => Promise<ChannelBeforeHandlerResult<unknown>> | ChannelBeforeHandlerResult<unknown>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onConnect?: (ctx: any) => Promise<void> | void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -355,7 +379,40 @@ function normalizeMessageMap(
  * preserving full type inference across connection params, message
  * handlers, and outgoing sends.
  */
-export function channel<
+export interface ChannelFn {
+  <
+    TState = DefaultChannelState,
+    TParams = unknown,
+    TQuery = unknown,
+    THeaders = unknown,
+    TClientMessages extends ChannelMessages = ChannelMessages,
+    TServerMessages extends ChannelMessages = ChannelMessages,
+  >(
+    config: ChannelConfig<
+      TState,
+      TParams,
+      TQuery,
+      THeaders,
+      TClientMessages,
+      TServerMessages
+    >,
+  ): Channel;
+
+  withState: <TState>() => <
+    TParams = unknown,
+    TQuery = unknown,
+    THeaders = unknown,
+    TClientMessages extends ChannelMessages = ChannelMessages,
+    TServerMessages extends ChannelMessages = ChannelMessages,
+  >(
+    config: Omit<
+      ChannelConfig<TState, TParams, TQuery, THeaders, TClientMessages, TServerMessages>,
+      'state'
+    >,
+  ) => Channel;
+}
+
+export const channel: ChannelFn = function channel<
   TState = DefaultChannelState,
   TParams = unknown,
   TQuery = unknown,
@@ -416,6 +473,9 @@ export function channel<
   };
 
   if (config.description !== undefined) result.description = config.description;
+  if (config.beforeHandler !== undefined) {
+    result.beforeHandler = config.beforeHandler as Channel['beforeHandler'];
+  }
   if (config.onConnect !== undefined) {
     result.onConnect = config.onConnect as Channel['onConnect'];
   }
@@ -424,7 +484,17 @@ export function channel<
   }
 
   return result;
-}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+} as any;
+
+// Runtime implementation of channel.withState — typed via the interface above.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+channel.withState = function withState() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (config: any): Channel =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    channel({ ...config, state: {} } as any);
+};
 
 // Re-export the acknowledging types so consumers importing `channel` get
 // everything they need from one module.
@@ -437,4 +507,9 @@ export type {
   SendMap,
   DefaultChannelState,
   ChannelReject,
+  ChannelBeforeHandler,
+  ChannelBeforeHandlerContext,
+  ChannelBeforeHandlerResult,
+  ChannelBeforeHandlerSuccess,
+  ChannelBeforeHandlerRejection,
 } from './channel-context.js';

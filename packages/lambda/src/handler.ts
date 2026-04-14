@@ -199,16 +199,21 @@ interface InternalResponse {
   readonly jsonBody?: unknown;
   /** Explicit empty body (e.g. t.empty() returning 204). */
   readonly empty?: boolean;
+  /** Extra headers to merge into the response. */
+  readonly extraHeaders?: Record<string, string>;
 }
 
 function serializeResponse(
   family: EventFamily,
   response: InternalResponse,
 ): LambdaResult {
+  const extra = response.extraHeaders ?? {};
+
   if (family === 'v2') {
     if (response.empty) {
       const out: APIGatewayProxyResultV2 = {
         statusCode: response.status,
+        headers: { ...extra },
         body: '',
         isBase64Encoded: false,
       };
@@ -216,7 +221,7 @@ function serializeResponse(
     }
     const out: APIGatewayProxyResultV2 = {
       statusCode: response.status,
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...extra },
       body: JSON.stringify(response.jsonBody),
       isBase64Encoded: false,
     };
@@ -227,7 +232,7 @@ function serializeResponse(
   if (response.empty) {
     const out: APIGatewayProxyResultV1 = {
       statusCode: response.status,
-      headers: {},
+      headers: { ...extra },
       body: '',
       isBase64Encoded: false,
     };
@@ -235,7 +240,7 @@ function serializeResponse(
   }
   const out: APIGatewayProxyResultV1 = {
     statusCode: response.status,
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...extra },
     body: JSON.stringify(response.jsonBody),
     isBase64Encoded: false,
   };
@@ -305,6 +310,30 @@ async function resolveServices(
     return await services(event, context);
   }
   return services;
+}
+
+// ---------------------------------------------------------------------------
+// Content-type validation
+// ---------------------------------------------------------------------------
+
+function isJsonCompatible(contentType: string): boolean {
+  const lower = contentType.toLowerCase().split(';')[0]!.trim();
+  return lower === 'application/json' || lower.endsWith('+json');
+}
+
+function assertJsonContentType(
+  headers: Record<string, string | undefined>,
+): void {
+  const ct = headers['content-type'] ?? '';
+  if (!isJsonCompatible(ct)) {
+    throw new RequestValidationError('body', [
+      {
+        path: '',
+        code: 'invalid_content_type',
+        message: 'Expected application/json content type',
+      },
+    ]);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -455,7 +484,8 @@ export function createLambdaHandler(
       // Body: decode base64 if needed, then parse JSON when present.
       const rawBody = decodeBody(normalized.body, normalized.isBase64Encoded);
       let parsedBody: unknown = undefined;
-      if (rawBody !== undefined && rawBody !== '') {
+      if (rawBody !== undefined && rawBody !== '' && endpoint.request.body) {
+        assertJsonContentType(normalized.headers);
         try {
           parsedBody = JSON.parse(rawBody);
         } catch {
@@ -492,11 +522,13 @@ export function createLambdaHandler(
         return serializeResponse(normalized.family, {
           status: response.status,
           empty: true,
+          extraHeaders: response.headers,
         });
       }
       return serializeResponse(normalized.family, {
         status: response.status,
         jsonBody: response.body,
+        extraHeaders: response.headers,
       });
     } catch (err) {
       if (err instanceof RequestValidationError) {
@@ -524,7 +556,7 @@ export function createLambdaHandler(
         status: 500,
         jsonBody: {
           code: 'INTERNAL_ERROR',
-          message: 'An unexpected error occurred.',
+          message: 'The server produced an unexpected error.',
         },
       });
     }
