@@ -7,11 +7,48 @@ description: Use when mounting a TriadJS router on Fastify (`triadPlugin`), Expr
 
 The Triad router is framework-agnostic. Adapters mount it on a concrete HTTP framework.
 
-| Adapter | HTTP | WebSockets | Notes |
-|---|---|---|---|
-| `@triadjs/fastify` | ✅ | ✅ | Recommended. Full feature support including channels. |
-| `@triadjs/express` | ✅ | ❌ | Mature ecosystem. HTTP only. |
-| `@triadjs/hono` | ✅ | ❌ | Edge-friendly (Cloudflare Workers, Deno, Bun). HTTP only. |
+| Adapter | HTTP | WebSockets | Swagger UI | Notes |
+|---|---|---|---|---|
+| `@triadjs/fastify` | ✅ | ✅ | ✅ | Recommended. Full feature support including channels. |
+| `@triadjs/express` | ✅ | ❌ | ✅ | Mature ecosystem. HTTP only. |
+| `@triadjs/hono` | ✅ | ❌ | ✅ | Edge-friendly (Cloudflare Workers, Deno, Bun). HTTP only. |
+
+## Built-in Swagger UI — the `docs` option
+
+Every adapter accepts the same `docs?: DocsOption` field. When enabled, the adapter registers two extra routes:
+
+- `GET {path}` — Swagger UI HTML page
+- `GET {path}/openapi.json` — the live OpenAPI 3.1 document as JSON
+
+The OpenAPI document is generated **once** at plugin/app construction time, not per request, so the dev server pays the cost at startup only.
+
+**Decision table:**
+
+| `docs` value | Effect |
+|---|---|
+| `undefined` (default) | On when `NODE_ENV !== 'production'`, off otherwise |
+| `true` | On with defaults (`path: '/api-docs'`, title from `router.config.title`) |
+| `false` | Off |
+| `{ path, title, swaggerUIVersion }` | On with overrides |
+
+**Default path** is `/api-docs`. Example wiring:
+
+```ts
+// Fastify
+await app.register(triadPlugin, { router, services, docs: true });
+
+// Express
+app.use(createTriadRouter(router, { services, docs: true }));
+
+// Hono
+const app = createTriadApp(router, { services, docs: true });
+```
+
+Then visit `http://localhost:3000/api-docs` in a browser — Swagger UI loads, lists every endpoint, and the "Try it out" button works against your running server. No extra install, no peer dependency; the page pulls Swagger UI assets from jsdelivr.
+
+**When the user asks for docs**, default to `docs: true` — the user's intent is almost always "I want Swagger UI right now." Use `docs: { path: '/something-else' }` only when they explicitly name a different path.
+
+**Route-collision check:** if the router already has a `GET /api-docs` endpoint, every adapter throws at construction time with a clear error pointing at the `docs.path` option. Move the docs to a different path or rename the colliding endpoint.
 
 ## Fastify (recommended)
 

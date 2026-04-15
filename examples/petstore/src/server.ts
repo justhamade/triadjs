@@ -50,7 +50,10 @@ export async function createApp(
     options.services ??
     createServices({ db: createDatabase(process.env['DATABASE_URL'] ?? ':memory:') });
 
-  await fastify.register(triadPlugin, { router, services });
+  // `docs: true` serves Swagger UI at /api-docs and the live OpenAPI
+  // spec at /api-docs/openapi.json. Explicit `true` so it works in
+  // production too; the default is "on in dev, off in production".
+  await fastify.register(triadPlugin, { router, services, docs: true });
 
   return { fastify, services };
 }

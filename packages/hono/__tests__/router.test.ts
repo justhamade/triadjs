@@ -8,7 +8,7 @@
  * coercion, validation, handler dispatch, and error formatting.
  */
 
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { Hono } from 'hono';
 import { createRouter, endpoint, t } from '@triadjs/core';
 import { createTriadApp } from '../src/index.js';
@@ -715,5 +715,140 @@ describe('createTriadApp — file uploads', () => {
     expect(res.status).toBe(400);
     const body = (await res.json()) as { code: string };
     expect(body.code).toBe('VALIDATION_ERROR');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Swagger UI / docs option
+// ---------------------------------------------------------------------------
+
+describe('createTriadApp — docs (Swagger UI)', () => {
+  const originalEnv = process.env['NODE_ENV'];
+
+  beforeEach(() => {
+    delete process.env['NODE_ENV'];
+  });
+
+  afterEach(() => {
+    if (originalEnv === undefined) delete process.env['NODE_ENV'];
+    else process.env['NODE_ENV'] = originalEnv;
+  });
+
+  function buildDocsApp(
+    options: Parameters<typeof createTriadApp>[1] = {},
+  ): Hono {
+    const triad = createRouter({ title: 'Petstore API', version: '1.0.0' });
+    triad.add(
+      endpoint({
+        name: 'getPet',
+        method: 'GET',
+        path: '/pets/:id',
+        summary: 'Get',
+        request: { params: { id: t.string() } },
+        responses: {
+          200: {
+            schema: t.model('Pet', { id: t.string(), name: t.string() }),
+            description: 'OK',
+          },
+        },
+        handler: async (ctx) =>
+          ctx.respond[200]({ id: ctx.params.id, name: 'Buddy' }),
+      }),
+    );
+    return createTriadApp(triad, options);
+  }
+
+  it('serves Swagger UI HTML at /api-docs with docs: true', async () => {
+    const app = buildDocsApp({ docs: true });
+    const res = await app.fetch(new Request('http://localhost/api-docs'));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/html');
+    const body = await res.text();
+    expect(body).toContain('SwaggerUIBundle');
+    expect(body).toContain("url: '/api-docs/openapi.json'");
+    expect(body).toContain('Petstore API — API docs');
+  });
+
+  it('serves the OpenAPI 3.1 JSON at /api-docs/openapi.json', async () => {
+    const app = buildDocsApp({ docs: true });
+    const res = await app.fetch(
+      new Request('http://localhost/api-docs/openapi.json'),
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('application/json');
+    const doc = (await res.json()) as {
+      openapi: string;
+      info: { title: string };
+      paths: Record<string, unknown>;
+    };
+    expect(doc.openapi).toBe('3.1.0');
+    expect(doc.info.title).toBe('Petstore API');
+    expect(doc.paths['/pets/{id}']).toBeDefined();
+  });
+
+  it('defaults to on when NODE_ENV is unset', async () => {
+    const app = buildDocsApp();
+    const res = await app.fetch(new Request('http://localhost/api-docs'));
+    expect(res.status).toBe(200);
+  });
+
+  it('defaults to off when NODE_ENV=production', async () => {
+    process.env['NODE_ENV'] = 'production';
+    const app = buildDocsApp();
+    const res = await app.fetch(new Request('http://localhost/api-docs'));
+    expect(res.status).toBe(404);
+  });
+
+  it('docs: true forces on even in production', async () => {
+    process.env['NODE_ENV'] = 'production';
+    const app = buildDocsApp({ docs: true });
+    const res = await app.fetch(new Request('http://localhost/api-docs'));
+    expect(res.status).toBe(200);
+  });
+
+  it('docs: false disables in development', async () => {
+    const app = buildDocsApp({ docs: false });
+    const html = await app.fetch(new Request('http://localhost/api-docs'));
+    expect(html.status).toBe(404);
+    const json = await app.fetch(
+      new Request('http://localhost/api-docs/openapi.json'),
+    );
+    expect(json.status).toBe(404);
+  });
+
+  it('accepts a custom path', async () => {
+    const app = buildDocsApp({ docs: { path: '/internal/docs' } });
+    const html = await app.fetch(
+      new Request('http://localhost/internal/docs'),
+    );
+    expect(html.status).toBe(200);
+    expect(await html.text()).toContain("url: '/internal/docs/openapi.json'");
+    const json = await app.fetch(
+      new Request('http://localhost/internal/docs/openapi.json'),
+    );
+    expect(json.status).toBe(200);
+    const notFound = await app.fetch(
+      new Request('http://localhost/api-docs'),
+    );
+    expect(notFound.status).toBe(404);
+  });
+
+  it('throws when a user endpoint collides with the docs path', () => {
+    const triad = createRouter({ title: 'API', version: '1.0.0' });
+    triad.add(
+      endpoint({
+        name: 'getApiDocs',
+        method: 'GET',
+        path: '/api-docs',
+        summary: 'Collides',
+        responses: {
+          200: { schema: t.model('Ok', { ok: t.boolean() }), description: 'ok' },
+        },
+        handler: async (ctx) => ctx.respond[200]({ ok: true }),
+      }),
+    );
+    expect(() => createTriadApp(triad, { docs: true })).toThrow(
+      /collides with the Swagger UI docs path/,
+    );
   });
 });

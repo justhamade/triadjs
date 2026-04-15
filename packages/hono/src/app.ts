@@ -41,6 +41,12 @@
 
 import { Hono } from 'hono';
 import { Router as TriadRouter } from '@triadjs/core';
+import {
+  generateOpenAPI,
+  generateSwaggerUIHtml,
+  resolveDocsOption,
+  type DocsOption,
+} from '@triadjs/openapi';
 
 import {
   createRouteHandler,
@@ -57,6 +63,27 @@ export interface CreateTriadAppOptions {
   services?: ServicesResolver;
   /** Override the default error logger (used for 500s on response-validation failures). */
   logError?: CreateHandlerOptions['logError'];
+  /**
+   * Serve Swagger UI + the live OpenAPI JSON as built-in routes.
+   *
+   * - `undefined` (default): on when `NODE_ENV !== 'production'`, off otherwise.
+   * - `true`: on with defaults (`path: '/api-docs'`).
+   * - `false`: off.
+   * - `{ path, title, swaggerUIVersion }`: on with overrides.
+   *
+   * When enabled, two routes are registered:
+   *
+   *   GET  {path}                → HTML page with Swagger UI
+   *   GET  {path}/openapi.json   → the OpenAPI 3.1 document as JSON
+   *
+   * The OpenAPI document is generated once at app construction time
+   * (not per request), so the dev server pays the cost at startup only.
+   *
+   * Note: on Cloudflare Workers / Deno Deploy, `NODE_ENV` is typically
+   * unset — docs default to on. Set `docs: false` explicitly for edge
+   * production deployments.
+   */
+  docs?: DocsOption;
 }
 
 const METHOD_MAP = {
@@ -93,5 +120,43 @@ export function createTriadApp(
     app[method](endpoint.path, handler);
   }
 
+  // Swagger UI + live OpenAPI JSON. Registered AFTER endpoints so a
+  // colliding user endpoint at the same path is matched first (Hono
+  // is first-match-wins within a route method).
+  const resolvedDocs = resolveDocsOption(options.docs, router);
+  if (resolvedDocs) {
+    const openapiPath = joinDocsPath(resolvedDocs.path, '/openapi.json');
+    const collision = router.allEndpoints().find(
+      (e) =>
+        e.method === 'GET' &&
+        (e.path === resolvedDocs.path || e.path === openapiPath),
+    );
+    if (collision) {
+      throw new Error(
+        `@triadjs/hono: the router already has a GET ${collision.path} endpoint, ` +
+          `which collides with the Swagger UI docs path "${resolvedDocs.path}". ` +
+          `Move the docs to a different path via \`docs: { path: '/docs' }\`, ` +
+          `or disable docs with \`docs: false\`.`,
+      );
+    }
+    const doc = generateOpenAPI(router);
+    const html = generateSwaggerUIHtml({
+      title: resolvedDocs.title,
+      openapiUrl: openapiPath,
+      swaggerUIVersion: resolvedDocs.swaggerUIVersion,
+    });
+    app.get(openapiPath, (c) => c.json(doc));
+    app.get(resolvedDocs.path, (c) => c.html(html));
+  }
+
   return app;
+}
+
+/**
+ * Concatenate a docs base path and a suffix, handling the root path `/`
+ * so the result is never `//openapi.json`.
+ */
+function joinDocsPath(base: string, suffix: string): string {
+  if (base === '/') return suffix;
+  return base + suffix;
 }

@@ -13,6 +13,8 @@ export {
   type TriadPluginOptions,
 } from './plugin.js';
 
+export type { DocsOption } from '@triadjs/openapi';
+
 export {
   createRouteHandler,
   type ServicesResolver,

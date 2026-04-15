@@ -37,6 +37,7 @@ src/
 6. **Assertion strings use double quotes**, match phrases from the `triad-behaviors` skill phrase table, and don't try to use `null`.
 7. **`ApiError` model** is shared across every endpoint's 4xx responses.
 8. **Pin `@triadjs/*` packages to `^0.2.0`** in `package.json` unless the user specifies otherwise. Before writing the final `package.json`, run `npm view @triadjs/core version` to confirm the current published major/minor and adjust the range to match — the plugin version may drift ahead of what's on npm.
+9. **Enable Swagger UI in the generated `server.ts`** by passing `docs: true` to `triadPlugin` (Fastify), `createTriadRouter` (Express), or `createTriadApp` (Hono). This serves the live OpenAPI spec at `/api-docs/openapi.json` and Swagger UI at `/api-docs` as soon as `npm run dev` is running — no extra step needed. Default is "on in dev, off in production"; `docs: true` forces on in both.
 
 ## package.json scripts
 
@@ -59,6 +60,6 @@ src/
 1. Run `npm install` to verify dependencies resolve.
 2. Run `triad test` and confirm every scenario passes against the in-memory repository.
 3. Run `triad docs` and verify `generated/openapi.yaml` is produced.
-4. Print a short summary: files created, commands to run, and what the user should do next (add more endpoints via `/triadjs:endpoint`, wire a real DB via `/triadjs:model` + `triad db generate`).
+4. Print a short summary: files created, commands to run, and what the user should do next. Explicitly tell them they can run `npm run dev` and open `http://localhost:3000/api-docs` in a browser to see Swagger UI immediately — no extra setup required. Then suggest follow-ups: add more endpoints via `/triadjs:endpoint`, wire a real DB via `/triadjs:model` + `triad db generate`.
 
 Do NOT run `triad db generate` during initial scaffolding — the in-memory repo doesn't need it. Leave that for when the user adds persistence.

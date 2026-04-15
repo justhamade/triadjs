@@ -35,6 +35,12 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { Router, hasFileFields } from '@triadjs/core';
 import {
+  generateOpenAPI,
+  generateSwaggerUIHtml,
+  resolveDocsOption,
+  type DocsOption,
+} from '@triadjs/openapi';
+import {
   createRouteHandler,
   type ServicesResolver,
   type CreateHandlerOptions,
@@ -54,6 +60,23 @@ export interface TriadPluginOptions {
   services?: ServicesResolver;
   /** Override the default error logger (used for 500s on response-validation failures). */
   logError?: CreateHandlerOptions['logError'];
+  /**
+   * Serve Swagger UI + the live OpenAPI JSON as built-in routes.
+   *
+   * - `undefined` (default): on when `NODE_ENV !== 'production'`, off otherwise.
+   * - `true`: on with defaults (`path: '/api-docs'`).
+   * - `false`: off.
+   * - `{ path, title, swaggerUIVersion }`: on with overrides.
+   *
+   * When enabled, two routes are registered:
+   *
+   *   GET  {path}                → HTML page with Swagger UI
+   *   GET  {path}/openapi.json   → the OpenAPI 3.1 document as JSON
+   *
+   * The OpenAPI document is generated once at plugin registration time
+   * (not per request), so the dev server pays the cost at startup only.
+   */
+  docs?: DocsOption;
 }
 
 export const triadPlugin: FastifyPluginAsync<TriadPluginOptions> = async (
@@ -189,6 +212,50 @@ export const triadPlugin: FastifyPluginAsync<TriadPluginOptions> = async (
     });
   }
 
+  // Swagger UI + live OpenAPI JSON. Registered AFTER endpoints so a
+  // user endpoint at the same path wins on collision (it will already
+  // have been registered above, and Fastify will throw a duplicate-
+  // route error below — we catch it and rethrow with a pointer to the
+  // `docs.path` option).
+  const resolvedDocs = resolveDocsOption(options.docs, router);
+  if (resolvedDocs) {
+    const doc = generateOpenAPI(router);
+    const openapiPath = joinDocsPath(resolvedDocs.path, '/openapi.json');
+    const html = generateSwaggerUIHtml({
+      title: resolvedDocs.title,
+      openapiUrl: openapiPath,
+      swaggerUIVersion: resolvedDocs.swaggerUIVersion,
+    });
+
+    try {
+      fastify.route({
+        method: 'GET',
+        url: openapiPath,
+        handler: async (_request, reply) => {
+          reply.type('application/json').send(doc);
+        },
+      });
+      fastify.route({
+        method: 'GET',
+        url: resolvedDocs.path,
+        handler: async (_request, reply) => {
+          reply.type('text/html; charset=utf-8').send(html);
+        },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `@triadjs/fastify: failed to register Swagger UI routes at "${resolvedDocs.path}". ` +
+          `This usually means the router already has an endpoint at "${resolvedDocs.path}" ` +
+          `or "${openapiPath}". Either remove the colliding endpoint, move the docs to a ` +
+          `different path via \`docs: { path: '/docs' }\`, or disable docs with \`docs: false\`. ` +
+          `Original error: ${message}`,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        { cause: err as any },
+      );
+    }
+  }
+
   // WebSocket channels. We register `@fastify/websocket` lazily — it's
   // an optional peer dependency, so HTTP-only routers never incur the
   // import cost and never force the consumer to install a package they
@@ -245,6 +312,15 @@ export const triadPlugin: FastifyPluginAsync<TriadPluginOptions> = async (
     );
   }
 };
+
+/**
+ * Concatenate a docs base path and a suffix, handling the root path `/`
+ * so the result is never `//openapi.json`.
+ */
+function joinDocsPath(base: string, suffix: string): string {
+  if (base === '/') return suffix;
+  return base + suffix;
+}
 
 // Re-export so users don't have to add a second import for the default.
 export default triadPlugin;

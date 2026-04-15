@@ -171,6 +171,25 @@ triad docs --output ./generated/openapi.yaml
 
 Your Pet model becomes a `$ref: '#/components/schemas/Pet'`. Your endpoint becomes a `paths./pets.post` operation. The `201` response body schema is `Pet`. The `400` response is `ApiError`. All of it derived from the TypeScript you already wrote.
 
+### Browse the spec in Swagger UI while the server runs
+
+Every Triad adapter — Fastify, Express, Hono — ships built-in Swagger UI. No extra install. When you wire up your adapter, pass `docs: true`:
+
+```ts
+// Fastify
+await app.register(triadPlugin, { router, services, docs: true });
+
+// Express
+app.use(createTriadRouter(router, { services, docs: true }));
+
+// Hono
+const app = createTriadApp(router, { services, docs: true });
+```
+
+Then run your dev server (`npm run dev` / `tsx watch src/server.ts`) and open **[http://localhost:3000/api-docs](http://localhost:3000/api-docs)** in a browser. Swagger UI loads, lists every endpoint from the router, and the "Try it out" button works against your live server. The live OpenAPI JSON is at `/api-docs/openapi.json`.
+
+Default behavior: on when `NODE_ENV !== 'production'`, off otherwise. Pass `docs: false` to disable, or `docs: { path: '/internal/docs' }` to serve it somewhere else. See the full reference in the [`@triadjs/fastify` README](../packages/fastify/README.md) (or the equivalent for your adapter).
+
 ## 6. Run the behavior tests
 
 > Phase 5 — the `@triadjs/test-runner` package.

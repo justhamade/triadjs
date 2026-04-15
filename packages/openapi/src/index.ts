@@ -30,3 +30,13 @@ export {
 } from './generator.js';
 
 export { toYaml, toJson } from './serialize.js';
+
+export {
+  generateSwaggerUIHtml,
+  resolveDocsOption,
+  escapeHtml,
+  escapeJsString,
+  type DocsOption,
+  type ResolvedDocsConfig,
+  type SwaggerUIHtmlOptions,
+} from './swagger-ui.js';

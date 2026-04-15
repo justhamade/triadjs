@@ -8,9 +8,9 @@
  * body.
  */
 
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
-import { createRouter, endpoint, t } from '@triadjs/core';
+import { createRouter, endpoint, t, type ServiceContainer } from '@triadjs/core';
 import { triadPlugin } from '../src/plugin.js';
 
 // ---------------------------------------------------------------------------
@@ -758,6 +758,158 @@ describe('beforeHandler', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ userId: 'alice-42' });
+    await app.close();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Swagger UI / docs option
+// ---------------------------------------------------------------------------
+
+describe('triadPlugin — docs (Swagger UI)', () => {
+  const originalEnv = process.env['NODE_ENV'];
+
+  beforeEach(() => {
+    delete process.env['NODE_ENV'];
+  });
+
+  afterEach(() => {
+    if (originalEnv === undefined) delete process.env['NODE_ENV'];
+    else process.env['NODE_ENV'] = originalEnv;
+  });
+
+  async function withApp(
+    options: Parameters<typeof triadPlugin>[1] extends infer O
+      ? O extends undefined
+        ? never
+        : Partial<O>
+      : never,
+  ): Promise<FastifyInstance> {
+    const router = createRouter({ title: 'Petstore API', version: '1.0.0' });
+    router.add(createPet, getPet);
+    const app = Fastify();
+    const services: ServiceContainer = { petRepo: new InMemoryPetRepo() };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await app.register(triadPlugin, { router, services, ...(options as any) });
+    return app;
+  }
+
+  it('serves Swagger UI HTML at /api-docs with docs: true', async () => {
+    const app = await withApp({ docs: true });
+    const res = await app.inject({ method: 'GET', url: '/api-docs' });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toContain('text/html');
+    expect(res.body).toContain('SwaggerUIBundle');
+    expect(res.body).toContain("url: '/api-docs/openapi.json'");
+    expect(res.body).toContain('Petstore API — API docs');
+    await app.close();
+  });
+
+  it('serves the OpenAPI 3.1 JSON at /api-docs/openapi.json', async () => {
+    const app = await withApp({ docs: true });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api-docs/openapi.json',
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toContain('application/json');
+    const doc = res.json();
+    expect(doc.openapi).toBe('3.1.0');
+    expect(doc.info.title).toBe('Petstore API');
+    expect(doc.paths['/pets']).toBeDefined();
+    expect(doc.paths['/pets/{id}']).toBeDefined();
+    await app.close();
+  });
+
+  it('defaults to on when NODE_ENV is unset', async () => {
+    const app = await withApp({});
+    const res = await app.inject({ method: 'GET', url: '/api-docs' });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain('SwaggerUIBundle');
+    await app.close();
+  });
+
+  it('defaults to on when NODE_ENV=development', async () => {
+    process.env['NODE_ENV'] = 'development';
+    const app = await withApp({});
+    const res = await app.inject({ method: 'GET', url: '/api-docs' });
+    expect(res.statusCode).toBe(200);
+    await app.close();
+  });
+
+  it('defaults to off when NODE_ENV=production', async () => {
+    process.env['NODE_ENV'] = 'production';
+    const app = await withApp({});
+    const res = await app.inject({ method: 'GET', url: '/api-docs' });
+    expect(res.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it('docs: true forces on even in production', async () => {
+    process.env['NODE_ENV'] = 'production';
+    const app = await withApp({ docs: true });
+    const res = await app.inject({ method: 'GET', url: '/api-docs' });
+    expect(res.statusCode).toBe(200);
+    await app.close();
+  });
+
+  it('docs: false disables in development', async () => {
+    process.env['NODE_ENV'] = 'development';
+    const app = await withApp({ docs: false });
+    const res = await app.inject({ method: 'GET', url: '/api-docs' });
+    expect(res.statusCode).toBe(404);
+    const jsonRes = await app.inject({
+      method: 'GET',
+      url: '/api-docs/openapi.json',
+    });
+    expect(jsonRes.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it('accepts a custom path', async () => {
+    const app = await withApp({ docs: { path: '/internal/docs' } });
+    const htmlRes = await app.inject({ method: 'GET', url: '/internal/docs' });
+    expect(htmlRes.statusCode).toBe(200);
+    expect(htmlRes.body).toContain("url: '/internal/docs/openapi.json'");
+
+    const jsonRes = await app.inject({
+      method: 'GET',
+      url: '/internal/docs/openapi.json',
+    });
+    expect(jsonRes.statusCode).toBe(200);
+    expect(jsonRes.json().openapi).toBe('3.1.0');
+
+    // Default path is no longer served
+    const notFound = await app.inject({ method: 'GET', url: '/api-docs' });
+    expect(notFound.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it('accepts a custom title visible in the rendered HTML', async () => {
+    const app = await withApp({
+      docs: { title: 'Custom Docs Title' },
+    });
+    const res = await app.inject({ method: 'GET', url: '/api-docs' });
+    expect(res.body).toContain('Custom Docs Title — API docs');
+    await app.close();
+  });
+
+  it('throws a helpful error when a user endpoint collides with the docs path', async () => {
+    const router = createRouter({ title: 'API', version: '1.0.0' });
+    // A user endpoint that collides with the default docs path
+    const collision = endpoint({
+      name: 'getApiDocs',
+      method: 'GET',
+      path: '/api-docs',
+      summary: 'Collides',
+      responses: { 200: { schema: t.model('Ok', { ok: t.boolean() }), description: 'ok' } },
+      handler: async (ctx) => ctx.respond[200]({ ok: true }),
+    });
+    router.add(collision);
+    const app = Fastify();
+    await expect(
+      app.register(triadPlugin, { router, docs: true }),
+    ).rejects.toThrow(/failed to register Swagger UI routes/);
     await app.close();
   });
 });

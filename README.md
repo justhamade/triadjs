@@ -43,7 +43,7 @@ This installs 10 skills (schema DSL, endpoints, channels, BDD behaviors with the
 /triadjs:new a petstore API with pets, adoptions, and a chat room channel
 ```
 
-Claude will create the full project layout — `package.json`, `triad.config.ts`, schemas, endpoints with behaviors, a Fastify server, and a test setup — then run `triad test` to confirm every scenario passes.
+Claude will create the full project layout — `package.json`, `triad.config.ts`, schemas, endpoints with behaviors, a Fastify server, and a test setup — then run `triad test` to confirm every scenario passes. Run `npm run dev` and Swagger UI is immediately live at **`http://localhost:3000/api-docs`** with the live OpenAPI spec at `/api-docs/openapi.json`. No extra step.
 
 **3. Iterate:**
 

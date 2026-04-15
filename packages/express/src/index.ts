@@ -16,6 +16,8 @@ export {
   type CreateTriadRouterOptions,
 } from './router.js';
 
+export type { DocsOption } from '@triadjs/openapi';
+
 export {
   createRouteHandler,
   type ServicesResolver,
