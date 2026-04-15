@@ -24,6 +24,42 @@ Triad's north star is that **an AI coding assistant should be able to understand
 
 ---
 
+## Get started with Claude Code
+
+This repo doubles as a Claude Code marketplace, so the fastest path to a working TriadJS backend is to let Claude do the scaffolding.
+
+**1. Add the TriadJS marketplace and install the plugin** (one time, in any Claude Code session):
+
+```
+/plugin marketplace add justhamade/triad
+/plugin install triadjs@triadjs
+```
+
+This installs 10 skills (schema DSL, endpoints, channels, BDD behaviors with the authoritative assertion phrase table, testing, adapters, Drizzle, CLI, DI) and 8 slash commands (`/triadjs:new`, `/triadjs:model`, `/triadjs:endpoint`, `/triadjs:channel`, `/triadjs:scenario`, `/triadjs:test`, `/triadjs:docs`, `/triadjs:validate`).
+
+**2. Scaffold your first project:**
+
+```
+/triadjs:new a petstore API with pets, adoptions, and a chat room channel
+```
+
+Claude will create the full project layout — `package.json`, `triad.config.ts`, schemas, endpoints with behaviors, a Fastify server, and a test setup — then run `triad test` to confirm every scenario passes.
+
+**3. Iterate:**
+
+```
+/triadjs:endpoint add a soft-delete endpoint for pets
+/triadjs:scenario cover the 404 case on getPet
+/triadjs:test
+/triadjs:docs
+```
+
+Each command loads only the skills it needs, writes idiomatic TriadJS code that matches the phrase table the parser expects, and verifies its own output. See [`plugin/README.md`](plugin/README.md) for the full skill and command catalog.
+
+Don't use Claude Code? Skip to [**Taste of it**](#taste-of-it) below for a plain-TypeScript walkthrough, or the full [Quickstart](docs/quickstart.md).
+
+---
+
 ## Taste of it
 
 ```typescript

@@ -6,6 +6,23 @@ This guide walks through defining a Triad endpoint, running its behaviors as tes
 
 ---
 
+## 0. (Optional) Install the Claude Code plugin
+
+If you're using [Claude Code](https://docs.anthropic.com/claude-code), the TriadJS repo ships a plugin that teaches Claude how to build TriadJS backends without guessing. It carries skills for the schema DSL, endpoints, WebSocket channels, the BDD assertion phrase table, testing, adapters, the Drizzle bridge, and the CLI — plus slash commands (`/triadjs:new`, `/triadjs:endpoint`, `/triadjs:model`, `/triadjs:channel`, `/triadjs:scenario`, `/triadjs:test`, `/triadjs:docs`, `/triadjs:validate`).
+
+The repo itself is a Claude Code marketplace, so installation is two commands:
+
+```
+/plugin marketplace add justhamade/triad
+/plugin install triadjs@triadjs
+```
+
+After that, you can describe what you want in plain English — *"scaffold a bookstore API with authors, books, and reviews"* — and Claude will invoke the right command and produce idiomatic Triad code. See [`plugin/README.md`](../plugin/README.md) for the full skill and command catalog.
+
+You can complete this quickstart without the plugin; it just makes the rest of it faster.
+
+---
+
 ## 1. Install
 
 ```bash

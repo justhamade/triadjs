@@ -1,0 +1,28 @@
+{
+  "name": "triadjs",
+  "version": "0.2.1",
+  "description": "Claude Code plugin for building TypeScript backends with TriadJS — one declarative definition produces validation, types, OpenAPI, AsyncAPI, Gherkin, BDD tests, and Drizzle database schemas.",
+  "author": {
+    "name": "TriadJS",
+    "url": "https://github.com/justhamade/triad"
+  },
+  "homepage": "https://github.com/justhamade/triad",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/justhamade/triad.git",
+    "directory": "plugin"
+  },
+  "license": "MIT",
+  "keywords": [
+    "triadjs",
+    "typescript",
+    "api",
+    "openapi",
+    "bdd",
+    "fastify",
+    "express",
+    "drizzle",
+    "websocket",
+    "asyncapi"
+  ]
+}
