@@ -7,11 +7,7 @@
     "url": "https://github.com/justhamade/triad"
   },
   "homepage": "https://github.com/justhamade/triad",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/justhamade/triad.git",
-    "directory": "plugin"
-  },
+  "repository": "https://github.com/justhamade/triad.git",
   "license": "MIT",
   "keywords": [
     "triadjs",
