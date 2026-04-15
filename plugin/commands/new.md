@@ -36,7 +36,7 @@ src/
 5. **Use `ctx.respond[status](body)`** exclusively — never raw `{ status, body }`.
 6. **Assertion strings use double quotes**, match phrases from the `triad-behaviors` skill phrase table, and don't try to use `null`.
 7. **`ApiError` model** is shared across every endpoint's 4xx responses.
-8. **Pin `@triadjs/*` packages to `^0.2.1`** in `package.json` unless the user specifies otherwise.
+8. **Pin `@triadjs/*` packages to `^0.2.0`** in `package.json` unless the user specifies otherwise. Before writing the final `package.json`, run `npm view @triadjs/core version` to confirm the current published major/minor and adjust the range to match — the plugin version may drift ahead of what's on npm.
 
 ## package.json scripts
 

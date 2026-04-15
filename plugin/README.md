@@ -84,7 +84,7 @@ The `triad-behaviors` skill carries the authoritative phrase table. Every time C
 
 ## Compatibility
 
-- Tracks `@triadjs/core@^0.2.1`.
+- Tracks `@triadjs/core@^0.2.0` (the latest version on npm at the time of writing). The plugin's own version may run ahead of the published framework version; the `/triadjs:new` command runs `npm view @triadjs/core version` to pick the right range.
 - Claude Code ≥ 1.0 (any version supporting the `.claude-plugin/plugin.json` format).
 - Node ≥ 18 (for TriadJS itself).
 
