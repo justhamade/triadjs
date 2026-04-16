@@ -1,6 +1,6 @@
 {
   "name": "@triadjs/hono",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@triadjs/asyncapi": "0.2.2",
-    "@triadjs/openapi": "0.2.2"
+    "@triadjs/openapi": "0.2.3"
   },
   "peerDependencies": {
     "@triadjs/core": "0.2.2",
