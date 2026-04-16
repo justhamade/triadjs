@@ -130,7 +130,9 @@ export interface AsyncAPIOperation {
   channel: { $ref: string };
   summary?: string;
   description?: string;
-  tags?: AsyncAPITag[];
+  // NOTE: `tags` is valid per the AsyncAPI 3.0 spec but the
+  // @asyncapi/react-component standalone viewer rejects it. Tags are
+  // kept on channels and the document root instead.
   messages: Array<{ $ref: string }>;
 }
 
@@ -591,8 +593,11 @@ function buildOperation(args: {
   if (args.description !== '') {
     op.summary = args.description;
   }
-  if (args.tags.length > 0) {
-    op.tags = args.tags.map((name) => ({ name }));
-  }
+  // NOTE: `tags` is valid on operations per the AsyncAPI 3.0 spec, but
+  // the @asyncapi/react-component standalone viewer rejects it with
+  // 'Property "tags" is not expected to be here'. We omit tags from
+  // operations to keep the viewer happy — they're already present on
+  // the channel object and the document root, which is enough for
+  // sidebar grouping in every tool we've tested.
   return op;
 }

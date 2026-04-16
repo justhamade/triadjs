@@ -360,15 +360,15 @@ describe('generateAsyncAPI — bounded contexts', () => {
     });
   });
 
-  it('channels in a context are auto-tagged with the context name on operations', () => {
+  it('context auto-tag is NOT placed on operations (viewer compat)', () => {
+    // The AsyncAPI 3.0 spec allows tags on operations, but the
+    // @asyncapi/react-component standalone viewer rejects them. Tags
+    // are kept on channels and the document root instead.
     const router = createRouter({ title: 'x', version: '1' });
     router.context('Chat', {}, (ctx) => ctx.add(chatRoom));
     const doc = generateAsyncAPI(router);
     const op = doc.operations['chatRoom.client.sendMessage']!;
-    const tagNames = op.tags?.map((t) => t.name) ?? [];
-    expect(tagNames).toContain('Chat');
-    // explicit channel.tags still present
-    expect(tagNames).toContain('Chat');
+    expect(op.tags).toBeUndefined();
   });
 
   it('context auto-tag is also applied to the channel object', () => {
