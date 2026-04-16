@@ -1,6 +1,6 @@
 {
   "name": "triadjs",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Claude Code plugin for building TypeScript backends with TriadJS — one declarative definition produces validation, types, OpenAPI, AsyncAPI, Gherkin, BDD tests, and Drizzle database schemas.",
   "author": {
     "name": "TriadJS",

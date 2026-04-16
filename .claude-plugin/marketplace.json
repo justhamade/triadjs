@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Official Claude Code marketplace for TriadJS — the TypeScript API framework where one declarative definition produces validation, types, OpenAPI, AsyncAPI, Gherkin, BDD tests, and Drizzle database schemas.",
-    "version": "0.2.1"
+    "version": "0.2.2"
   },
   "plugins": [
     {
       "name": "triadjs",
       "source": "./plugin",
       "description": "Build TypeScript backends with TriadJS. Skills cover the schema DSL, endpoints, WebSocket channels, BDD behaviors (with the authoritative assertion phrase table), testing, adapters, Drizzle bridge, CLI, and DI patterns. Slash commands accelerate common workflows: /triadjs:new, /triadjs:endpoint, /triadjs:model, /triadjs:channel, /triadjs:scenario, /triadjs:test, /triadjs:docs, /triadjs:validate.",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "author": {
         "name": "TriadJS",
         "url": "https://github.com/justhamade/triad"
