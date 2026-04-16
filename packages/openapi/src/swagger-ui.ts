@@ -213,16 +213,23 @@ export function generateAsyncAPIHtml(options: AsyncAPIHtmlOptions): string {
   </head>
   <body>
     <div id="asyncapi"></div>
-    <script src="https://unpkg.com/@asyncapi/react-component@2/browser/standalone/index.js" crossorigin></script>
     <script>
-      fetch('${urlJs}')
-        .then(function (r) { return r.text(); })
-        .then(function (schema) {
-          AsyncApiComponent.render(
-            { schema: schema, config: { show: { sidebar: true } } },
-            document.getElementById('asyncapi')
-          );
-        });
+      (function () {
+        var s = document.createElement('script');
+        s.src = 'https://unpkg.com/@asyncapi/react-component@2/browser/standalone/index.js';
+        s.crossOrigin = 'anonymous';
+        s.onload = function () {
+          fetch('${urlJs}')
+            .then(function (r) { return r.text(); })
+            .then(function (schema) {
+              AsyncApiComponent.render(
+                { schema: schema, config: { show: { sidebar: true } } },
+                document.getElementById('asyncapi')
+              );
+            });
+        };
+        document.head.appendChild(s);
+      })();
     </script>
   </body>
 </html>

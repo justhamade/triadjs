@@ -7,6 +7,8 @@ import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { createRouter } from '@triadjs/core';
 import {
   generateSwaggerUIHtml,
+  generateAsyncAPIHtml,
+  generateDocsLandingHtml,
   resolveDocsOption,
   escapeHtml,
   escapeJsString,
@@ -175,5 +177,59 @@ describe('resolveDocsOption', () => {
     );
     expect(resolved?.title).toBe('Custom Title');
     expect(resolved?.swaggerUIVersion).toBe('4.18.0');
+  });
+});
+
+describe('generateAsyncAPIHtml', () => {
+  it('loads the CDN script via onload to avoid the race condition', () => {
+    const html = generateAsyncAPIHtml({
+      title: 'Petstore API',
+      asyncapiUrl: '/api-docs/asyncapi.json',
+    });
+    // Must NOT have a bare <script src="...unpkg..."></script> followed
+    // by an inline <script> that references AsyncApiComponent — that
+    // was the race condition bug.
+    expect(html).not.toMatch(
+      /<script src="[^"]*asyncapi[^"]*"><\/script>\s*<script>/,
+    );
+    // Instead, the script is loaded dynamically with s.onload
+    expect(html).toContain("s.onload = function");
+    expect(html).toContain('AsyncApiComponent.render');
+    expect(html).toContain("'/api-docs/asyncapi.json'");
+  });
+
+  it('includes the title and correct HTML structure', () => {
+    const html = generateAsyncAPIHtml({
+      title: 'My WS API',
+      asyncapiUrl: '/docs/asyncapi.json',
+    });
+    expect(html).toContain('<!doctype html>');
+    expect(html).toContain('<title>My WS API — AsyncAPI docs</title>');
+    expect(html).toContain('id="asyncapi"');
+  });
+
+  it('escapes title to prevent injection', () => {
+    const html = generateAsyncAPIHtml({
+      title: '<img onerror=alert(1)>',
+      asyncapiUrl: '/x',
+    });
+    expect(html).not.toContain('<img onerror=alert(1)>');
+    expect(html).toContain('&lt;img onerror=alert(1)&gt;');
+  });
+});
+
+describe('generateDocsLandingHtml', () => {
+  it('renders a landing page linking both HTTP and WebSocket docs', () => {
+    const html = generateDocsLandingHtml({
+      title: 'My API',
+      openapiPath: '/api-docs/http',
+      asyncapiPath: '/api-docs/ws',
+    });
+    expect(html).toContain('<!doctype html>');
+    expect(html).toContain('<title>My API — API docs</title>');
+    expect(html).toContain('href="/api-docs/http"');
+    expect(html).toContain('href="/api-docs/ws"');
+    expect(html).toContain('HTTP API');
+    expect(html).toContain('WebSocket API');
   });
 });
