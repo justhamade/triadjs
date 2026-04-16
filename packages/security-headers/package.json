@@ -43,7 +43,7 @@
     "fastify-plugin": "^5.0.0"
   },
   "devDependencies": {
-    "@triadjs/core": "0.2.2",
+    "@triadjs/core": "^0.2.2",
     "@types/express": "^4.17.21",
     "@types/supertest": "^6.0.2",
     "express": "^4.19.2",

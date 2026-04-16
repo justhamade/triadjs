@@ -23,8 +23,8 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@triadjs/core": "0.2.2",
-    "@triadjs/tanstack-query": "0.2.2"
+    "@triadjs/core": "^0.2.2",
+    "@triadjs/tanstack-query": "^0.2.2"
   },
   "devDependencies": {
     "tsup": "^8.3.0",

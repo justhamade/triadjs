@@ -1,6 +1,6 @@
 {
   "name": "@triadjs/hono",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -23,15 +23,15 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@triadjs/asyncapi": "0.2.4",
-    "@triadjs/openapi": "0.2.9"
+    "@triadjs/asyncapi": "^0.2.4",
+    "@triadjs/openapi": "^0.2.9"
   },
   "peerDependencies": {
-    "@triadjs/core": "0.2.2",
+    "@triadjs/core": "^0.2.2",
     "hono": "^4.6.0"
   },
   "devDependencies": {
-    "@triadjs/core": "0.2.2",
+    "@triadjs/core": "^0.2.2",
     "hono": "^4.6.0",
     "tsup": "^8.3.0",
     "typescript": "^5.6.0",

@@ -1,6 +1,6 @@
 {
   "name": "@triadjs/openapi",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -23,7 +23,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@triadjs/core": "0.2.2",
+    "@triadjs/core": "^0.2.2",
     "yaml": "^2.6.0"
   },
   "devDependencies": {

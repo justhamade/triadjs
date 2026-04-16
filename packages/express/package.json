@@ -1,6 +1,6 @@
 {
   "name": "@triadjs/express",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -23,11 +23,11 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@triadjs/asyncapi": "0.2.4",
-    "@triadjs/openapi": "0.2.9"
+    "@triadjs/asyncapi": "^0.2.4",
+    "@triadjs/openapi": "^0.2.9"
   },
   "peerDependencies": {
-    "@triadjs/core": "0.2.2",
+    "@triadjs/core": "^0.2.2",
     "express": "^4.19.0",
     "multer": "^1.4.5-lts.1"
   },
@@ -37,7 +37,7 @@
     }
   },
   "devDependencies": {
-    "@triadjs/core": "0.2.2",
+    "@triadjs/core": "^0.2.2",
     "@types/express": "^4.17.21",
     "@types/multer": "^1.4.13",
     "@types/supertest": "^6.0.2",
