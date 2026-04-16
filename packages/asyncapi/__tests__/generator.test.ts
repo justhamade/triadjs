@@ -124,11 +124,11 @@ describe('generateAsyncAPI — document structure', () => {
   const doc = generateAsyncAPI(buildRouter());
 
   it('emits AsyncAPI 3.0.0', () => {
-    expect(doc.asyncapi).toBe('3.0.0');
+    expect(doc.asyncapi).toBe('3.1.0');
   });
 
   it('populates info from router config', () => {
-    expect(doc.info).toEqual({
+    expect(doc.info).toMatchObject({
       title: 'Chat API',
       version: '1.0.0',
       description: 'A sample Triad WebSocket API',
@@ -354,7 +354,7 @@ describe('generateAsyncAPI — bounded contexts', () => {
       },
     );
     const doc = generateAsyncAPI(router);
-    expect(doc.tags).toContainEqual({
+    expect(doc.info.tags).toContainEqual({
       name: 'Chat',
       description: 'Real-time messaging',
     });
@@ -388,7 +388,7 @@ describe('generateAsyncAPI — empty router', () => {
   it('produces a valid document with empty channels and operations', () => {
     const router = createRouter({ title: 'empty', version: '0.0.0' });
     const doc = generateAsyncAPI(router);
-    expect(doc.asyncapi).toBe('3.0.0');
+    expect(doc.asyncapi).toBe('3.1.0');
     expect(doc.channels).toEqual({});
     expect(doc.operations).toEqual({});
     expect(doc.components.schemas).toEqual({});
@@ -405,7 +405,7 @@ describe('serialize — YAML and JSON', () => {
 
   it('toYaml produces AsyncAPI-compatible YAML', () => {
     const yaml = toYaml(doc);
-    expect(yaml).toContain('asyncapi: 3.0.0');
+    expect(yaml).toContain('asyncapi: 3.1.0');
     expect(yaml).toContain('title: Chat API');
     expect(yaml).toContain('chatRoom:');
     expect(yaml).toContain('address: /ws/rooms/{roomId}');
@@ -414,7 +414,7 @@ describe('serialize — YAML and JSON', () => {
   it('toJson produces valid JSON', () => {
     const json = toJson(doc);
     const parsed = JSON.parse(json);
-    expect(parsed.asyncapi).toBe('3.0.0');
+    expect(parsed.asyncapi).toBe('3.1.0');
     expect(parsed.info.title).toBe('Chat API');
   });
 

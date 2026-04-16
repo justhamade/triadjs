@@ -25,7 +25,7 @@ describe('generateAsyncAPI — router with no channels', () => {
   it('emits a valid 3.0.0 document with empty channels', () => {
     const r = createRouter({ title: 'Empty', version: '1.0.0' });
     const doc = generateAsyncAPI(r);
-    expect(doc.asyncapi).toBe('3.0.0');
+    expect(doc.asyncapi).toBe('3.1.0');
     expect(doc.channels).toEqual({});
     expect(doc.operations).toEqual({});
     expect(doc.components.schemas).toEqual({});
@@ -35,7 +35,7 @@ describe('generateAsyncAPI — router with no channels', () => {
   it('omits tags when no contexts own channels', () => {
     const r = createRouter({ title: 'x', version: '1' });
     const doc = generateAsyncAPI(r);
-    expect(doc.tags).toBeUndefined();
+    expect(doc.info.tags).toBeUndefined();
   });
 });
 
@@ -74,14 +74,14 @@ describe('generateAsyncAPI — bounded contexts', () => {
       (ctx) => ctx.add(c),
     );
     const doc = generateAsyncAPI(r);
-    expect(doc.tags).toEqual([{ name: 'Chat', description: 'real-time chat' }]);
+    expect(doc.info.tags).toEqual([{ name: 'Chat', description: 'real-time chat' }]);
   });
 
   it('does NOT emit a tag for contexts that only own HTTP endpoints', () => {
     const r = createRouter({ title: 'x', version: '1' });
     r.context('HttpOnly', { description: 'no ws here' }, () => {});
     const doc = generateAsyncAPI(r);
-    expect(doc.tags).toBeUndefined();
+    expect(doc.info.tags).toBeUndefined();
   });
 });
 

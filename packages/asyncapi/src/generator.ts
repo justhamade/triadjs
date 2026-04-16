@@ -53,7 +53,7 @@ import {
 // ---------------------------------------------------------------------------
 
 export interface AsyncAPIDocument {
-  asyncapi: '3.0.0';
+  asyncapi: '3.1.0';
   info: AsyncAPIInfo;
   servers?: Record<string, AsyncAPIServer>;
   channels: Record<string, AsyncAPIChannelObject>;
@@ -62,13 +62,14 @@ export interface AsyncAPIDocument {
     schemas: Record<string, OpenAPISchema>;
     messages: Record<string, AsyncAPIMessage>;
   };
-  tags?: AsyncAPITag[];
 }
 
 export interface AsyncAPIInfo {
   title: string;
   version: string;
   description?: string;
+  /** Tags for logical grouping. In AsyncAPI 3.x tags live inside `info`, not at the document root (unlike OpenAPI). */
+  tags?: AsyncAPITag[];
 }
 
 export interface AsyncAPIServer {
@@ -270,7 +271,7 @@ export function generateAsyncAPI(
   }
 
   const doc: AsyncAPIDocument = {
-    asyncapi: '3.0.0',
+    asyncapi: '3.1.0',
     info: buildInfo(router),
     channels,
     operations,
@@ -283,8 +284,11 @@ export function generateAsyncAPI(
   const servers = buildServers(router);
   if (servers) doc.servers = servers;
 
+  // In AsyncAPI 3.x, tags live inside `info`, not at the document root
+  // (unlike OpenAPI 3.x). The @asyncapi/react-component viewer and the
+  // official @asyncapi/parser both reject root-level `tags`.
   if (tags.length > 0) {
-    doc.tags = tags;
+    doc.info.tags = tags;
   }
 
   return doc;
