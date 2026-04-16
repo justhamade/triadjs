@@ -1,6 +1,6 @@
 {
   "name": "@triadjs/express",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -19,11 +19,12 @@
     "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@triadjs/asyncapi": "0.2.2",
-    "@triadjs/openapi": "0.2.4"
+    "@triadjs/openapi": "0.2.5"
   },
   "peerDependencies": {
     "@triadjs/core": "0.2.2",
