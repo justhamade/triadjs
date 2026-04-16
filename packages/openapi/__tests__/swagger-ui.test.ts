@@ -180,38 +180,101 @@ describe('resolveDocsOption', () => {
   });
 });
 
+const sampleAsyncDoc = {
+  info: { title: 'Petstore', version: '1.0.0', description: 'Petstore WS API' },
+  channels: {
+    chatRoom: {
+      address: '/ws/rooms/{roomId}',
+      summary: 'Real-time chat',
+      description: 'Bidirectional chat for a room',
+      messages: {
+        sendMessage: { $ref: '#/components/messages/chatRoom.client.sendMessage' },
+        message: { $ref: '#/components/messages/chatRoom.server.message' },
+      },
+    },
+  },
+  operations: {
+    'chatRoom.client.sendMessage': {
+      action: 'receive' as const,
+      channel: { $ref: '#/channels/chatRoom' },
+      summary: 'Post a message',
+      messages: [{ $ref: '#/components/messages/chatRoom.client.sendMessage' }],
+    },
+    'chatRoom.server.message': {
+      action: 'send' as const,
+      channel: { $ref: '#/channels/chatRoom' },
+      summary: 'New message',
+      messages: [{ $ref: '#/components/messages/chatRoom.server.message' }],
+    },
+  },
+  components: {
+    messages: {
+      'chatRoom.client.sendMessage': {
+        name: 'sendMessage',
+        summary: 'Post a message',
+        description: 'Client sends a chat message',
+      },
+      'chatRoom.server.message': {
+        name: 'message',
+        summary: 'New message broadcast',
+      },
+    },
+  },
+};
+
 describe('generateAsyncAPIHtml', () => {
-  it('loads the CDN script via onload to avoid the race condition', () => {
+  it('renders static HTML with no CDN script dependency', () => {
     const html = generateAsyncAPIHtml({
       title: 'Petstore API',
       asyncapiUrl: '/api-docs/asyncapi.json',
+      doc: sampleAsyncDoc,
     });
-    // Must NOT have a bare <script src="...unpkg..."></script> followed
-    // by an inline <script> that references AsyncApiComponent — that
-    // was the race condition bug.
-    expect(html).not.toMatch(
-      /<script src="[^"]*asyncapi[^"]*"><\/script>\s*<script>/,
-    );
-    // Instead, the script is loaded dynamically with s.onload
-    expect(html).toContain("s.onload = function");
-    expect(html).toContain('AsyncApiComponent.render');
-    expect(html).toContain("'/api-docs/asyncapi.json'");
+    // No CDN scripts — the page is fully self-contained
+    expect(html).not.toContain('unpkg.com');
+    expect(html).not.toContain('AsyncApiComponent');
+    // The spec data is rendered inline as HTML
+    expect(html).toContain('/ws/rooms/{roomId}');
+    expect(html).toContain('Real-time chat');
+    expect(html).toContain('sendMessage');
+    expect(html).toContain('New message broadcast');
+  });
+
+  it('includes the JSON link and AsyncAPI Studio link', () => {
+    const html = generateAsyncAPIHtml({
+      title: 'Petstore API',
+      asyncapiUrl: '/api-docs/asyncapi.json',
+      doc: sampleAsyncDoc,
+    });
+    expect(html).toContain('href="/api-docs/asyncapi.json"');
+    expect(html).toContain('https://studio.asyncapi.com/');
   });
 
   it('includes the title and correct HTML structure', () => {
     const html = generateAsyncAPIHtml({
       title: 'My WS API',
       asyncapiUrl: '/docs/asyncapi.json',
+      doc: sampleAsyncDoc,
     });
     expect(html).toContain('<!doctype html>');
     expect(html).toContain('<title>My WS API — AsyncAPI docs</title>');
-    expect(html).toContain('id="asyncapi"');
+    expect(html).toContain('AsyncAPI 3.0');
+  });
+
+  it('shows client and server message directions', () => {
+    const html = generateAsyncAPIHtml({
+      title: 'API',
+      asyncapiUrl: '/x',
+      doc: sampleAsyncDoc,
+    });
+    expect(html).toContain('Client');
+    expect(html).toContain('Server');
   });
 
   it('escapes title to prevent injection', () => {
     const html = generateAsyncAPIHtml({
       title: '<img onerror=alert(1)>',
       asyncapiUrl: '/x',
+      doc: sampleAsyncDoc,
     });
     expect(html).not.toContain('<img onerror=alert(1)>');
     expect(html).toContain('&lt;img onerror=alert(1)&gt;');

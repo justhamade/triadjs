@@ -42,5 +42,6 @@ export {
   type ResolvedDocsConfig,
   type SwaggerUIHtmlOptions,
   type AsyncAPIHtmlOptions,
+  type AsyncAPIDocForHtml,
   type DocsLandingHtmlOptions,
 } from './swagger-ui.js';

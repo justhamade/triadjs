@@ -182,6 +182,7 @@ export function createTriadRouter(
       const asyncapiHtml = generateAsyncAPIHtml({
         title: resolvedDocs.title,
         asyncapiUrl: asyncapiJsonPath,
+        doc: asyncapiDoc,
       });
       expressRouter.get(asyncapiJsonPath, (_req, res) => {
         res.type('application/json').send(asyncapiJsonStr);
