@@ -169,7 +169,6 @@ export function createTriadApp(
       const asyncapiHtml = generateAsyncAPIHtml({
         title: resolvedDocs.title,
         asyncapiUrl: asyncapiJsonPath,
-        doc: asyncapiDoc,
       });
       app.get(asyncapiJsonPath, (c) => c.json(JSON.parse(asyncapiJsonStr)));
       app.get(asyncapiViewerPath, (c) => c.html(asyncapiHtml));

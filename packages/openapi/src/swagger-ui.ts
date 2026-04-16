@@ -188,102 +188,23 @@ export interface AsyncAPIHtmlOptions {
   title: string;
   /** URL to the live AsyncAPI JSON (served by the adapter). */
   asyncapiUrl: string;
-  /**
-   * The parsed AsyncAPI document. Rendered as static HTML so the page
-   * works offline and doesn't depend on any third-party CDN component.
-   */
-  doc: AsyncAPIDocForHtml;
 }
 
 /**
- * Minimal shape of the AsyncAPI document needed by the HTML renderer.
- * Matches the output of `@triadjs/asyncapi`'s `generateAsyncAPI()`.
- */
-export interface AsyncAPIDocForHtml {
-  info: { title: string; version: string; description?: string };
-  channels: Record<
-    string,
-    {
-      address: string;
-      summary?: string;
-      description?: string;
-      messages: Record<string, { $ref: string }>;
-    }
-  >;
-  operations: Record<
-    string,
-    {
-      action: 'send' | 'receive';
-      channel: { $ref: string };
-      summary?: string;
-      messages: Array<{ $ref: string }>;
-    }
-  >;
-  components: {
-    messages: Record<
-      string,
-      {
-        name: string;
-        summary?: string;
-        description?: string;
-      }
-    >;
-  };
-}
-
-/**
- * Generate a self-contained HTML page that renders AsyncAPI channel
- * documentation as static HTML. No CDN dependency, no runtime JS
- * framework — just the spec data rendered into clean markup.
+ * Generate an HTML page that renders AsyncAPI documentation using the
+ * official `@asyncapi/react-component` standalone bundle. The component
+ * fetches the spec from `asyncapiUrl` and renders the full interactive
+ * UI — servers, operations, channels, messages, schemas.
  *
- * Includes a link to AsyncAPI Studio for anyone who wants the full
- * interactive experience (paste the JSON URL there).
+ * Uses `AsyncApiStandalone.render()` (NOT the old `AsyncApiComponent`
+ * global — that was the source of the "Can't find variable" bug).
  *
- * This replaces the previous `@asyncapi/react-component` CDN approach
- * which was unreliable — the global `AsyncApiComponent` was not
- * consistently exported across versions.
+ * Loads the Inter font from Google Fonts to match AsyncAPI Studio's
+ * look and feel.
  */
 export function generateAsyncAPIHtml(options: AsyncAPIHtmlOptions): string {
   const title = escapeHtml(options.title);
-  const asyncapiUrl = escapeHtml(options.asyncapiUrl);
-  const doc = options.doc;
-
-  const channelEntries = Object.entries(doc.channels);
-  const channelsHtml = channelEntries
-    .map(([id, ch]) => {
-      const ops = Object.entries(doc.operations).filter(
-        ([, op]) => op.channel.$ref === `#/channels/${id}`,
-      );
-      const sendOps = ops.filter(([, op]) => op.action === 'send');
-      const receiveOps = ops.filter(([, op]) => op.action === 'receive');
-
-      const messageList = (
-        opList: Array<[string, { messages: Array<{ $ref: string }>; summary?: string }]>,
-        direction: string,
-      ): string => {
-        if (opList.length === 0) return '';
-        const msgs = opList.flatMap(([, op]) =>
-          op.messages.map((m) => {
-            const refKey = m.$ref.replace('#/components/messages/', '');
-            const msgDef = doc.components.messages[refKey];
-            return `<li><code>${escapeHtml(refKey)}</code>${msgDef?.summary ? ` — ${escapeHtml(msgDef.summary)}` : ''}${msgDef?.description ? `<br><small>${escapeHtml(msgDef.description)}</small>` : ''}</li>`;
-          }),
-        );
-        return `<div class="msg-group"><h4>${escapeHtml(direction)}</h4><ul>${msgs.join('')}</ul></div>`;
-      };
-
-      return `
-      <div class="channel">
-        <h3><code>${escapeHtml(ch.address)}</code></h3>
-        ${ch.summary ? `<p class="summary">${escapeHtml(ch.summary)}</p>` : ''}
-        ${ch.description ? `<p class="desc">${escapeHtml(ch.description)}</p>` : ''}
-        <div class="messages">
-          ${messageList(receiveOps, 'Client → Server (receive)')}
-          ${messageList(sendOps, 'Server → Client (send)')}
-        </div>
-      </div>`;
-    })
-    .join('\n');
+  const urlJs = escapeJsString(options.asyncapiUrl);
 
   return `<!doctype html>
 <html lang="en">
@@ -291,53 +212,28 @@ export function generateAsyncAPIHtml(options: AsyncAPIHtmlOptions): string {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>${title} — AsyncAPI docs</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://unpkg.com/@asyncapi/react-component@latest/styles/default.min.css">
     <style>
-      * { box-sizing: border-box; margin: 0; }
-      body { font-family: system-ui, -apple-system, sans-serif; background: #fafafa; color: #1a1a1a; }
-      .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
-      h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
-      .version { color: #666; font-size: 0.875rem; margin-bottom: 0.5rem; }
-      .subtitle { color: #666; margin-bottom: 1.5rem; }
-      .toolbar { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
-      .toolbar a {
-        display: inline-flex; align-items: center; gap: 0.4rem;
-        padding: 0.5rem 1rem; border: 1px solid #d1d5db; border-radius: 8px;
-        text-decoration: none; color: #374151; font-size: 0.875rem;
-        transition: border-color 0.15s, background 0.15s;
-      }
-      .toolbar a:hover { border-color: #3b82f6; background: #eff6ff; }
-      .channel {
-        background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
-        padding: 1.5rem; margin-bottom: 1.5rem;
-      }
-      .channel h3 { font-size: 1.1rem; margin-bottom: 0.5rem; }
-      .channel h3 code { background: #f3f4f6; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.95rem; }
-      .summary { color: #374151; margin-bottom: 0.25rem; }
-      .desc { color: #666; font-size: 0.875rem; margin-bottom: 0.75rem; }
-      .messages { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-      @media (max-width: 640px) { .messages { grid-template-columns: 1fr; } }
-      .msg-group h4 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; margin-bottom: 0.5rem; }
-      .msg-group ul { list-style: none; padding: 0; }
-      .msg-group li {
-        padding: 0.5rem 0; border-bottom: 1px solid #f3f4f6; font-size: 0.9rem;
-      }
-      .msg-group li:last-child { border-bottom: none; }
-      .msg-group code { background: #f3f4f6; padding: 0.15rem 0.4rem; border-radius: 3px; font-size: 0.85rem; }
-      .msg-group small { color: #888; }
-      .empty { text-align: center; color: #999; padding: 3rem 0; }
+      body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; margin: 0; }
     </style>
   </head>
   <body>
-    <div class="container">
-      <h1>${title}</h1>
-      <div class="version">AsyncAPI 3.0 &middot; v${escapeHtml(doc.info.version)}</div>
-      ${doc.info.description ? `<p class="subtitle">${escapeHtml(doc.info.description)}</p>` : ''}
-      <div class="toolbar">
-        <a href="${asyncapiUrl}" target="_blank">📄 Raw JSON</a>
-        <a href="https://studio.asyncapi.com/" target="_blank" rel="noopener">🔧 Open in AsyncAPI Studio</a>
-      </div>
-      ${channelsHtml || '<p class="empty">No channels defined.</p>'}
-    </div>
+    <div id="asyncapi"></div>
+    <script src="https://unpkg.com/@asyncapi/react-component@latest/browser/standalone/index.js"></script>
+    <script>
+      AsyncApiStandalone.render({
+        schema: {
+          url: '${urlJs}',
+          options: { method: 'GET', mode: 'cors' },
+        },
+        config: {
+          show: { sidebar: true },
+        },
+      }, document.getElementById('asyncapi'));
+    </script>
   </body>
 </html>
 `;

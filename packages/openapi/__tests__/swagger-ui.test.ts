@@ -180,104 +180,64 @@ describe('resolveDocsOption', () => {
   });
 });
 
-const sampleAsyncDoc = {
-  info: { title: 'Petstore', version: '1.0.0', description: 'Petstore WS API' },
-  channels: {
-    chatRoom: {
-      address: '/ws/rooms/{roomId}',
-      summary: 'Real-time chat',
-      description: 'Bidirectional chat for a room',
-      messages: {
-        sendMessage: { $ref: '#/components/messages/chatRoom.client.sendMessage' },
-        message: { $ref: '#/components/messages/chatRoom.server.message' },
-      },
-    },
-  },
-  operations: {
-    'chatRoom.client.sendMessage': {
-      action: 'receive' as const,
-      channel: { $ref: '#/channels/chatRoom' },
-      summary: 'Post a message',
-      messages: [{ $ref: '#/components/messages/chatRoom.client.sendMessage' }],
-    },
-    'chatRoom.server.message': {
-      action: 'send' as const,
-      channel: { $ref: '#/channels/chatRoom' },
-      summary: 'New message',
-      messages: [{ $ref: '#/components/messages/chatRoom.server.message' }],
-    },
-  },
-  components: {
-    messages: {
-      'chatRoom.client.sendMessage': {
-        name: 'sendMessage',
-        summary: 'Post a message',
-        description: 'Client sends a chat message',
-      },
-      'chatRoom.server.message': {
-        name: 'message',
-        summary: 'New message broadcast',
-      },
-    },
-  },
-};
-
 describe('generateAsyncAPIHtml', () => {
-  it('renders static HTML with no CDN script dependency', () => {
+  it('uses AsyncApiStandalone.render with the spec URL', () => {
     const html = generateAsyncAPIHtml({
       title: 'Petstore API',
       asyncapiUrl: '/api-docs/asyncapi.json',
-      doc: sampleAsyncDoc,
     });
-    // No CDN scripts — the page is fully self-contained
-    expect(html).not.toContain('unpkg.com');
+    // Uses the correct global — AsyncApiStandalone, NOT AsyncApiComponent
+    expect(html).toContain('AsyncApiStandalone.render');
     expect(html).not.toContain('AsyncApiComponent');
-    // The spec data is rendered inline as HTML
-    expect(html).toContain('/ws/rooms/{roomId}');
-    expect(html).toContain('Real-time chat');
-    expect(html).toContain('sendMessage');
-    expect(html).toContain('New message broadcast');
+    // Passes the spec URL so the component fetches it
+    expect(html).toContain("url: '/api-docs/asyncapi.json'");
+    // Loads the standalone bundle from unpkg
+    expect(html).toContain('unpkg.com/@asyncapi/react-component@latest/browser/standalone/index.js');
   });
 
-  it('includes the JSON link and AsyncAPI Studio link', () => {
+  it('loads Inter font from Google Fonts', () => {
     const html = generateAsyncAPIHtml({
-      title: 'Petstore API',
-      asyncapiUrl: '/api-docs/asyncapi.json',
-      doc: sampleAsyncDoc,
+      title: 'API',
+      asyncapiUrl: '/x',
     });
-    expect(html).toContain('href="/api-docs/asyncapi.json"');
-    expect(html).toContain('https://studio.asyncapi.com/');
+    expect(html).toContain('fonts.googleapis.com/css2?family=Inter');
+    expect(html).toContain("font-family: 'Inter'");
+  });
+
+  it('loads the AsyncAPI default stylesheet', () => {
+    const html = generateAsyncAPIHtml({
+      title: 'API',
+      asyncapiUrl: '/x',
+    });
+    expect(html).toContain('unpkg.com/@asyncapi/react-component@latest/styles/default.min.css');
   });
 
   it('includes the title and correct HTML structure', () => {
     const html = generateAsyncAPIHtml({
       title: 'My WS API',
       asyncapiUrl: '/docs/asyncapi.json',
-      doc: sampleAsyncDoc,
     });
     expect(html).toContain('<!doctype html>');
     expect(html).toContain('<title>My WS API — AsyncAPI docs</title>');
-    expect(html).toContain('AsyncAPI 3.0');
-  });
-
-  it('shows client and server message directions', () => {
-    const html = generateAsyncAPIHtml({
-      title: 'API',
-      asyncapiUrl: '/x',
-      doc: sampleAsyncDoc,
-    });
-    expect(html).toContain('Client');
-    expect(html).toContain('Server');
+    expect(html).toContain('id="asyncapi"');
   });
 
   it('escapes title to prevent injection', () => {
     const html = generateAsyncAPIHtml({
       title: '<img onerror=alert(1)>',
       asyncapiUrl: '/x',
-      doc: sampleAsyncDoc,
     });
     expect(html).not.toContain('<img onerror=alert(1)>');
     expect(html).toContain('&lt;img onerror=alert(1)&gt;');
+  });
+
+  it('escapes the spec URL to prevent JS injection', () => {
+    const html = generateAsyncAPIHtml({
+      title: 'API',
+      asyncapiUrl: "/x';alert(1);//",
+    });
+    expect(html).not.toContain("/x';alert(1);//'");
+    expect(html).toContain("url: '/x\\';alert(1);//'");
   });
 });
 

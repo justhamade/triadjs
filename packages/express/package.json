@@ -1,6 +1,6 @@
 {
   "name": "@triadjs/express",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@triadjs/asyncapi": "0.2.2",
-    "@triadjs/openapi": "0.2.7"
+    "@triadjs/openapi": "0.2.8"
   },
   "peerDependencies": {
     "@triadjs/core": "0.2.2",

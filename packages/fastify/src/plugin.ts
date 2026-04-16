@@ -261,7 +261,6 @@ export const triadPlugin: FastifyPluginAsync<TriadPluginOptions> = async (
         const asyncapiHtml = generateAsyncAPIHtml({
           title: resolvedDocs.title,
           asyncapiUrl: asyncapiJsonPath,
-          doc: asyncapiDoc,
         });
         const asyncapiJsonStr = asyncApiToJson(asyncapiDoc);
 
