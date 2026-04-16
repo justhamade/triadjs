@@ -39,9 +39,12 @@ import { Router as TriadRouter, hasFileFields } from '@triadjs/core';
 import {
   generateOpenAPI,
   generateSwaggerUIHtml,
+  generateAsyncAPIHtml,
+  generateDocsLandingHtml,
   resolveDocsOption,
   type DocsOption,
 } from '@triadjs/openapi';
+import { generateAsyncAPI, toJson as asyncApiToJson } from '@triadjs/asyncapi';
 
 import {
   createRouteHandler,
@@ -126,42 +129,76 @@ export function createTriadRouter(
     }
   }
 
-  // Swagger UI + live OpenAPI JSON. Registered AFTER endpoints so a
-  // colliding user endpoint at the same path is matched first (Express
-  // router order is first-match-wins).
+  // API docs: Swagger UI + OpenAPI JSON + (if channels exist) AsyncAPI
+  // JSON + AsyncAPI viewer + a landing page linking both.
   const resolvedDocs = resolveDocsOption(options.docs, router);
   if (resolvedDocs) {
-    // Detect collisions up-front: Express doesn't throw on duplicate
-    // routes, it just silently ignores the later registration. Fail
-    // loudly with a pointer to the `docs.path` option so users can fix
-    // it instead of staring at a 404.
-    const openapiPath = joinDocsPath(resolvedDocs.path, '/openapi.json');
+    const hasChannels = router.allChannels().length > 0;
+    const openapiJsonPath = joinDocsPath(resolvedDocs.path, '/openapi.json');
+    const swaggerPath = hasChannels
+      ? joinDocsPath(resolvedDocs.path, '/http')
+      : resolvedDocs.path;
+
+    // Collision check: Express silently ignores duplicate routes, so
+    // check before registering and throw a clear error.
+    const docsPaths = [openapiJsonPath, swaggerPath, resolvedDocs.path];
+    if (hasChannels) {
+      docsPaths.push(
+        joinDocsPath(resolvedDocs.path, '/asyncapi.json'),
+        joinDocsPath(resolvedDocs.path, '/ws'),
+      );
+    }
     const collision = router.allEndpoints().find(
-      (e) =>
-        e.method === 'GET' &&
-        (e.path === resolvedDocs.path || e.path === openapiPath),
+      (e) => e.method === 'GET' && docsPaths.includes(e.path),
     );
     if (collision) {
       throw new Error(
         `@triadjs/express: the router already has a GET ${collision.path} endpoint, ` +
-          `which collides with the Swagger UI docs path "${resolvedDocs.path}". ` +
+          `which collides with the API docs path "${resolvedDocs.path}". ` +
           `Move the docs to a different path via \`docs: { path: '/docs' }\`, ` +
           `or disable docs with \`docs: false\`.`,
       );
     }
 
-    const doc = generateOpenAPI(router);
-    const html = generateSwaggerUIHtml({
+    const openapiDoc = generateOpenAPI(router);
+    const swaggerHtml = generateSwaggerUIHtml({
       title: resolvedDocs.title,
-      openapiUrl: openapiPath,
+      openapiUrl: openapiJsonPath,
       swaggerUIVersion: resolvedDocs.swaggerUIVersion,
     });
-    expressRouter.get(openapiPath, (_req, res) => {
-      res.type('application/json').send(doc);
+
+    expressRouter.get(openapiJsonPath, (_req, res) => {
+      res.type('application/json').send(openapiDoc);
     });
-    expressRouter.get(resolvedDocs.path, (_req, res) => {
-      res.type('text/html; charset=utf-8').send(html);
+    expressRouter.get(swaggerPath, (_req, res) => {
+      res.type('text/html; charset=utf-8').send(swaggerHtml);
     });
+
+    if (hasChannels) {
+      const asyncapiDoc = generateAsyncAPI(router);
+      const asyncapiJsonPath = joinDocsPath(resolvedDocs.path, '/asyncapi.json');
+      const asyncapiViewerPath = joinDocsPath(resolvedDocs.path, '/ws');
+      const asyncapiJsonStr = asyncApiToJson(asyncapiDoc);
+      const asyncapiHtml = generateAsyncAPIHtml({
+        title: resolvedDocs.title,
+        asyncapiUrl: asyncapiJsonPath,
+      });
+      expressRouter.get(asyncapiJsonPath, (_req, res) => {
+        res.type('application/json').send(asyncapiJsonStr);
+      });
+      expressRouter.get(asyncapiViewerPath, (_req, res) => {
+        res.type('text/html; charset=utf-8').send(asyncapiHtml);
+      });
+
+      const landingHtml = generateDocsLandingHtml({
+        title: resolvedDocs.title,
+        openapiPath: swaggerPath,
+        asyncapiPath: asyncapiViewerPath,
+      });
+      expressRouter.get(resolvedDocs.path, (_req, res) => {
+        res.type('text/html; charset=utf-8').send(landingHtml);
+      });
+    }
   }
 
   return expressRouter;

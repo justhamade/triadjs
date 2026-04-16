@@ -22,6 +22,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@triadjs/asyncapi": "0.2.2",
     "@triadjs/openapi": "0.2.2"
   },
   "peerDependencies": {

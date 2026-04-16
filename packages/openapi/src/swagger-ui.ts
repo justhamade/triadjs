@@ -180,6 +180,121 @@ export function generateSwaggerUIHtml(options: SwaggerUIHtmlOptions): string {
 }
 
 // ---------------------------------------------------------------------------
+// AsyncAPI Studio HTML
+// ---------------------------------------------------------------------------
+
+export interface AsyncAPIHtmlOptions {
+  /** Title shown in `<title>`. */
+  title: string;
+  /** URL the component loads its spec from. */
+  asyncapiUrl: string;
+}
+
+/**
+ * Generate an HTML page that renders AsyncAPI documentation using the
+ * official `@asyncapi/react-component` web component via CDN. Same
+ * zero-install approach as the Swagger UI page — no npm package needed.
+ */
+export function generateAsyncAPIHtml(options: AsyncAPIHtmlOptions): string {
+  const title = escapeHtml(options.title);
+  const urlJs = escapeJsString(options.asyncapiUrl);
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${title} — AsyncAPI docs</title>
+    <link rel="stylesheet" href="https://unpkg.com/@asyncapi/react-component@2/styles/default.min.css">
+    <style>
+      body { margin: 0; background: #fafafa; font-family: system-ui, sans-serif; }
+      #asyncapi { max-width: 1460px; margin: 0 auto; padding: 2rem; }
+    </style>
+  </head>
+  <body>
+    <div id="asyncapi"></div>
+    <script src="https://unpkg.com/@asyncapi/react-component@2/browser/standalone/index.js" crossorigin></script>
+    <script>
+      fetch('${urlJs}')
+        .then(function (r) { return r.text(); })
+        .then(function (schema) {
+          AsyncApiComponent.render(
+            { schema: schema, config: { show: { sidebar: true } } },
+            document.getElementById('asyncapi')
+          );
+        });
+    </script>
+  </body>
+</html>
+`;
+}
+
+// ---------------------------------------------------------------------------
+// Docs landing page (when both OpenAPI and AsyncAPI are present)
+// ---------------------------------------------------------------------------
+
+export interface DocsLandingHtmlOptions {
+  title: string;
+  openapiPath: string;
+  asyncapiPath: string;
+}
+
+/**
+ * A minimal landing page that links to both Swagger UI (HTTP) and the
+ * AsyncAPI viewer (WebSocket). Only generated when the router has both
+ * endpoints and channels; when only HTTP endpoints exist, the adapter
+ * serves Swagger UI directly at `docs.path`.
+ */
+export function generateDocsLandingHtml(options: DocsLandingHtmlOptions): string {
+  const title = escapeHtml(options.title);
+  const openapi = escapeHtml(options.openapiPath);
+  const asyncapi = escapeHtml(options.asyncapiPath);
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${title} — API docs</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; }
+      body { font-family: system-ui, -apple-system, sans-serif; background: #fafafa; color: #333; }
+      .container { max-width: 720px; margin: 80px auto; padding: 0 24px; }
+      h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+      p { color: #666; margin-bottom: 2rem; }
+      .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+      .card {
+        display: block; padding: 2rem; background: #fff; border: 1px solid #e5e7eb;
+        border-radius: 12px; text-decoration: none; color: inherit;
+        transition: box-shadow 0.15s, border-color 0.15s;
+      }
+      .card:hover { border-color: #3b82f6; box-shadow: 0 4px 12px rgba(59,130,246,0.15); }
+      .card h2 { font-size: 1.1rem; margin-bottom: 0.5rem; }
+      .card span { font-size: 0.875rem; color: #666; }
+      @media (max-width: 520px) { .cards { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>${title}</h1>
+      <p>Choose a protocol to explore the API documentation.</p>
+      <div class="cards">
+        <a class="card" href="${openapi}">
+          <h2>HTTP API</h2>
+          <span>OpenAPI 3.1 &middot; Swagger UI</span>
+        </a>
+        <a class="card" href="${asyncapi}">
+          <h2>WebSocket API</h2>
+          <span>AsyncAPI 3.0 &middot; Channels</span>
+        </a>
+      </div>
+    </div>
+  </body>
+</html>
+`;
+}
+
+// ---------------------------------------------------------------------------
 // Escaping helpers
 // ---------------------------------------------------------------------------
 

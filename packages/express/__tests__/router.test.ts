@@ -778,7 +778,7 @@ describe('createTriadRouter — docs (Swagger UI)', () => {
       }),
     );
     expect(() => createTriadRouter(triad, { docs: true })).toThrow(
-      /collides with the Swagger UI docs path/,
+      /collides with the API docs path/,
     );
   });
 });

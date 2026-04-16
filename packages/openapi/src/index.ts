@@ -33,10 +33,14 @@ export { toYaml, toJson } from './serialize.js';
 
 export {
   generateSwaggerUIHtml,
+  generateAsyncAPIHtml,
+  generateDocsLandingHtml,
   resolveDocsOption,
   escapeHtml,
   escapeJsString,
   type DocsOption,
   type ResolvedDocsConfig,
   type SwaggerUIHtmlOptions,
+  type AsyncAPIHtmlOptions,
+  type DocsLandingHtmlOptions,
 } from './swagger-ui.js';

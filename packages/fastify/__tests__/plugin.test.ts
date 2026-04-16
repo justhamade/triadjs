@@ -909,7 +909,7 @@ describe('triadPlugin — docs (Swagger UI)', () => {
     const app = Fastify();
     await expect(
       app.register(triadPlugin, { router, docs: true }),
-    ).rejects.toThrow(/failed to register Swagger UI routes/);
+    ).rejects.toThrow(/failed to register API docs routes/);
     await app.close();
   });
 });

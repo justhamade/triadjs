@@ -37,9 +37,12 @@ import { Router, hasFileFields } from '@triadjs/core';
 import {
   generateOpenAPI,
   generateSwaggerUIHtml,
+  generateAsyncAPIHtml,
+  generateDocsLandingHtml,
   resolveDocsOption,
   type DocsOption,
 } from '@triadjs/openapi';
+import { generateAsyncAPI, toJson as asyncApiToJson } from '@triadjs/asyncapi';
 import {
   createRouteHandler,
   type ServicesResolver,
@@ -212,42 +215,90 @@ export const triadPlugin: FastifyPluginAsync<TriadPluginOptions> = async (
     });
   }
 
-  // Swagger UI + live OpenAPI JSON. Registered AFTER endpoints so a
-  // user endpoint at the same path wins on collision (it will already
-  // have been registered above, and Fastify will throw a duplicate-
-  // route error below — we catch it and rethrow with a pointer to the
-  // `docs.path` option).
+  // API docs: Swagger UI + OpenAPI JSON + (if channels exist) AsyncAPI
+  // JSON + AsyncAPI viewer + a landing page linking both.
+  // Registered AFTER endpoints so a user endpoint at the same path
+  // wins on collision (it will already have been registered above, and
+  // Fastify will throw a duplicate-route error below — we catch it and
+  // rethrow with a pointer to the `docs.path` option).
   const resolvedDocs = resolveDocsOption(options.docs, router);
   if (resolvedDocs) {
-    const doc = generateOpenAPI(router);
-    const openapiPath = joinDocsPath(resolvedDocs.path, '/openapi.json');
-    const html = generateSwaggerUIHtml({
+    const hasChannels = router.allChannels().length > 0;
+
+    // --- OpenAPI ---
+    const openapiDoc = generateOpenAPI(router);
+    const openapiJsonPath = joinDocsPath(resolvedDocs.path, '/openapi.json');
+    const swaggerPath = hasChannels
+      ? joinDocsPath(resolvedDocs.path, '/http')
+      : resolvedDocs.path;
+    const swaggerHtml = generateSwaggerUIHtml({
       title: resolvedDocs.title,
-      openapiUrl: openapiPath,
+      openapiUrl: openapiJsonPath,
       swaggerUIVersion: resolvedDocs.swaggerUIVersion,
     });
 
     try {
       fastify.route({
         method: 'GET',
-        url: openapiPath,
+        url: openapiJsonPath,
         handler: async (_request, reply) => {
-          reply.type('application/json').send(doc);
+          reply.type('application/json').send(openapiDoc);
         },
       });
       fastify.route({
         method: 'GET',
-        url: resolvedDocs.path,
+        url: swaggerPath,
         handler: async (_request, reply) => {
-          reply.type('text/html; charset=utf-8').send(html);
+          reply.type('text/html; charset=utf-8').send(swaggerHtml);
         },
       });
+
+      // --- AsyncAPI (only when channels exist) ---
+      if (hasChannels) {
+        const asyncapiDoc = generateAsyncAPI(router);
+        const asyncapiJsonPath = joinDocsPath(resolvedDocs.path, '/asyncapi.json');
+        const asyncapiViewerPath = joinDocsPath(resolvedDocs.path, '/ws');
+        const asyncapiHtml = generateAsyncAPIHtml({
+          title: resolvedDocs.title,
+          asyncapiUrl: asyncapiJsonPath,
+        });
+        const asyncapiJsonStr = asyncApiToJson(asyncapiDoc);
+
+        fastify.route({
+          method: 'GET',
+          url: asyncapiJsonPath,
+          handler: async (_request, reply) => {
+            reply.type('application/json').send(asyncapiJsonStr);
+          },
+        });
+        fastify.route({
+          method: 'GET',
+          url: asyncapiViewerPath,
+          handler: async (_request, reply) => {
+            reply.type('text/html; charset=utf-8').send(asyncapiHtml);
+          },
+        });
+
+        // Landing page at the docs root that links to both
+        const landingHtml = generateDocsLandingHtml({
+          title: resolvedDocs.title,
+          openapiPath: swaggerPath,
+          asyncapiPath: asyncapiViewerPath,
+        });
+        fastify.route({
+          method: 'GET',
+          url: resolvedDocs.path,
+          handler: async (_request, reply) => {
+            reply.type('text/html; charset=utf-8').send(landingHtml);
+          },
+        });
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       throw new Error(
-        `@triadjs/fastify: failed to register Swagger UI routes at "${resolvedDocs.path}". ` +
-          `This usually means the router already has an endpoint at "${resolvedDocs.path}" ` +
-          `or "${openapiPath}". Either remove the colliding endpoint, move the docs to a ` +
+        `@triadjs/fastify: failed to register API docs routes at "${resolvedDocs.path}". ` +
+          `This usually means the router already has an endpoint that collides with one of ` +
+          `the docs paths. Either remove the colliding endpoint, move the docs to a ` +
           `different path via \`docs: { path: '/docs' }\`, or disable docs with \`docs: false\`. ` +
           `Original error: ${message}`,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

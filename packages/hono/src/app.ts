@@ -44,9 +44,12 @@ import { Router as TriadRouter } from '@triadjs/core';
 import {
   generateOpenAPI,
   generateSwaggerUIHtml,
+  generateAsyncAPIHtml,
+  generateDocsLandingHtml,
   resolveDocsOption,
   type DocsOption,
 } from '@triadjs/openapi';
+import { generateAsyncAPI, toJson as asyncApiToJson } from '@triadjs/asyncapi';
 
 import {
   createRouteHandler,
@@ -120,33 +123,63 @@ export function createTriadApp(
     app[method](endpoint.path, handler);
   }
 
-  // Swagger UI + live OpenAPI JSON. Registered AFTER endpoints so a
-  // colliding user endpoint at the same path is matched first (Hono
-  // is first-match-wins within a route method).
+  // API docs: Swagger UI + OpenAPI JSON + (if channels exist) AsyncAPI
+  // JSON + AsyncAPI viewer + landing page.
   const resolvedDocs = resolveDocsOption(options.docs, router);
   if (resolvedDocs) {
-    const openapiPath = joinDocsPath(resolvedDocs.path, '/openapi.json');
+    const hasChannels = router.allChannels().length > 0;
+    const openapiJsonPath = joinDocsPath(resolvedDocs.path, '/openapi.json');
+    const swaggerPath = hasChannels
+      ? joinDocsPath(resolvedDocs.path, '/http')
+      : resolvedDocs.path;
+
+    const docsPaths = [openapiJsonPath, swaggerPath, resolvedDocs.path];
+    if (hasChannels) {
+      docsPaths.push(
+        joinDocsPath(resolvedDocs.path, '/asyncapi.json'),
+        joinDocsPath(resolvedDocs.path, '/ws'),
+      );
+    }
     const collision = router.allEndpoints().find(
-      (e) =>
-        e.method === 'GET' &&
-        (e.path === resolvedDocs.path || e.path === openapiPath),
+      (e) => e.method === 'GET' && docsPaths.includes(e.path),
     );
     if (collision) {
       throw new Error(
         `@triadjs/hono: the router already has a GET ${collision.path} endpoint, ` +
-          `which collides with the Swagger UI docs path "${resolvedDocs.path}". ` +
+          `which collides with the API docs path "${resolvedDocs.path}". ` +
           `Move the docs to a different path via \`docs: { path: '/docs' }\`, ` +
           `or disable docs with \`docs: false\`.`,
       );
     }
-    const doc = generateOpenAPI(router);
-    const html = generateSwaggerUIHtml({
+
+    const openapiDoc = generateOpenAPI(router);
+    const swaggerHtml = generateSwaggerUIHtml({
       title: resolvedDocs.title,
-      openapiUrl: openapiPath,
+      openapiUrl: openapiJsonPath,
       swaggerUIVersion: resolvedDocs.swaggerUIVersion,
     });
-    app.get(openapiPath, (c) => c.json(doc));
-    app.get(resolvedDocs.path, (c) => c.html(html));
+    app.get(openapiJsonPath, (c) => c.json(openapiDoc));
+    app.get(swaggerPath, (c) => c.html(swaggerHtml));
+
+    if (hasChannels) {
+      const asyncapiDoc = generateAsyncAPI(router);
+      const asyncapiJsonPath = joinDocsPath(resolvedDocs.path, '/asyncapi.json');
+      const asyncapiViewerPath = joinDocsPath(resolvedDocs.path, '/ws');
+      const asyncapiJsonStr = asyncApiToJson(asyncapiDoc);
+      const asyncapiHtml = generateAsyncAPIHtml({
+        title: resolvedDocs.title,
+        asyncapiUrl: asyncapiJsonPath,
+      });
+      app.get(asyncapiJsonPath, (c) => c.json(JSON.parse(asyncapiJsonStr)));
+      app.get(asyncapiViewerPath, (c) => c.html(asyncapiHtml));
+
+      const landingHtml = generateDocsLandingHtml({
+        title: resolvedDocs.title,
+        openapiPath: swaggerPath,
+        asyncapiPath: asyncapiViewerPath,
+      });
+      app.get(resolvedDocs.path, (c) => c.html(landingHtml));
+    }
   }
 
   return app;

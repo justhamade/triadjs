@@ -848,7 +848,7 @@ describe('createTriadApp — docs (Swagger UI)', () => {
       }),
     );
     expect(() => createTriadApp(triad, { docs: true })).toThrow(
-      /collides with the Swagger UI docs path/,
+      /collides with the API docs path/,
     );
   });
 });
