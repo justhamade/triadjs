@@ -1,6 +1,6 @@
 {
   "name": "@triadjs/fastify",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -23,8 +23,8 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@triadjs/asyncapi": "0.2.2",
-    "@triadjs/openapi": "0.2.8"
+    "@triadjs/asyncapi": "0.2.4",
+    "@triadjs/openapi": "0.2.9"
   },
   "peerDependencies": {
     "@fastify/multipart": "^9.0.0 || ^8.0.0",
